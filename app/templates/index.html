@@ -1,130 +1,226 @@
-<script>
-    // Pass team data from Flask to JavaScript
-    window.teamData = {{ teams|tojson }};
-    window.dataStatus = {{ status|tojson }};
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLB ERA vs OPS Visualization</title>
     
-    // MLB color theme
-    const MLB_COLORS = {
-        blue: "#002D72",
-        red: "#E31937"
-    };
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0/dist/chartjs-plugin-annotation.min.js"></script>
     
-    // Utility function to show toast notifications with MLB colors
-    function showToast(message, type = "info") {
-        console.log("Showing toast:", message, type);
-        const bgColors = {
-            success: `linear-gradient(to right, ${MLB_COLORS.blue}, #4682B4)`,
-            error: `linear-gradient(to right, ${MLB_COLORS.red}, #FF6347)`,
-            warning: "linear-gradient(to right, #f6d365, #fda085)",
-            info: `linear-gradient(to right, ${MLB_COLORS.blue}, #4FC3F7)`,
-            update: `linear-gradient(to right, ${MLB_COLORS.red}, ${MLB_COLORS.blue})`
-        };
-        
-        // Check if Toastify is loaded
-        if (typeof Toastify !== 'function') {
-            console.error("Toastify is not loaded!");
-            return;
+    <!-- Toastify for notifications -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
         }
         
-        Toastify({
-            text: message,
-            duration: 3000,
-            close: true,
-            gravity: "top",
-            position: "right",
-            style: {
-                background: bgColors[type] || bgColors.info
-            }
-        }).showToast();
-    }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: var(--mlb-blue);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 70vh;
+            width: 100%;
+            margin-bottom: 30px;
+        }
+        
+        .quadrant-label {
+            position: absolute;
+            z-index: 10;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #666;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MLB Team Performance: ERA vs OPS</h1>
+        
+        <div class="chart-container">
+            <canvas id="mlbChart"></canvas>
+            
+            <!-- Quadrant labels -->
+            <div id="top-left" class="quadrant-label">Good Pitching<br>Bad Hitting</div>
+            <div id="top-right" class="quadrant-label">Good Pitching<br>Good Hitting</div>
+            <div id="bottom-left" class="quadrant-label">Bad Pitching<br>Bad Hitting</div>
+            <div id="bottom-right" class="quadrant-label">Bad Pitching<br>Good Hitting</div>
+        </div>
+        
+        <div class="description">
+            <p>This chart places MLB teams in performance quadrants based on their ERA (Earned Run Average) and OPS (On-base Plus Slugging):</p>
+            <ul>
+                <li><strong>Good Pitching, Good Hitting</strong>: Teams with low ERA and high OPS (top right)</li>
+                <li><strong>Good Pitching, Bad Hitting</strong>: Teams with low ERA but lower OPS (top left)</li>
+                <li><strong>Bad Pitching, Good Hitting</strong>: Teams with high ERA but good OPS (bottom right)</li>
+                <li><strong>Bad Pitching, Bad Hitting</strong>: Teams struggling in both areas (bottom left)</li>
+            </ul>
+            <p>Lower ERA values are better for pitching. Higher OPS values are better for hitting.</p>
+        </div>
+        
+        <footer>
+            <p>Data source: MLB Stats API | Updated: <span id="lastUpdated">{{ status.last_updated|default('Loading...') }}</span></p>
+        </footer>
+    </div>
     
-    // Function to position quadrant labels
-    function positionQuadrantLabels() {
-        console.log("Positioning quadrant labels");
-        const chart = document.getElementById('mlbChart');
-        const container = chart.parentElement;
-        const chartRect = chart.getBoundingClientRect();
+    <!-- Pass team data from Flask to JavaScript -->
+    <script>
+        // Pass team data from Flask to JavaScript
+        window.teamData = {{ teams|tojson }};
+        window.dataStatus = {{ status|tojson }};
         
-        // Get chart dimensions
-        const chartWidth = chartRect.width;
-        const chartHeight = chartRect.height;
-        
-        // Position labels
-        const labels = {
-            'top-left': { x: 0.25, y: 0.25 },
-            'top-right': { x: 0.75, y: 0.25 },
-            'bottom-left': { x: 0.25, y: 0.75 },
-            'bottom-right': { x: 0.75, y: 0.75 }
+        // MLB color theme
+        const MLB_COLORS = {
+            blue: "#002D72",
+            red: "#E31937"
         };
         
-        for (const [id, pos] of Object.entries(labels)) {
-            const label = document.getElementById(id);
-            if (label) {
-                label.style.left = (chartWidth * pos.x) + 'px';
-                label.style.top = (chartHeight * pos.y) + 'px';
-            } else {
-                console.error(`Label with id ${id} not found`);
+        // Utility function to show toast notifications with MLB colors
+        function showToast(message, type = "info") {
+            console.log("Showing toast:", message, type);
+            const bgColors = {
+                success: `linear-gradient(to right, ${MLB_COLORS.blue}, #4682B4)`,
+                error: `linear-gradient(to right, ${MLB_COLORS.red}, #FF6347)`,
+                warning: "linear-gradient(to right, #f6d365, #fda085)",
+                info: `linear-gradient(to right, ${MLB_COLORS.blue}, #4FC3F7)`,
+                update: `linear-gradient(to right, ${MLB_COLORS.red}, ${MLB_COLORS.blue})`
+            };
+            
+            // Check if Toastify is loaded
+            if (typeof Toastify !== 'function') {
+                console.error("Toastify is not loaded!");
+                return;
             }
-        }
-    }
-    
-    // Function to check for updates
-    function checkForUpdates() {
-        fetch('/api/update-status')
-            .then(response => response.json())
-            .then(status => {
-                // Only show update notifications if an update is in progress
-                if (status.in_progress) {
-                    const progressMessage = `Updating team data: ${status.teams_updated}/${status.total_teams}`;
-                    showToast(progressMessage, "update");
-                    
-                    // If update is still in progress, check again in 2 seconds
-                    setTimeout(checkForUpdates, 2000);
-                } else if (status.last_updated && !window.lastUpdateChecked) {
-                    // Update completed since we started checking
-                    window.lastUpdateChecked = status.last_updated;
-                    showToast("Data update complete! Refresh the page to see the latest data.", "success");
+            
+            Toastify({
+                text: message,
+                duration: 3000,
+                close: true,
+                gravity: "top",
+                position: "right",
+                style: {
+                    background: bgColors[type] || bgColors.info
                 }
-            })
-            .catch(error => {
-                console.error("Error checking update status:", error);
-            });
-    }
-    
-    // Event listener for page load
-    window.addEventListener('DOMContentLoaded', function() {
-        console.log("DOM content loaded");
+            }).showToast();
+        }
         
-        // Display appropriate toast based on data status
-        if (window.dataStatus.from_cache) {
-            if (window.dataStatus.is_fresh) {
-                showToast("Using fresh cached data", "success");
-            } else {
-                showToast("Using cached data - updating in background", "info");
+        // Function to position quadrant labels
+        function positionQuadrantLabels() {
+            console.log("Positioning quadrant labels");
+            const chart = document.getElementById('mlbChart');
+            const container = chart.parentElement;
+            const chartRect = chart.getBoundingClientRect();
+            
+            // Get chart dimensions
+            const chartWidth = chartRect.width;
+            const chartHeight = chartRect.height;
+            
+            // Position labels
+            const labels = {
+                'top-left': { x: 0.25, y: 0.25 },
+                'top-right': { x: 0.75, y: 0.25 },
+                'bottom-left': { x: 0.25, y: 0.75 },
+                'bottom-right': { x: 0.75, y: 0.75 }
+            };
+            
+            for (const [id, pos] of Object.entries(labels)) {
+                const label = document.getElementById(id);
+                if (label) {
+                    label.style.left = (chartWidth * pos.x) + 'px';
+                    label.style.top = (chartHeight * pos.y) + 'px';
+                } else {
+                    console.error(`Label with id ${id} not found`);
+                }
             }
         }
         
-        // Check for updates if they're in progress
-        if (window.dataStatus.update_in_progress) {
-            showToast("Starting data update...", "update");
-            // Start checking for updates
-            setTimeout(checkForUpdates, 1000);
+        // Function to check for updates
+        function checkForUpdates() {
+            fetch('/api/update-status')
+                .then(response => response.json())
+                .then(status => {
+                    // Only show update notifications if an update is in progress
+                    if (status.in_progress) {
+                        const progressMessage = `Updating team data: ${status.teams_updated}/${status.total_teams}`;
+                        showToast(progressMessage, "update");
+                        
+                        // If update is still in progress, check again in 2 seconds
+                        setTimeout(checkForUpdates, 2000);
+                    } else if (status.last_updated && !window.lastUpdateChecked) {
+                        // Update completed since we started checking
+                        window.lastUpdateChecked = status.last_updated;
+                        showToast("Data update complete! Refresh the page to see the latest data.", "success");
+                        
+                        // Update the last updated timestamp
+                        const lastUpdatedElement = document.getElementById('lastUpdated');
+                        if (lastUpdatedElement) {
+                            lastUpdatedElement.textContent = status.last_updated;
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error("Error checking update status:", error);
+                });
         }
-        
-        // Add event listener to apply CSS classes to ensure proper logo sizing
-        setTimeout(function() {
-            // Find all image elements in the chart
-            const chartImages = document.querySelectorAll('canvas + div img');
-            console.log("Found chart images:", chartImages.length);
-            chartImages.forEach(img => {
-                img.classList.add('logo-image');
-            });
+    </script>
+    
+    <!-- Chart initialization -->
+    <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
+    
+    <!-- Event listeners -->
+    <script>
+        // Event listener for page load
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log("DOM content loaded");
+            
+            // Display appropriate toast based on data status
+            if (window.dataStatus.from_cache) {
+                if (window.dataStatus.is_fresh) {
+                    showToast("Using fresh cached data", "success");
+                } else {
+                    showToast("Using cached data - updating in background", "info");
+                }
+            }
+            
+            // Check for updates if they're in progress
+            if (window.dataStatus.update_in_progress) {
+                showToast("Starting data update...", "update");
+                // Start checking for updates
+                setTimeout(checkForUpdates, 1000);
+            }
             
             // Position the quadrant labels after chart is rendered
-            positionQuadrantLabels();
-        }, 1000);
-    });
-    
-    // Reposition labels on window resize
-    window.addEventListener('resize', positionQuadrantLabels);
-</script>
+            setTimeout(positionQuadrantLabels, 1000);
+            
+            // Reposition labels on window resize
+            window.addEventListener('resize', positionQuadrantLabels);
+        });
+    </script>
+</body>
+</html>

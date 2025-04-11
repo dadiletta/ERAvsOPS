@@ -21,7 +21,7 @@ const CONFIG = {
 
 document.addEventListener('DOMContentLoaded', function() {
     // Check if Toastify is loaded
-    console.log("Toastify loaded:", typeof Toastify);
+    console.log("Chart.js script loaded");
     
     // Get team data passed from Flask (will be set in the template)
     const teamData = window.teamData || [];
@@ -193,7 +193,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Position the quadrant labels after chart is rendered
-    // Increase timeout to ensure chart is fully rendered
     setTimeout(positionQuadrantLabels, 1000);
     
     // Update the toast message when data is loaded
@@ -203,3 +202,33 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error("showToast function not available");
     }
 });
+
+// Function to position quadrant labels (defined globally so it can be called from HTML too)
+function positionQuadrantLabels() {
+    console.log("Positioning quadrant labels");
+    const chart = document.getElementById('mlbChart');
+    const container = chart.parentElement;
+    const chartRect = chart.getBoundingClientRect();
+    
+    // Get chart dimensions
+    const chartWidth = chartRect.width;
+    const chartHeight = chartRect.height;
+    
+    // Position labels
+    const labels = {
+        'top-left': { x: 0.25, y: 0.25 },
+        'top-right': { x: 0.75, y: 0.25 },
+        'bottom-left': { x: 0.25, y: 0.75 },
+        'bottom-right': { x: 0.75, y: 0.75 }
+    };
+    
+    for (const [id, pos] of Object.entries(labels)) {
+        const label = document.getElementById(id);
+        if (label) {
+            label.style.left = (chartWidth * pos.x) + 'px';
+            label.style.top = (chartHeight * pos.y) + 'px';
+        } else {
+            console.error(`Label with id ${id} not found`);
+        }
+    }
+}
