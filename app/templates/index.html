@@ -37,38 +37,21 @@
         // Pass team data from Flask to JavaScript
         window.teamData = {{ teams|tojson }};
         
-        // Check if data is from cache or fresh
-        window.addEventListener('DOMContentLoaded', function() {
-            // This should be passed from Flask
-            const isFromCache = {{ from_cache|default('false') }};
-            
-            if (isFromCache) {
-                showToast("Using cached data", "info");
-            } else {
-                showToast("Data successfully updated", "success");
-            }
-            
-            // Add event listener to apply CSS classes to ensure proper logo sizing
-            setTimeout(function() {
-                // Find all image elements in the chart
-                const chartImages = document.querySelectorAll('canvas + div img');
-                chartImages.forEach(img => {
-                    img.classList.add('logo-image');
-                });
-                
-                // Position the quadrant labels after chart is rendered
-                positionQuadrantLabels();
-            }, 500);
-        });
-        
         // Utility function to show toast notifications
         function showToast(message, type = "info") {
+            console.log("Showing toast:", message, type);
             const bgColors = {
                 success: "linear-gradient(to right, #00b09b, #96c93d)",
                 error: "linear-gradient(to right, #ff5f6d, #ffc371)",
                 warning: "linear-gradient(to right, #f6d365, #fda085)",
                 info: "linear-gradient(to right, #2196F3, #4FC3F7)"
             };
+            
+            // Check if Toastify is loaded
+            if (typeof Toastify !== 'function') {
+                console.error("Toastify is not loaded!");
+                return;
+            }
             
             Toastify({
                 text: message,
@@ -84,28 +67,61 @@
         
         // Function to position quadrant labels
         function positionQuadrantLabels() {
+            console.log("Positioning quadrant labels");
             const chart = document.getElementById('mlbChart');
             const container = chart.parentElement;
             const chartRect = chart.getBoundingClientRect();
-            const containerRect = container.getBoundingClientRect();
             
             // Get chart dimensions
             const chartWidth = chartRect.width;
             const chartHeight = chartRect.height;
             
             // Position labels
-            document.getElementById('top-left').style.left = (chartWidth * 0.25) + 'px';
-            document.getElementById('top-left').style.top = (chartHeight * 0.25) + 'px';
+            const labels = {
+                'top-left': { x: 0.25, y: 0.25 },
+                'top-right': { x: 0.75, y: 0.25 },
+                'bottom-left': { x: 0.25, y: 0.75 },
+                'bottom-right': { x: 0.75, y: 0.75 }
+            };
             
-            document.getElementById('top-right').style.left = (chartWidth * 0.75) + 'px';
-            document.getElementById('top-right').style.top = (chartHeight * 0.25) + 'px';
-            
-            document.getElementById('bottom-left').style.left = (chartWidth * 0.25) + 'px';
-            document.getElementById('bottom-left').style.top = (chartHeight * 0.75) + 'px';
-            
-            document.getElementById('bottom-right').style.left = (chartWidth * 0.75) + 'px';
-            document.getElementById('bottom-right').style.top = (chartHeight * 0.75) + 'px';
+            for (const [id, pos] of Object.entries(labels)) {
+                const label = document.getElementById(id);
+                if (label) {
+                    label.style.left = (chartWidth * pos.x) + 'px';
+                    label.style.top = (chartHeight * pos.y) + 'px';
+                } else {
+                    console.error(`Label with id ${id} not found`);
+                }
+            }
         }
+        
+        // Check if data is from cache or fresh
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log("DOM content loaded");
+            
+            // This should be passed from Flask
+            const isFromCache = {{ from_cache|default('false') }};
+            console.log("Is from cache:", isFromCache);
+            
+            if (isFromCache) {
+                showToast("Using cached data", "info");
+            } else {
+                showToast("Data successfully updated", "success");
+            }
+            
+            // Add event listener to apply CSS classes to ensure proper logo sizing
+            setTimeout(function() {
+                // Find all image elements in the chart
+                const chartImages = document.querySelectorAll('canvas + div img');
+                console.log("Found chart images:", chartImages.length);
+                chartImages.forEach(img => {
+                    img.classList.add('logo-image');
+                });
+                
+                // Position the quadrant labels after chart is rendered
+                positionQuadrantLabels();
+            }, 1000); // Increased timeout to 1000ms
+        });
         
         // Reposition labels on window resize
         window.addEventListener('resize', positionQuadrantLabels);

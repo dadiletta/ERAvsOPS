@@ -67,4 +67,7 @@ def get_team_data():
 def index():
     """Main route to display the chart"""
     teams, from_cache = get_team_data()
-    return render_template('index.html', teams=teams, from_cache=from_cache)
+    # Convert Python boolean to JavaScript string representation
+    from_cache_js = str(from_cache).lower()
+    current_app.logger.info(f"Using cached data: {from_cache_js}")
+    return render_template('index.html', teams=teams, from_cache=from_cache_js)

@@ -16,6 +16,9 @@ const CONFIG = {
 };
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Check if Toastify is loaded
+    console.log("Toastify loaded:", typeof Toastify);
+    
     // Get team data passed from Flask (will be set in the template)
     const teamData = window.teamData || [];
     const ctx = document.getElementById('mlbChart').getContext('2d');
@@ -98,8 +101,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             weight: 'bold'
                         }
                     },
-                    min: 0.58, // Adjusted to move axes more central
-                    max: 0.87, // Adjusted to move axes more central
+                    min: 0.53, // Adjusted to make axis symmetric around 0.7
+                    max: 0.87,
                     ticks: {
                         stepSize: 0.05
                     }
@@ -169,8 +172,14 @@ document.addEventListener('DOMContentLoaded', function() {
         plugins: [quadrantPlugin]
     });
     
+    // Position the quadrant labels after chart is rendered
+    // Increase timeout to ensure chart is fully rendered
+    setTimeout(positionQuadrantLabels, 1000);
+    
     // Update the toast message when data is loaded
     if (typeof showToast === 'function') {
         showToast("Chart loaded successfully", "success");
+    } else {
+        console.error("showToast function not available");
     }
 });

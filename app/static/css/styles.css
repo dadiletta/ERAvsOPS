@@ -35,7 +35,7 @@ body {
 
 .chart-container {
     flex: 1;
-    position: relative;
+    position: relative; /* This was missing - crucial for absolute positioning of quadrant labels */
     width: 100%;
     height: calc(100vh - 120px);
     background-color: white;
