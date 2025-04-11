@@ -4,14 +4,18 @@
 const CONFIG = {
     logoWidth: 30, // Set logo width (height will be calculated to maintain aspect ratio)
     quadrantColors: {
-        topLeft: 'rgba(255, 248, 225, 0.5)',    // Cream (Good Pitching, Bad Hitting)
-        topRight: 'rgba(232, 245, 233, 0.5)',   // Light green (Good Pitching, Good Hitting)
-        bottomLeft: 'rgba(255, 235, 238, 0.5)', // Light pink (Bad Pitching, Bad Hitting)
-        bottomRight: 'rgba(255, 255, 224, 0.5)' // Light yellow (Bad Pitching, Good Hitting)
+        topLeft: 'rgba(255, 248, 225, 0.3)',    // Cream (Good Pitching, Bad Hitting) - more transparent
+        topRight: 'rgba(232, 245, 233, 0.3)',   // Light green (Good Pitching, Good Hitting) - more transparent
+        bottomLeft: 'rgba(255, 235, 238, 0.3)', // Light pink (Bad Pitching, Bad Hitting) - more transparent
+        bottomRight: 'rgba(255, 255, 224, 0.3)' // Light yellow (Bad Pitching, Good Hitting) - more transparent
     },
     axisLines: {
         xValue: 0.7, // OPS dividing line
         yValue: 4.0  // ERA dividing line
+    },
+    mlbColors: {
+        blue: '#002D72',
+        red: '#E31937'
     }
 };
 

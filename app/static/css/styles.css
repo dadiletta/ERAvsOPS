@@ -1,47 +1,8 @@
-/* app/static/css/styles.css */
+/* MLB theme colors */
 :root {
+    --mlb-blue: #002D72;
+    --mlb-red: #E31937;
     --logo-width: 30px; /* Centralized logo width variable */
-}
-
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: Arial, Helvetica, sans-serif;
-}
-
-body {
-    background-color: #f8f9fa;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-}
-
-.container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
-    max-width: 1400px;
-    margin: 0 auto;
-    width: 100%;
-}
-
-.title {
-    text-align: center;
-    margin-bottom: 20px;
-    color: #333;
-}
-
-.chart-container {
-    flex: 1;
-    position: relative; /* This was missing - crucial for absolute positioning of quadrant labels */
-    width: 100%;
-    height: calc(100vh - 120px);
-    background-color: white;
-    border-radius: 10px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    padding: 20px;
 }
 
 /* Quadrant styling */
@@ -58,53 +19,8 @@ body {
     transform: translate(-50%, -50%);
     pointer-events: none;
     line-height: 1.5;
-    background-color: rgba(255, 255, 255, 0.7);
+    background-color: rgba(255, 255, 255, 0.3); /* More transparent */
     padding: 5px 10px;
     border-radius: 5px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-#top-left {
-    color: rgba(90, 80, 50, 1);
-}
-
-#top-right {
-    color: rgba(50, 90, 60, 1);
-}
-
-#bottom-left {
-    color: rgba(90, 50, 60, 1);
-}
-
-#bottom-right {
-    color: rgba(90, 80, 40, 1);
-}
-
-/* Logo image styling - specifically for DOM-injected elements after chart rendering */
-img.logo-image {
-    width: var(--logo-width) !important;
-    height: auto !important;
-    max-height: none !important;
-    object-fit: contain !important;
-}
-
-/* Responsive styles */
-@media (max-width: 768px) {
-    .chart-container {
-        height: calc(100vh - 100px);
-        padding: 10px;
-    }
-    
-    .title {
-        font-size: 1.2rem;
-    }
-    
-    :root {
-        --logo-width: 25px; /* Slightly smaller logos on mobile */
-    }
-    
-    .quadrant-label {
-        font-size: 12px;
-        padding: 3px 6px;
-    }
 }
