@@ -23,6 +23,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const teamData = window.teamData || [];
     const ctx = document.getElementById('mlbChart').getContext('2d');
     
+    // Log teams and their logo paths for debugging
+    console.log("Team data loaded:", teamData.length, "teams");
+    teamData.forEach(team => {
+        console.log(`Team: ${team.name}, Logo: ${team.logo}`);
+    });
+    
     // Create datasets for team positioning
     const teamPoints = teamData.map(team => ({
         x: team.ops,
@@ -70,14 +76,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     const logo = teamPoints[index].logo;
                     const image = new Image();
                     
+                    // Ensure the path starts with a slash if it doesn't already
+                    const logoPath = logo.startsWith('/') ? logo : `/${logo}`;
+                    
+                    console.log(`Loading image from: ${logoPath}`);
+                    
                     // This ensures images load with correct proportions
                     image.onload = function() {
                         const aspectRatio = this.naturalWidth / this.naturalHeight;
                         this.width = CONFIG.logoWidth;
                         this.height = CONFIG.logoWidth / aspectRatio;
+                        console.log(`Loaded image: ${logoPath}, ${this.width}x${this.height}`);
                     };
                     
-                    image.src = logo;
+                    image.onerror = function() {
+                        console.error(`Failed to load image: ${logoPath}`);
+                    };
+                    
+                    image.src = logoPath;
                     
                     // Set initial width only - height will be calculated on load
                     image.width = CONFIG.logoWidth;

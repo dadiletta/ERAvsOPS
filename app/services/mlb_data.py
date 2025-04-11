@@ -209,8 +209,18 @@ class MLBDataFetcher:
                 era = era or fallback_stats.get('era')
                 ops = ops or fallback_stats.get('ops')
             
-            # Build logo URL based on static files structure
-            logo_url = f"/static/logos/{team_abbreviation.lower()}.png"
+            # Extract the team nickname and use it for the logo filename
+            nickname = team_name.split()[-1].lower()
+            # Fix for special cases where team nickname might not match the logo filename
+            if nickname == "sox" and "white" in team_name.lower():
+                nickname = "whitesox"
+            elif nickname == "sox" and "red" in team_name.lower():
+                nickname = "redsox"
+            elif nickname == "jays":
+                nickname = "bluejays"
+            
+            # Build logo URL based on the nickname
+            logo_url = f"/static/logos/{nickname}.png"
             
             if era is not None and ops is not None:
                 team_stats.append({

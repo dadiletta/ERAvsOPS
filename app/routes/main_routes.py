@@ -30,12 +30,36 @@ def save_to_cache(data):
     with open(cache_file, 'w') as f:
         json.dump(data, f)
 
+def fix_logo_paths(teams):
+    """Fix logo paths to match the expected filenames"""
+    for team in teams:
+        # Get team name in lowercase
+        team_name = team["name"].lower()
+        
+        # Handle special cases
+        if team_name == "sox" and "white" in team.get("full_name", "").lower():
+            team_name = "whitesox"
+        elif team_name == "sox" and "red" in team.get("full_name", "").lower():
+            team_name = "redsox"
+        elif team_name == "jays":
+            team_name = "bluejays"
+        
+        # Update logo path with leading slash
+        team["logo"] = f"/static/logos/{team_name}.png"
+    
+    return teams
+
 def get_team_data():
     """Get team data, either from cache or fresh from API"""
     # Try to get data from cache first
     cached_data, from_cache = get_cached_data()
     if cached_data:
-        return cached_data, from_cache
+        # Fix logo paths in the cached data
+        fixed_data = fix_logo_paths(cached_data)
+        # Only save back to cache if we actually changed something
+        if fixed_data != cached_data:
+            save_to_cache(fixed_data)
+        return fixed_data, True  # Still marked as from cache
     
     # If no cache or it's stale, fetch fresh data
     fetcher = MLBDataFetcher()
@@ -49,16 +73,41 @@ def get_team_data():
     # If all else fails, use the placeholder data or empty cache
     if os.path.exists(current_app.config['CACHE_FILE']):
         with open(current_app.config['CACHE_FILE'], 'r') as f:
-            return json.load(f), True  # Return fallback data and "from cache" indicator
+            data = json.load(f)
+            return fix_logo_paths(data), True  # Fixed data from cache
     else:
         # Fallback placeholder data
         teams = [
-            {"name": "Mets", "era": 2.00, "ops": 0.700, "logo": "static/logos/mets.png"},
-            {"name": "Giants", "era": 2.55, "ops": 0.650, "logo": "static/logos/giants.png"},
-            {"name": "Reds", "era": 2.90, "ops": 0.610, "logo": "static/logos/reds.png"},
-            {"name": "Royals", "era": 3.00, "ops": 0.650, "logo": "static/logos/royals.png"},
-            {"name": "Rays", "era": 3.10, "ops": 0.700, "logo": "static/logos/rays.png"},
-            # ... additional fallback data would go here ...
+            {"name": "Mets", "era": 2.00, "ops": 0.700, "logo": "/static/logos/mets.png"},
+            {"name": "Giants", "era": 2.55, "ops": 0.650, "logo": "/static/logos/giants.png"},
+            {"name": "Reds", "era": 2.90, "ops": 0.610, "logo": "/static/logos/reds.png"},
+            {"name": "Royals", "era": 3.00, "ops": 0.650, "logo": "/static/logos/royals.png"},
+            {"name": "Rays", "era": 3.10, "ops": 0.700, "logo": "/static/logos/rays.png"},
+            {"name": "Dodgers", "era": 3.10, "ops": 0.740, "logo": "/static/logos/dodgers.png"},
+            {"name": "Astros", "era": 3.50, "ops": 0.590, "logo": "/static/logos/astros.png"},
+            {"name": "White Sox", "era": 3.80, "ops": 0.600, "logo": "/static/logos/whitesox.png"},
+            {"name": "Rangers", "era": 3.60, "ops": 0.630, "logo": "/static/logos/rangers.png"},
+            {"name": "Mariners", "era": 3.80, "ops": 0.650, "logo": "/static/logos/mariners.png"},
+            {"name": "Marlins", "era": 4.00, "ops": 0.660, "logo": "/static/logos/marlins.png"},
+            {"name": "Blue Jays", "era": 3.65, "ops": 0.720, "logo": "/static/logos/bluejays.png"},
+            {"name": "Padres", "era": 3.55, "ops": 0.750, "logo": "/static/logos/padres.png"},
+            {"name": "Phillies", "era": 3.70, "ops": 0.780, "logo": "/static/logos/phillies.png"},
+            {"name": "Tigers", "era": 3.55, "ops": 0.810, "logo": "/static/logos/tigers.png"},
+            {"name": "Twins", "era": 4.50, "ops": 0.590, "logo": "/static/logos/twins.png"},
+            {"name": "Braves", "era": 4.50, "ops": 0.620, "logo": "/static/logos/braves.png"},
+            {"name": "Rockies", "era": 4.50, "ops": 0.650, "logo": "/static/logos/rockies.png"},
+            {"name": "Guardians", "era": 4.50, "ops": 0.680, "logo": "/static/logos/guardians.png"},
+            {"name": "Angels", "era": 4.35, "ops": 0.710, "logo": "/static/logos/angels.png"},
+            {"name": "Orioles", "era": 4.45, "ops": 0.710, "logo": "/static/logos/orioles.png"},
+            {"name": "Nationals", "era": 4.50, "ops": 0.720, "logo": "/static/logos/nationals.png"},
+            {"name": "Red Sox", "era": 4.25, "ops": 0.730, "logo": "/static/logos/redsox.png"},
+            {"name": "Cubs", "era": 4.50, "ops": 0.750, "logo": "/static/logos/cubs.png"},
+            {"name": "Diamondbacks", "era": 4.80, "ops": 0.780, "logo": "/static/logos/diamondbacks.png"},
+            {"name": "Yankees", "era": 4.60, "ops": 0.850, "logo": "/static/logos/yankees.png"},
+            {"name": "Athletics", "era": 5.40, "ops": 0.730, "logo": "/static/logos/athletics.png"},
+            {"name": "Brewers", "era": 5.55, "ops": 0.690, "logo": "/static/logos/brewers.png"},
+            {"name": "Cardinals", "era": 5.90, "ops": 0.820, "logo": "/static/logos/cardinals.png"},
+            {"name": "Pirates", "era": 4.90, "ops": 0.600, "logo": "/static/logos/pirates.png"}
         ]
         save_to_cache(teams)
         return teams, True  # Return fallback data and "from cache" indicator (emergency fallback)
