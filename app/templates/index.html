@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERAvsOPS - MLB Team Stats</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">MLB Team Performance: ERA vs OPS</h1>
+        <div class="chart-container">
+            <canvas id="mlbChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Pass team data from Flask to JavaScript
+        window.teamData = {{ teams|tojson }};
+        
+        // Add event listener to limit image size after Chart.js loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Give Chart.js a moment to render
+            setTimeout(function() {
+                // Find all image elements in the chart
+                const chartImages = document.querySelectorAll('#mlbChart canvas + div img');
+                chartImages.forEach(img => {
+                    img.classList.add('logo-image');
+                    img.style.width = '15px';
+                    img.style.height = 'auto';
+                    img.style.maxHeight = '15px';
+                });
+            }, 500);
+        });
+    </script>
+    <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
+</body>
+</html>

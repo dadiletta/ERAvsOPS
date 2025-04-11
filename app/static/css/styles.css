@@ -1,0 +1,95 @@
+/* app/static/css/styles.css */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+    background-color: #f8f9fa;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.title {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.chart-container {
+    flex: 1;
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 120px);
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+}
+
+/* Quadrant styling */
+.quadrant {
+    position: absolute;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    color: #555;
+    font-size: 14px;
+    text-align: center;
+}
+
+.good-pitching-bad-hitting {
+    background-color: rgba(255, 248, 225, 0.5); /* Light cream */
+}
+
+.good-pitching-good-hitting {
+    background-color: rgba(232, 245, 233, 0.5); /* Light green */
+}
+
+.bad-pitching-bad-hitting {
+    background-color: rgba(255, 235, 238, 0.5); /* Light pink */
+}
+
+.bad-pitching-good-hitting {
+    background-color: rgba(255, 235, 238, 0.5); /* Light pink */
+}
+
+/* Logo image styling */
+.logo-image {
+    width: 15px;
+    height: auto;
+    max-height: 15px;
+    object-fit: contain;
+}
+
+/* Chart legend image sizing */
+.chartjs-legend-image {
+    width: 15px !important;
+    height: 15px !important;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    .chart-container {
+        height: calc(100vh - 100px);
+        padding: 10px;
+    }
+    
+    .title {
+        font-size: 1.2rem;
+    }
+}
