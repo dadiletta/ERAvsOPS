@@ -21,27 +21,65 @@ const CONFIG = {
 
 document.addEventListener('DOMContentLoaded', function() {
     // Check if Toastify is loaded
-    console.log("Chart.js script loaded");
+    console.log("==========================================");
+    console.log("Chart.js script loaded and initialized");
+    console.log("==========================================");
     
     // Get team data passed from Flask (will be set in the template)
     const teamData = window.teamData || [];
+    const dataStatus = window.dataStatus || {};
     const ctx = document.getElementById('mlbChart').getContext('2d');
     
+    // VERBOSE: Log data status for debugging
+    console.log("DATA STATUS:", JSON.stringify(dataStatus, null, 2));
+    
     // Log teams and their logo paths for debugging
-    console.log("Team data loaded:", teamData.length, "teams");
-    teamData.forEach(team => {
-        console.log(`Team: ${team.name}, Logo: ${team.logo}`);
-    });
+    console.log(`Team data loaded: ${teamData.length} teams`);
+    console.log("SAMPLE TEAM DATA:", JSON.stringify(teamData.slice(0, 3), null, 2));
+    
+    // Log whether data is from cache and if update is in progress
+    if (dataStatus.from_cache) {
+        console.log(`Using ${dataStatus.is_fresh ? 'FRESH' : 'STALE'} cached data`);
+    }
+    
+    if (dataStatus.update_in_progress) {
+        console.log("Background update is in progress");
+        console.log(`Teams updated so far: ${dataStatus.teams_updated}/${dataStatus.total_teams}`);
+    }
     
     // Create datasets for team positioning
+    console.log("Creating team points dataset");
     const teamPoints = teamData.map(team => ({
         x: team.ops,
         y: team.era,
         team: team.name,
+        fullName: team.full_name || team.name,
+        abbreviation: team.abbreviation,
         logo: team.logo
     }));
     
+    // Create cached image store to prevent reload issues
+    console.log("Creating image cache for team logos");
+    const logoCache = {};
+    
+    // Preload all team logos to ensure consistent sizing
+    teamPoints.forEach(point => {
+        const logoPath = point.logo.startsWith('/') ? point.logo : `/${point.logo}`;
+        const img = new Image();
+        img.src = logoPath;
+        
+        // Set fixed dimensions to prevent resizing issues
+        img.width = CONFIG.logoWidth;
+        img.height = CONFIG.logoWidth;
+        
+        // Store in cache
+        logoCache[logoPath] = img;
+        
+        console.log(`Preloaded logo: ${logoPath}`);
+    });
+    
     // Create quadrant background plugin
+    console.log("Creating quadrant background plugin");
     const quadrantPlugin = {
         id: 'quadrantBackgrounds',
         beforeDraw: (chart) => {
@@ -69,6 +107,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
+    console.log("Creating chart instance");
     // Create the chart
     const mlbChart = new Chart(ctx, {
         type: 'scatter',
@@ -76,35 +115,43 @@ document.addEventListener('DOMContentLoaded', function() {
             datasets: [{
                 data: teamPoints,
                 pointStyle: function(context) {
-                    const index = context.dataIndex;
-                    const logo = teamPoints[index].logo;
-                    const image = new Image();
-                    
-                    // Ensure the path starts with a slash if it doesn't already
-                    const logoPath = logo.startsWith('/') ? logo : `/${logo}`;
-                    
-                    console.log(`Loading image from: ${logoPath}`);
-                    
-                    // This ensures images load with correct proportions
-                    image.onload = function() {
-                        const aspectRatio = this.naturalWidth / this.naturalHeight;
-                        this.width = CONFIG.logoWidth;
-                        this.height = CONFIG.logoWidth / aspectRatio;
-                        console.log(`Loaded image: ${logoPath}, ${this.width}x${this.height}`);
-                    };
-                    
-                    image.onerror = function() {
-                        console.error(`Failed to load image: ${logoPath}`);
-                    };
-                    
-                    image.src = logoPath;
-                    
-                    // Set initial width only - height will be calculated on load
-                    image.width = CONFIG.logoWidth;
-                    
-                    return image;
+                    try {
+                        const index = context.dataIndex;
+                        if (index === undefined || !teamPoints[index]) {
+                            console.error(`Invalid data index: ${index}`);
+                            return null;
+                        }
+                        
+                        const point = teamPoints[index];
+                        const logoPath = point.logo.startsWith('/') ? point.logo : `/${point.logo}`;
+                        
+                        // Use cached image if available
+                        if (logoCache[logoPath]) {
+                            return logoCache[logoPath];
+                        }
+                        
+                        // If not in cache (shouldn't happen due to preloading), create new image
+                        const image = new Image();
+                        image.src = logoPath;
+                        
+                        // IMPORTANT: Set fixed dimensions to prevent resizing issues
+                        // This is a key fix for the "freaking out" issue
+                        image.width = CONFIG.logoWidth;
+                        image.height = CONFIG.logoWidth;
+                        
+                        // Cache the image
+                        logoCache[logoPath] = image;
+                        
+                        return image;
+                    } catch (error) {
+                        console.error("Error in pointStyle function:", error);
+                        return null;
+                    }
                 },
-                pointRadius: CONFIG.logoWidth / 2, // Using half the logo width works better
+                // Use fixed pointRadius to prevent sizing issues
+                pointRadius: CONFIG.logoWidth / 2,
+                // Higher z-index to ensure logos appear above quadrant labels
+                z: 20,
                 backgroundColor: 'rgba(0, 0, 0, 0)'
             }]
         },
@@ -205,8 +252,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Function to position quadrant labels (defined globally so it can be called from HTML too)
 function positionQuadrantLabels() {
-    console.log("Positioning quadrant labels");
+    console.log("Positioning quadrant labels in corners");
     const chart = document.getElementById('mlbChart');
+    if (!chart) {
+        console.error("Chart element not found!");
+        return;
+    }
+    
     const container = chart.parentElement;
     const chartRect = chart.getBoundingClientRect();
     
@@ -214,12 +266,14 @@ function positionQuadrantLabels() {
     const chartWidth = chartRect.width;
     const chartHeight = chartRect.height;
     
-    // Position labels
+    console.log(`Chart dimensions: ${chartWidth}x${chartHeight}`);
+    
+    // Position labels - moved further into corners (15% and 85% instead of 25% and 75%)
     const labels = {
-        'top-left': { x: 0.25, y: 0.25 },
-        'top-right': { x: 0.75, y: 0.25 },
-        'bottom-left': { x: 0.25, y: 0.75 },
-        'bottom-right': { x: 0.75, y: 0.75 }
+        'top-left': { x: 0.15, y: 0.15 },
+        'top-right': { x: 0.85, y: 0.15 },
+        'bottom-left': { x: 0.15, y: 0.85 },
+        'bottom-right': { x: 0.85, y: 0.85 }
     };
     
     for (const [id, pos] of Object.entries(labels)) {
@@ -227,6 +281,7 @@ function positionQuadrantLabels() {
         if (label) {
             label.style.left = (chartWidth * pos.x) + 'px';
             label.style.top = (chartHeight * pos.y) + 'px';
+            console.log(`Positioned ${id} at ${chartWidth * pos.x}px, ${chartHeight * pos.y}px`);
         } else {
             console.error(`Label with id ${id} not found`);
         }

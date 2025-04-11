@@ -130,62 +130,62 @@
             }).showToast();
         }
         
-        // Function to position quadrant labels
-        function positionQuadrantLabels() {
-            console.log("Positioning quadrant labels");
-            const chart = document.getElementById('mlbChart');
-            const container = chart.parentElement;
-            const chartRect = chart.getBoundingClientRect();
-            
-            // Get chart dimensions
-            const chartWidth = chartRect.width;
-            const chartHeight = chartRect.height;
-            
-            // Position labels
-            const labels = {
-                'top-left': { x: 0.25, y: 0.25 },
-                'top-right': { x: 0.75, y: 0.25 },
-                'bottom-left': { x: 0.25, y: 0.75 },
-                'bottom-right': { x: 0.75, y: 0.75 }
-            };
-            
-            for (const [id, pos] of Object.entries(labels)) {
-                const label = document.getElementById(id);
-                if (label) {
-                    label.style.left = (chartWidth * pos.x) + 'px';
-                    label.style.top = (chartHeight * pos.y) + 'px';
-                } else {
-                    console.error(`Label with id ${id} not found`);
-                }
-            }
-        }
-        
         // Function to check for updates
         function checkForUpdates() {
+            console.log("Checking for updates from server...");
             fetch('/api/update-status')
-                .then(response => response.json())
+                .then(response => {
+                    console.log("Received response from update-status API");
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(status => {
+                    console.log("Update status:", JSON.stringify(status, null, 2));
+                    
+                    // First time check - initialize the last team seen
+                    if (!window.lastTeamSeen && status.teams_updated > 0) {
+                        window.lastTeamSeen = status.teams_updated;
+                    }
+                    
                     // Only show update notifications if an update is in progress
                     if (status.in_progress) {
-                        const progressMessage = `Updating team data: ${status.teams_updated}/${status.total_teams}`;
-                        showToast(progressMessage, "update");
+                        // Show progress message
+                        const progressMessage = `Updating MLB data: ${status.teams_updated}/${status.total_teams} teams`;
+                        console.log(progressMessage);
+                        
+                        // If team count has changed, show toast
+                        if (status.teams_updated > (window.lastTeamSeen || 0)) {
+                            showToast(progressMessage, "update");
+                            window.lastTeamSeen = status.teams_updated;
+                        }
                         
                         // If update is still in progress, check again in 2 seconds
                         setTimeout(checkForUpdates, 2000);
-                    } else if (status.last_updated && !window.lastUpdateChecked) {
-                        // Update completed since we started checking
-                        window.lastUpdateChecked = status.last_updated;
-                        showToast("Data update complete! Refresh the page to see the latest data.", "success");
-                        
-                        // Update the last updated timestamp
-                        const lastUpdatedElement = document.getElementById('lastUpdated');
-                        if (lastUpdatedElement) {
-                            lastUpdatedElement.textContent = status.last_updated;
+                    } else if (status.last_updated) {
+                        // Check if this is a completed update (that we haven't already notified about)
+                        if (!window.lastUpdateChecked || window.lastUpdateChecked !== status.last_updated) {
+                            console.log("Update completed at:", status.last_updated);
+                            window.lastUpdateChecked = status.last_updated;
+                            showToast("MLB data update complete! Refresh the page to see the latest data.", "success");
+                            
+                            // Update the last updated timestamp
+                            const lastUpdatedElement = document.getElementById('lastUpdated');
+                            if (lastUpdatedElement) {
+                                lastUpdatedElement.textContent = status.last_updated;
+                                console.log("Updated timestamp display");
+                            }
+                        } else {
+                            console.log("No changes in update status");
                         }
+                    } else {
+                        console.log("No update in progress and no last_updated timestamp");
                     }
                 })
                 .catch(error => {
                     console.error("Error checking update status:", error);
+                    showToast("Error checking for updates", "error");
                 });
         }
     </script>
@@ -197,29 +197,47 @@
     <script>
         // Event listener for page load
         window.addEventListener('DOMContentLoaded', function() {
-            console.log("DOM content loaded");
+            console.log("DOM content loaded - initializing application");
+            
+            // VERBOSE: Log the data status to console
+            console.log("Initial data status:", window.dataStatus);
             
             // Display appropriate toast based on data status
             if (window.dataStatus.from_cache) {
                 if (window.dataStatus.is_fresh) {
+                    console.log("Using FRESH cached data");
                     showToast("Using fresh cached data", "success");
                 } else {
+                    console.log("Using STALE cached data - initiating background update");
                     showToast("Using cached data - updating in background", "info");
                 }
             }
             
             // Check for updates if they're in progress
             if (window.dataStatus.update_in_progress) {
-                showToast("Starting data update...", "update");
+                console.log("Update is already in progress - starting update monitoring");
+                showToast("Starting data update from MLB Stats API...", "update");
                 // Start checking for updates
+                setTimeout(checkForUpdates, 1000);
+            } else if (!window.dataStatus.is_fresh) {
+                console.log("Data is stale but update not started - checking status");
+                // Check if an update might have been started but not reflected in initial status
                 setTimeout(checkForUpdates, 1000);
             }
             
             // Position the quadrant labels after chart is rendered
             setTimeout(positionQuadrantLabels, 1000);
             
-            // Reposition labels on window resize
-            window.addEventListener('resize', positionQuadrantLabels);
+            // Add window resize handler with debounce
+            let resizeTimer;
+            window.addEventListener('resize', function() {
+                console.log("Window resize detected");
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(function() {
+                    console.log("Repositioning elements after resize");
+                    positionQuadrantLabels();
+                }, 250);
+            });
         });
     </script>
 </body>
