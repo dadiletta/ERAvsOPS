@@ -2,7 +2,7 @@
 
 // Configuration variables for easy future adjustments
 const CONFIG = {
-    logoWidth: 30, // Doubled from 15px to 30px
+    logoWidth: 30, // Set logo width (height will be calculated to maintain aspect ratio)
     quadrantColors: {
         topLeft: 'rgba(255, 248, 225, 0.5)',    // Cream (Good Pitching, Bad Hitting)
         topRight: 'rgba(232, 245, 233, 0.5)',   // Light green (Good Pitching, Good Hitting)
@@ -27,30 +27,6 @@ document.addEventListener('DOMContentLoaded', function() {
         team: team.name,
         logo: team.logo
     }));
-    
-    // Define quadrant labels with line breaks
-    const quadrantLabels = [
-        { 
-            text: ['Good Pitching', 'Bad Hitting'], 
-            position: { x: 0.65, y: 2.75 },
-            align: 'center'
-        },
-        { 
-            text: ['Good Pitching', 'Good Hitting'], 
-            position: { x: 0.8, y: 2.75 },
-            align: 'center'
-        },
-        { 
-            text: ['Bad Pitching', 'Bad Hitting'], 
-            position: { x: 0.65, y: 4.75 },
-            align: 'center'
-        },
-        { 
-            text: ['Bad Pitching', 'Good Hitting'], 
-            position: { x: 0.8, y: 4.75 },
-            align: 'center'
-        }
-    ];
     
     // Create quadrant background plugin
     const quadrantPlugin = {
@@ -90,14 +66,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     const index = context.dataIndex;
                     const logo = teamPoints[index].logo;
                     const image = new Image();
+                    
+                    // This ensures images load with correct proportions
+                    image.onload = function() {
+                        const aspectRatio = this.naturalWidth / this.naturalHeight;
+                        this.width = CONFIG.logoWidth;
+                        this.height = CONFIG.logoWidth / aspectRatio;
+                    };
+                    
                     image.src = logo;
-                    // Set width and height to control image size
+                    
+                    // Set initial width only - height will be calculated on load
                     image.width = CONFIG.logoWidth;
-                    image.height = CONFIG.logoWidth; // Initial setting, will be overridden by CSS
+                    
                     return image;
                 },
-                pointRadius: CONFIG.logoWidth,
-                backgroundColor: 'rgba(0, 0, 0, 0.1)'
+                pointRadius: CONFIG.logoWidth / 2, // Using half the logo width works better
+                backgroundColor: 'rgba(0, 0, 0, 0)'
             }]
         },
         options: {
@@ -128,8 +113,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             weight: 'bold'
                         }
                     },
-                    min: 2.0, // Adjusted to move axes more central
-                    max: 5.75, // Adjusted to move axes more central
+                    min: 1.9, // Adjusted to move axes more central
+                    max: 6.0, // Adjusted to move axes more central
                     reverse: true,
                     ticks: {
                         stepSize: 0.5
@@ -184,48 +169,8 @@ document.addEventListener('DOMContentLoaded', function() {
         plugins: [quadrantPlugin]
     });
     
-    // Add quadrant text labels with line breaks
-    quadrantLabels.forEach(label => {
-        const x = mlbChart.scales.x.getPixelForValue(label.position.x);
-        const y = mlbChart.scales.y.getPixelForValue(label.position.y);
-        
-        // Draw multi-line text
-        const lineHeight = 16;
-        label.text.forEach((line, index) => {
-            const yPosition = y + (index * lineHeight);
-            const text = new Text(ctx, line, x, yPosition, {
-                align: label.align,
-                fontSize: 14,
-                fontStyle: 'bold',
-                color: 'rgba(80, 80, 80, 0.9)'
-            });
-            text.draw();
-        });
-    });
+    // Update the toast message when data is loaded
+    if (typeof showToast === 'function') {
+        showToast("Chart loaded successfully", "success");
+    }
 });
-
-// Simple text drawing utility
-class Text {
-    constructor(ctx, text, x, y, options = {}) {
-        this.ctx = ctx;
-        this.text = text;
-        this.x = x;
-        this.y = y;
-        this.options = Object.assign({
-            align: 'center',
-            fontSize: 12,
-            fontStyle: 'normal',
-            color: 'black'
-        }, options);
-    }
-    
-    draw() {
-        const ctx = this.ctx;
-        ctx.save();
-        ctx.font = `${this.options.fontStyle} ${this.options.fontSize}px Arial`;
-        ctx.fillStyle = this.options.color;
-        ctx.textAlign = this.options.align;
-        ctx.fillText(this.text, this.x, this.y);
-        ctx.restore();
-    }
-}

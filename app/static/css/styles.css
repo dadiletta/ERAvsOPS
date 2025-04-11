@@ -45,45 +45,47 @@ body {
 }
 
 /* Quadrant styling */
-.quadrant {
+.quadrant-label {
     position: absolute;
     display: flex;
     justify-content: center;
     align-items: center;
     font-weight: bold;
     color: #555;
-    font-size: 14px;
+    font-size: 16px;
     text-align: center;
+    z-index: 10;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    line-height: 1.5;
+    background-color: rgba(255, 255, 255, 0.7);
+    padding: 5px 10px;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.good-pitching-bad-hitting {
-    background-color: rgba(255, 248, 225, 0.5); /* Light cream */
+#top-left {
+    color: rgba(90, 80, 50, 1);
 }
 
-.good-pitching-good-hitting {
-    background-color: rgba(232, 245, 233, 0.5); /* Light green */
+#top-right {
+    color: rgba(50, 90, 60, 1);
 }
 
-.bad-pitching-bad-hitting {
-    background-color: rgba(255, 235, 238, 0.5); /* Light pink */
+#bottom-left {
+    color: rgba(90, 50, 60, 1);
 }
 
-.bad-pitching-good-hitting {
-    background-color: rgba(255, 255, 224, 0.5); /* Light yellow */
+#bottom-right {
+    color: rgba(90, 80, 40, 1);
 }
 
-/* Logo image styling */
-.logo-image {
+/* Logo image styling - specifically for DOM-injected elements after chart rendering */
+img.logo-image {
     width: var(--logo-width) !important;
     height: auto !important;
     max-height: none !important;
-    object-fit: contain;
-}
-
-/* Chart legend image sizing */
-.chartjs-legend-image {
-    width: var(--logo-width) !important;
-    height: auto !important;
+    object-fit: contain !important;
 }
 
 /* Responsive styles */
@@ -99,5 +101,10 @@ body {
     
     :root {
         --logo-width: 25px; /* Slightly smaller logos on mobile */
+    }
+    
+    .quadrant-label {
+        font-size: 12px;
+        padding: 3px 6px;
     }
 }
