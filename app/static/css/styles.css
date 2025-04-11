@@ -1,4 +1,8 @@
 /* app/static/css/styles.css */
+:root {
+    --logo-width: 30px; /* Centralized logo width variable */
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -65,21 +69,21 @@ body {
 }
 
 .bad-pitching-good-hitting {
-    background-color: rgba(255, 235, 238, 0.5); /* Light pink */
+    background-color: rgba(255, 255, 224, 0.5); /* Light yellow */
 }
 
 /* Logo image styling */
 .logo-image {
-    width: 15px;
-    height: auto;
-    max-height: 15px;
+    width: var(--logo-width) !important;
+    height: auto !important;
+    max-height: none !important;
     object-fit: contain;
 }
 
 /* Chart legend image sizing */
 .chartjs-legend-image {
-    width: 15px !important;
-    height: 15px !important;
+    width: var(--logo-width) !important;
+    height: auto !important;
 }
 
 /* Responsive styles */
@@ -91,5 +95,9 @@ body {
     
     .title {
         font-size: 1.2rem;
+    }
+    
+    :root {
+        --logo-width: 25px; /* Slightly smaller logos on mobile */
     }
 }

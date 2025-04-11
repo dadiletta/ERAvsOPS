@@ -1,5 +1,20 @@
 // app/static/js/chart.js
 
+// Configuration variables for easy future adjustments
+const CONFIG = {
+    logoWidth: 30, // Doubled from 15px to 30px
+    quadrantColors: {
+        topLeft: 'rgba(255, 248, 225, 0.5)',    // Cream (Good Pitching, Bad Hitting)
+        topRight: 'rgba(232, 245, 233, 0.5)',   // Light green (Good Pitching, Good Hitting)
+        bottomLeft: 'rgba(255, 235, 238, 0.5)', // Light pink (Bad Pitching, Bad Hitting)
+        bottomRight: 'rgba(255, 255, 224, 0.5)' // Light yellow (Bad Pitching, Good Hitting)
+    },
+    axisLines: {
+        xValue: 0.7, // OPS dividing line
+        yValue: 4.0  // ERA dividing line
+    }
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     // Get team data passed from Flask (will be set in the template)
     const teamData = window.teamData || [];
@@ -13,25 +28,25 @@ document.addEventListener('DOMContentLoaded', function() {
         logo: team.logo
     }));
     
-    // Define quadrant labels
+    // Define quadrant labels with line breaks
     const quadrantLabels = [
         { 
-            text: 'Good Pitching, Bad Hitting', 
+            text: ['Good Pitching', 'Bad Hitting'], 
             position: { x: 0.65, y: 2.75 },
             align: 'center'
         },
         { 
-            text: 'Good Pitching, Good Hitting', 
+            text: ['Good Pitching', 'Good Hitting'], 
             position: { x: 0.8, y: 2.75 },
             align: 'center'
         },
         { 
-            text: 'Bad Pitching, Bad Hitting', 
+            text: ['Bad Pitching', 'Bad Hitting'], 
             position: { x: 0.65, y: 4.75 },
             align: 'center'
         },
         { 
-            text: 'Bad Pitching, Good Hitting', 
+            text: ['Bad Pitching', 'Good Hitting'], 
             position: { x: 0.8, y: 4.75 },
             align: 'center'
         }
@@ -43,24 +58,24 @@ document.addEventListener('DOMContentLoaded', function() {
         beforeDraw: (chart) => {
             const { ctx, chartArea, scales } = chart;
             const { left, top, right, bottom } = chartArea;
-            const midX = scales.x.getPixelForValue(0.7); // Middle X value (OPS)
-            const midY = scales.y.getPixelForValue(4.0); // Middle Y value (ERA)
+            const midX = scales.x.getPixelForValue(CONFIG.axisLines.xValue);
+            const midY = scales.y.getPixelForValue(CONFIG.axisLines.yValue);
             
             // Draw quadrant backgrounds
             // Top-left: Good Pitching, Bad Hitting (cream)
-            ctx.fillStyle = 'rgba(255, 248, 225, 0.5)';
+            ctx.fillStyle = CONFIG.quadrantColors.topLeft;
             ctx.fillRect(left, top, midX - left, midY - top);
             
             // Top-right: Good Pitching, Good Hitting (light green)
-            ctx.fillStyle = 'rgba(232, 245, 233, 0.5)';
+            ctx.fillStyle = CONFIG.quadrantColors.topRight;
             ctx.fillRect(midX, top, right - midX, midY - top);
             
             // Bottom-left: Bad Pitching, Bad Hitting (light pink)
-            ctx.fillStyle = 'rgba(255, 235, 238, 0.5)';
+            ctx.fillStyle = CONFIG.quadrantColors.bottomLeft;
             ctx.fillRect(left, midY, midX - left, bottom - midY);
             
-            // Bottom-right: Bad Pitching, Good Hitting (light pink)
-            ctx.fillStyle = 'rgba(255, 235, 238, 0.5)';
+            // Bottom-right: Bad Pitching, Good Hitting (light yellow)
+            ctx.fillStyle = CONFIG.quadrantColors.bottomRight;
             ctx.fillRect(midX, midY, right - midX, bottom - midY);
         }
     };
@@ -70,7 +85,6 @@ document.addEventListener('DOMContentLoaded', function() {
         type: 'scatter',
         data: {
             datasets: [{
-                label: 'MLB Teams',
                 data: teamPoints,
                 pointStyle: function(context) {
                     const index = context.dataIndex;
@@ -78,11 +92,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     const image = new Image();
                     image.src = logo;
                     // Set width and height to control image size
-                    image.width = 15;
-                    image.height = 15;
+                    image.width = CONFIG.logoWidth;
+                    image.height = CONFIG.logoWidth; // Initial setting, will be overridden by CSS
                     return image;
                 },
-                pointRadius: 15,
+                pointRadius: CONFIG.logoWidth,
                 backgroundColor: 'rgba(0, 0, 0, 0.1)'
             }]
         },
@@ -99,8 +113,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             weight: 'bold'
                         }
                     },
-                    min: 0.55,
-                    max: 0.90,
+                    min: 0.58, // Adjusted to move axes more central
+                    max: 0.87, // Adjusted to move axes more central
                     ticks: {
                         stepSize: 0.05
                     }
@@ -114,8 +128,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             weight: 'bold'
                         }
                     },
-                    min: 1.75,
-                    max: 6.0,
+                    min: 2.0, // Adjusted to move axes more central
+                    max: 5.75, // Adjusted to move axes more central
                     reverse: true,
                     ticks: {
                         stepSize: 0.5
@@ -123,6 +137,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             plugins: {
+                legend: {
+                    display: false // Remove the legend/key
+                },
+                title: {
+                    display: false // Remove title from chart (will use HTML title)
+                },
                 tooltip: {
                     callbacks: {
                         label: function(context) {
@@ -135,8 +155,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     annotations: {
                         verticalLine: {
                             type: 'line',
-                            xMin: 0.7,
-                            xMax: 0.7,
+                            xMin: CONFIG.axisLines.xValue,
+                            xMax: CONFIG.axisLines.xValue,
                             borderColor: 'rgba(0, 0, 0, 0.3)',
                             borderWidth: 2,
                             borderDash: [5, 5],
@@ -147,8 +167,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         horizontalLine: {
                             type: 'line',
-                            yMin: 4.0,
-                            yMax: 4.0,
+                            yMin: CONFIG.axisLines.yValue,
+                            yMax: CONFIG.axisLines.yValue,
                             borderColor: 'rgba(0, 0, 0, 0.3)',
                             borderWidth: 2,
                             borderDash: [5, 5],
@@ -164,18 +184,23 @@ document.addEventListener('DOMContentLoaded', function() {
         plugins: [quadrantPlugin]
     });
     
-    // Add quadrant text labels
+    // Add quadrant text labels with line breaks
     quadrantLabels.forEach(label => {
         const x = mlbChart.scales.x.getPixelForValue(label.position.x);
         const y = mlbChart.scales.y.getPixelForValue(label.position.y);
         
-        const text = new Text(ctx, label.text, x, y, {
-            align: label.align,
-            fontSize: 14,
-            fontStyle: 'bold',
-            color: 'rgba(80, 80, 80, 0.9)'
+        // Draw multi-line text
+        const lineHeight = 16;
+        label.text.forEach((line, index) => {
+            const yPosition = y + (index * lineHeight);
+            const text = new Text(ctx, line, x, yPosition, {
+                align: label.align,
+                fontSize: 14,
+                fontStyle: 'bold',
+                color: 'rgba(80, 80, 80, 0.9)'
+            });
+            text.draw();
         });
-        text.draw();
     });
 });
 
