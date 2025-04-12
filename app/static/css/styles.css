@@ -5,7 +5,37 @@
     --logo-width: 30px; /* Centralized logo width variable */
 }
 
-/* Quadrant styling */
+/* Base styles */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f8f9fa;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    color: var(--mlb-blue);
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+/* Chart container and quadrants */
+.chart-container {
+    position: relative;
+    height: 70vh;
+    width: 100%;
+    margin-bottom: 30px;
+}
+
 .quadrant-label {
     position: absolute;
     display: flex;
@@ -19,8 +49,92 @@
     transform: translate(-50%, -50%);
     pointer-events: none;
     line-height: 1.5;
-    background-color: rgba(255, 255, 255, 0.15); /* Much more transparent */
+    background-color: rgba(255, 255, 255, 0.15);
     padding: 5px 10px;
     border-radius: 5px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+footer {
+    text-align: center;
+    margin-top: 30px;
+    color: #666;
+    font-size: 0.8rem;
+}
+
+/* Controls and update status UI */
+.controls {
+    text-align: center;
+    margin: 20px 0;
+}
+
+.status-indicator {
+    display: inline-block;
+    margin-left: 10px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: #ccc;
+}
+
+.status-indicator.active {
+    background-color: #4CAF50;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.update-progress {
+    font-size: 14px;
+    margin-top: 5px;
+    display: none;
+}
+
+.update-progress.visible {
+    display: block;
+}
+
+.refresh-button {
+    background-color: var(--mlb-blue);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 10px;
+    display: none;
+}
+
+.refresh-button:hover {
+    background-color: #001F5C;
+}
+
+.refresh-button.visible {
+    display: inline-block;
+}
+
+/* Description section */
+.description ul {
+    padding-left: 20px;
+}
+
+.description li {
+    margin-bottom: 8px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .chart-container {
+        height: 60vh;
+    }
+    
+    .quadrant-label {
+        font-size: 12px;
+        padding: 3px 6px;
+    }
 }

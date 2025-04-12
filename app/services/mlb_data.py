@@ -30,45 +30,38 @@ class MLBDataFetcher:
             progress_callback: Optional callback function(team_name, current, total)
               to report progress during updates
         """
+        app = current_app._get_current_object()
+        
         if season is None:
             season = self.current_year
             
         # Try to use MLB Stats API if available
         if self.api_available:
+            app.logger.info(f"Fetching MLB team stats for season {season}")
             team_stats = self._get_stats_from_statsapi(season, progress_callback)
             if team_stats:
-                current_app.logger.info(f"Retrieved {len(team_stats)} team stats from MLB Stats API")
+                app.logger.info(f"Retrieved {len(team_stats)} team stats from MLB Stats API")
                 return team_stats
                 
         # Fallback to cached data
-        current_app.logger.warning("Falling back to cached data")
+        app.logger.warning("Falling back to cached data")
         return self._get_fallback_stats()
     
     def _get_stats_from_statsapi(self, season, progress_callback=None):
         """Get team stats from MLB Stats API with progress reporting"""
         team_stats = []
+        app = current_app._get_current_object()
         
         try:
-            current_app.logger.info(f"===============================================")
-            current_app.logger.info(f"FETCHING MLB TEAM STATS FOR SEASON {season}")
-            current_app.logger.info(f"===============================================")
-            
             # Get all active MLB teams
-            current_app.logger.info("Looking up all active MLB teams...")
+            app.logger.info("Looking up all active MLB teams...")
             teams = statsapi.lookup_team(active=True)
-            current_app.logger.info(f"Found {len(teams)} total teams")
             
             # Filter to MLB teams only (sport_id=1)
             mlb_teams = [team for team in teams if team.get('sport', {}).get('id', 0) == 1]
             total_teams = len(mlb_teams)
             
-            current_app.logger.info(f"Filtered to {total_teams} MLB teams")
-            
-            # Log the first few teams for debugging
-            for i, team in enumerate(mlb_teams[:3]):
-                current_app.logger.info(f"Sample team {i+1}: {team['name']} (ID: {team['id']})")
-            
-            current_app.logger.info(f"Starting to fetch stats for all {total_teams} MLB teams")
+            app.logger.info(f"Found {total_teams} MLB teams")
             
             for index, team in enumerate(mlb_teams):
                 team_id = team['id']
@@ -79,29 +72,25 @@ class MLBDataFetcher:
                 current_team = index + 1
                 
                 try:
-                    current_app.logger.info(f"=========================================")
-                    current_app.logger.info(f"Getting stats for {team_name} ({current_team}/{total_teams})...")
+                    app.logger.info(f"Getting stats for {team_name} ({current_team}/{total_teams})...")
                     
                     # Call progress callback if provided
                     if progress_callback:
                         progress_callback(team_name, current_team, total_teams)
                     
                     # Get team pitching stats (for ERA)
-                    current_app.logger.info(f"  Fetching pitching stats...")
                     pitching_stats = statsapi.get(
                         "team_stats",
                         {"teamId": team_id, "group": "pitching", "stats": "season", "season": season}
                     )
                     
                     # Get team hitting stats (for OPS)
-                    current_app.logger.info(f"  Fetching hitting stats...")
                     hitting_stats = statsapi.get(
                         "team_stats",
                         {"teamId": team_id, "group": "hitting", "stats": "season", "season": season}
                     )
                     
                     # Extract ERA
-                    current_app.logger.info(f"  Extracting ERA...")
                     era = None
                     if pitching_stats and 'stats' in pitching_stats:
                         for stat_group in pitching_stats['stats']:
@@ -109,11 +98,9 @@ class MLBDataFetcher:
                                 for split in stat_group['splits']:
                                     if 'stat' in split and 'era' in split['stat']:
                                         era = float(split['stat']['era'])
-                                        current_app.logger.info(f"  Found ERA: {era}")
                                         break
                     
                     # Extract OPS
-                    current_app.logger.info(f"  Extracting OPS...")
                     ops = None
                     if hitting_stats and 'stats' in hitting_stats:
                         for stat_group in hitting_stats['stats']:
@@ -121,7 +108,6 @@ class MLBDataFetcher:
                                 for split in stat_group['splits']:
                                     if 'stat' in split and 'ops' in split['stat']:
                                         ops = float(split['stat']['ops'])
-                                        current_app.logger.info(f"  Found OPS: {ops}")
                                         break
                     
                     # Get team nickname for logo filename
@@ -137,8 +123,6 @@ class MLBDataFetcher:
                     elif logo_name == "jays":
                         logo_name = "bluejays"
                     
-                    current_app.logger.info(f"  Logo path: /static/logos/{logo_name}.png")
-                    
                     # Only add teams with both ERA and OPS
                     if era is not None and ops is not None:
                         team_data = {
@@ -151,43 +135,40 @@ class MLBDataFetcher:
                             "logo": f"/static/logos/{logo_name}.png"
                         }
                         team_stats.append(team_data)
-                        current_app.logger.info(f"  ✅ Successfully added {team_name}: ERA={era}, OPS={ops}")
+                        app.logger.info(f"Added {team_name}: ERA={era:.2f}, OPS={ops:.3f}")
                     else:
-                        current_app.logger.warning(f"  ❌ Missing stats for {team_name} - ERA: {era}, OPS: {ops}")
+                        app.logger.warning(f"Missing stats for {team_name} - ERA: {era}, OPS: {ops}")
                     
                     # Add a small delay to avoid hitting rate limits
-                    current_app.logger.info(f"  Waiting 0.5s before next team...")
                     time.sleep(0.5)
                     
                 except Exception as e:
-                    current_app.logger.error(f"  ❌ Error getting stats for {team_name}: {str(e)}")
-                    import traceback
-                    current_app.logger.error(traceback.format_exc())
+                    app.logger.error(f"Error getting stats for {team_name}: {str(e)}")
             
-            current_app.logger.info(f"===============================================")
-            current_app.logger.info(f"COMPLETED: Retrieved stats for {len(team_stats)}/{total_teams} teams")
-            current_app.logger.info(f"===============================================")
+            app.logger.info(f"Completed: Retrieved stats for {len(team_stats)}/{total_teams} teams")
             
             return team_stats
             
         except Exception as e:
-            current_app.logger.error(f"❌ Error fetching teams from MLB Stats API: {str(e)}")
+            app.logger.error(f"Error fetching teams from MLB Stats API: {str(e)}")
             import traceback
-            current_app.logger.error(traceback.format_exc())
+            app.logger.error(traceback.format_exc())
             return []
     
     def _get_fallback_stats(self):
         """Return fallback stats from cache file if available"""
-        cache_file = current_app.config['CACHE_FILE']
+        app = current_app._get_current_object()
+        cache_file = app.config['CACHE_FILE']
         
         if os.path.exists(cache_file):
             try:
                 with open(cache_file, 'r') as f:
                     return json.load(f)
             except Exception as e:
-                current_app.logger.error(f"Error reading cache file: {str(e)}")
+                app.logger.error(f"Error reading cache file: {str(e)}")
         
         # Return hardcoded fallback data if cache file not available
+        app.logger.warning("Using hardcoded fallback data")
         return [
             {"id": 121, "name": "Mets", "full_name": "New York Mets", "abbreviation": "NYM", "era": 2.00, "ops": 0.700, "logo": "/static/logos/mets.png"},
             {"id": 137, "name": "Giants", "full_name": "San Francisco Giants", "abbreviation": "SF", "era": 2.55, "ops": 0.650, "logo": "/static/logos/giants.png"},

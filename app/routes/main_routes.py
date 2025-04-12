@@ -42,8 +42,14 @@ def get_cached_data(must_exist=False):
 def save_to_cache(data):
     """Save data to cache file"""
     cache_file = current_app.config['CACHE_FILE']
-    with open(cache_file, 'w') as f:
-        json.dump(data, f)
+    try:
+        with open(cache_file, 'w') as f:
+            json.dump(data, f)
+        current_app.logger.info(f"Successfully saved {len(data)} teams to cache")
+        return True
+    except Exception as e:
+        current_app.logger.error(f"Error saving to cache: {str(e)}")
+        return False
 
 def fix_logo_paths(teams):
     """Fix logo paths to match the expected filenames"""
@@ -66,6 +72,7 @@ def fix_logo_paths(teams):
 
 def get_fallback_data():
     """Return hardcoded fallback data"""
+    current_app.logger.warning("Using hardcoded fallback data")
     return [
         {"name": "Mets", "full_name": "New York Mets", "abbreviation": "NYM", "era": 2.00, "ops": 0.700, "logo": "/static/logos/mets.png"},
         {"name": "Giants", "full_name": "San Francisco Giants", "abbreviation": "SF", "era": 2.55, "ops": 0.650, "logo": "/static/logos/giants.png"},
@@ -77,47 +84,56 @@ def background_update_data():
     """Update team data in the background"""
     global bg_update_status
     
-    current_app.logger.info("=== STARTING BACKGROUND DATA UPDATE ===")
+    # Get a reference to the current application
+    app = current_app._get_current_object()
     
     # Set status to in progress
     bg_update_status["in_progress"] = True
     bg_update_status["teams_updated"] = 0
     bg_update_status["total_teams"] = 30  # Default MLB team count
     
-    try:
-        # Get fetcher
-        current_app.logger.info("Initializing MLB data fetcher")
-        fetcher = MLBDataFetcher()
+    # Use application context in the background thread
+    with app.app_context():
+        app.logger.info("=== STARTING BACKGROUND DATA UPDATE ===")
         
-        # Use a callback to track progress
-        def progress_callback(team_name, current, total):
-            global bg_update_status
-            bg_update_status["teams_updated"] = current
-            bg_update_status["total_teams"] = total
-            current_app.logger.info(f"Updated team {current}/{total}: {team_name}")
-        
-        # Get fresh data with progress tracking
-        current_app.logger.info("Starting data fetch from MLB Stats API")
-        fresh_data = fetcher.get_all_team_stats(progress_callback=progress_callback)
-        
-        # If we got valid data, save it to cache
-        if fresh_data and len(fresh_data) > 0:
-            current_app.logger.info(f"Successfully fetched data for {len(fresh_data)} teams")
-            current_app.logger.info("Saving data to cache file")
-            save_to_cache(fresh_data)
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            bg_update_status["last_updated"] = timestamp
-            current_app.logger.info(f"Cache updated at {timestamp}")
-        else:
-            current_app.logger.error("No valid data received from MLB Stats API")
-    except Exception as e:
-        current_app.logger.error(f"Error in background update: {str(e)}")
-        import traceback
-        current_app.logger.error(traceback.format_exc())
-    finally:
-        # Update status
-        bg_update_status["in_progress"] = False
-        current_app.logger.info("=== BACKGROUND DATA UPDATE COMPLETED ===")
+        try:
+            # Get fetcher
+            app.logger.info("Initializing MLB data fetcher")
+            fetcher = MLBDataFetcher()
+            
+            # Use a callback to track progress
+            def progress_callback(team_name, current, total):
+                global bg_update_status
+                bg_update_status["teams_updated"] = current
+                bg_update_status["total_teams"] = total
+                app.logger.info(f"Updated team {current}/{total}: {team_name}")
+            
+            # Get fresh data with progress tracking
+            app.logger.info("Starting data fetch from MLB Stats API")
+            fresh_data = fetcher.get_all_team_stats(progress_callback=progress_callback)
+            
+            # If we got valid data, save it to cache
+            if fresh_data and len(fresh_data) > 0:
+                app.logger.info(f"Successfully fetched data for {len(fresh_data)} teams")
+                app.logger.info("Saving data to cache file")
+                save_success = save_to_cache(fresh_data)
+                
+                if save_success:
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    bg_update_status["last_updated"] = timestamp
+                    app.logger.info(f"Cache updated at {timestamp}")
+                else:
+                    app.logger.error("Failed to save data to cache")
+            else:
+                app.logger.error("No valid data received from MLB Stats API")
+        except Exception as e:
+            app.logger.error(f"Error in background update: {str(e)}")
+            import traceback
+            app.logger.error(traceback.format_exc())
+        finally:
+            # Update status
+            bg_update_status["in_progress"] = False
+            app.logger.info("=== BACKGROUND DATA UPDATE COMPLETED ===")
         
     return
 
@@ -147,7 +163,9 @@ def index():
         "from_cache": True,  # We're always using cache initially
         "is_fresh": is_fresh,
         "update_in_progress": bg_update_status["in_progress"],
-        "last_updated": bg_update_status["last_updated"]
+        "last_updated": bg_update_status["last_updated"],
+        "teams_updated": bg_update_status["teams_updated"],
+        "total_teams": bg_update_status["total_teams"]
     }
     
     return render_template('index.html', teams=teams, status=status)
@@ -157,3 +175,11 @@ def update_status():
     """API endpoint to check update status"""
     global bg_update_status
     return jsonify(bg_update_status)
+
+@main_bp.route('/api/team-data')
+def team_data():
+    """API endpoint to get the latest team data"""
+    teams, exists, is_fresh = get_cached_data(must_exist=True)
+    teams = fix_logo_paths(teams)
+    
+    return jsonify(teams)

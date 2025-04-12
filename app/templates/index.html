@@ -15,53 +15,21 @@
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f8f9fa;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        
-        h1 {
-            color: var(--mlb-blue);
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        
-        .chart-container {
-            position: relative;
-            height: 70vh;
-            width: 100%;
-            margin-bottom: 30px;
-        }
-        
-        .quadrant-label {
-            position: absolute;
-            z-index: 10;
-        }
-        
-        footer {
-            text-align: center;
-            margin-top: 30px;
-            color: #666;
-            font-size: 0.8rem;
-        }
-    </style>
+
 </head>
 <body>
     <div class="container">
         <h1>MLB Team Performance: ERA vs OPS</h1>
+        
+        <!-- New update status controls -->
+        <div class="controls">
+            <span id="data-status">Data: <span id="status-text">{{ 'Fresh' if status.is_fresh else 'Stale' }}</span></span>
+            <span class="status-indicator" id="status-indicator"></span>
+            <button id="refresh-button" class="refresh-button">Refresh Data</button>
+            <div id="update-progress" class="update-progress">
+                Updating: <span id="progress-text">0/0</span> teams
+            </div>
+        </div>
         
         <div class="chart-container">
             <canvas id="mlbChart"></canvas>
@@ -103,7 +71,6 @@
         
         // Utility function to show toast notifications with MLB colors
         function showToast(message, type = "info") {
-            console.log("Showing toast:", message, type);
             const bgColors = {
                 success: `linear-gradient(to right, ${MLB_COLORS.blue}, #4682B4)`,
                 error: `linear-gradient(to right, ${MLB_COLORS.red}, #FF6347)`,
@@ -130,57 +97,58 @@
             }).showToast();
         }
         
+        // Flag to track if we need to fetch fresh data
+        let updateNeeded = false;
+        let updateCompleted = false;
+        
         // Function to check for updates
         function checkForUpdates() {
-            console.log("Checking for updates from server...");
             fetch('/api/update-status')
                 .then(response => {
-                    console.log("Received response from update-status API");
                     if (!response.ok) {
                         throw new Error(`HTTP error! Status: ${response.status}`);
                     }
                     return response.json();
                 })
                 .then(status => {
-                    console.log("Update status:", JSON.stringify(status, null, 2));
+                    const statusIndicator = document.getElementById('status-indicator');
+                    const statusText = document.getElementById('status-text');
+                    const updateProgress = document.getElementById('update-progress');
+                    const progressText = document.getElementById('progress-text');
+                    const refreshButton = document.getElementById('refresh-button');
                     
-                    // First time check - initialize the last team seen
-                    if (!window.lastTeamSeen && status.teams_updated > 0) {
-                        window.lastTeamSeen = status.teams_updated;
-                    }
+                    console.info("Update status:", status.in_progress ? "IN PROGRESS" : "COMPLETED", status);
                     
-                    // Only show update notifications if an update is in progress
+                    // Update progress display
                     if (status.in_progress) {
-                        // Show progress message
-                        const progressMessage = `Updating MLB data: ${status.teams_updated}/${status.total_teams} teams`;
-                        console.log(progressMessage);
+                        statusIndicator.classList.add('active');
+                        statusText.textContent = 'Updating';
+                        updateProgress.classList.add('visible');
+                        progressText.textContent = `${status.teams_updated}/${status.total_teams}`;
                         
-                        // If team count has changed, show toast
-                        if (status.teams_updated > (window.lastTeamSeen || 0)) {
-                            showToast(progressMessage, "update");
-                            window.lastTeamSeen = status.teams_updated;
-                        }
-                        
-                        // If update is still in progress, check again in 2 seconds
+                        // Schedule next check
                         setTimeout(checkForUpdates, 2000);
-                    } else if (status.last_updated) {
-                        // Check if this is a completed update (that we haven't already notified about)
-                        if (!window.lastUpdateChecked || window.lastUpdateChecked !== status.last_updated) {
-                            console.log("Update completed at:", status.last_updated);
-                            window.lastUpdateChecked = status.last_updated;
-                            showToast("MLB data update complete! Refresh the page to see the latest data.", "success");
-                            
-                            // Update the last updated timestamp
+                    } else {
+                        statusIndicator.classList.remove('active');
+                        updateProgress.classList.remove('visible');
+                        
+                        if (status.last_updated) {
                             const lastUpdatedElement = document.getElementById('lastUpdated');
                             if (lastUpdatedElement) {
                                 lastUpdatedElement.textContent = status.last_updated;
-                                console.log("Updated timestamp display");
                             }
-                        } else {
-                            console.log("No changes in update status");
+                            
+                            // If an update completed and we haven't fetched the new data yet
+                            if (!updateCompleted && window.lastUpdateTimestamp !== status.last_updated) {
+                                updateCompleted = true;
+                                updateNeeded = true;
+                                window.lastUpdateTimestamp = status.last_updated;
+                                
+                                showToast("MLB data update complete!", "success");
+                                statusText.textContent = "Updated";
+                                refreshButton.classList.add('visible');
+                            }
                         }
-                    } else {
-                        console.log("No update in progress and no last_updated timestamp");
                     }
                 })
                 .catch(error => {
@@ -188,6 +156,52 @@
                     showToast("Error checking for updates", "error");
                 });
         }
+        
+        // Function to fetch fresh data
+        function fetchFreshData() {
+            // Show loading toast
+            showToast("Loading fresh data...", "info");
+            
+            fetch('/api/team-data')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.info(`Loaded fresh data with ${data.length} teams`);
+                    showToast("New data loaded successfully", "success");
+                    
+                    // Update timestamp display
+                    const lastUpdatedElement = document.getElementById('lastUpdated');
+                    if (lastUpdatedElement && window.lastUpdateTimestamp) {
+                        lastUpdatedElement.textContent = window.lastUpdateTimestamp;
+                    }
+                    
+                    // Update chart with animation
+                    if (typeof updateChartData === 'function') {
+                        updateChartData(data);
+                    } else {
+                        console.error("updateChartData function not available");
+                        showToast("Could not update visualization", "error");
+                    }
+                    
+                    // Hide refresh button
+                    document.getElementById('refresh-button').classList.remove('visible');
+                    updateNeeded = false;
+                    
+                    // Update status text
+                    document.getElementById('status-text').textContent = "Fresh";
+                })
+                .catch(error => {
+                    console.error("Error fetching fresh data:", error);
+                    showToast("Error loading new data", "error");
+                });
+        }
+        
+        // Event listener for refresh button
+        document.getElementById('refresh-button').addEventListener('click', fetchFreshData);
     </script>
     
     <!-- Chart initialization -->
@@ -197,44 +211,38 @@
     <script>
         // Event listener for page load
         window.addEventListener('DOMContentLoaded', function() {
-            console.log("DOM content loaded - initializing application");
-            
-            // VERBOSE: Log the data status to console
-            console.log("Initial data status:", window.dataStatus);
+            // Store last update timestamp
+            window.lastUpdateTimestamp = window.dataStatus.last_updated;
             
             // Display appropriate toast based on data status
             if (window.dataStatus.from_cache) {
                 if (window.dataStatus.is_fresh) {
-                    console.log("Using FRESH cached data");
-                    showToast("Using fresh cached data", "success");
+                    showToast("Using fresh data", "success");
                 } else {
-                    console.log("Using STALE cached data - initiating background update");
-                    showToast("Using cached data - updating in background", "info");
+                    showToast("Using cached data - update starting", "info");
                 }
             }
             
             // Check for updates if they're in progress
             if (window.dataStatus.update_in_progress) {
-                console.log("Update is already in progress - starting update monitoring");
-                showToast("Starting data update from MLB Stats API...", "update");
+                document.getElementById('status-indicator').classList.add('active');
+                document.getElementById('status-text').textContent = 'Updating';
+                document.getElementById('update-progress').classList.add('visible');
+                document.getElementById('progress-text').textContent = 
+                    `${window.dataStatus.teams_updated}/${window.dataStatus.total_teams}`;
+                
                 // Start checking for updates
                 setTimeout(checkForUpdates, 1000);
             } else if (!window.dataStatus.is_fresh) {
-                console.log("Data is stale but update not started - checking status");
-                // Check if an update might have been started but not reflected in initial status
+                // Check if an update might have been started
                 setTimeout(checkForUpdates, 1000);
             }
-            
-            // Position the quadrant labels after chart is rendered
-            setTimeout(positionQuadrantLabels, 1000);
             
             // Add window resize handler with debounce
             let resizeTimer;
             window.addEventListener('resize', function() {
-                console.log("Window resize detected");
                 clearTimeout(resizeTimer);
                 resizeTimer = setTimeout(function() {
-                    console.log("Repositioning elements after resize");
                     positionQuadrantLabels();
                 }, 250);
             });

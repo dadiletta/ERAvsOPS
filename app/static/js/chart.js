@@ -4,10 +4,10 @@
 const CONFIG = {
     logoWidth: 30, // Set logo width (height will be calculated to maintain aspect ratio)
     quadrantColors: {
-        topLeft: 'rgba(255, 248, 225, 0.3)',    // Cream (Good Pitching, Bad Hitting) - more transparent
-        topRight: 'rgba(232, 245, 233, 0.3)',   // Light green (Good Pitching, Good Hitting) - more transparent
-        bottomLeft: 'rgba(255, 235, 238, 0.3)', // Light pink (Bad Pitching, Bad Hitting) - more transparent
-        bottomRight: 'rgba(255, 255, 224, 0.3)' // Light yellow (Bad Pitching, Good Hitting) - more transparent
+        topLeft: 'rgba(255, 248, 225, 0.3)',    // Cream (Good Pitching, Bad Hitting)
+        topRight: 'rgba(232, 245, 233, 0.3)',   // Light green (Good Pitching, Good Hitting)
+        bottomLeft: 'rgba(255, 235, 238, 0.3)', // Light pink (Bad Pitching, Bad Hitting)
+        bottomRight: 'rgba(255, 255, 224, 0.3)' // Light yellow (Bad Pitching, Good Hitting)
     },
     axisLines: {
         xValue: 0.7, // OPS dividing line
@@ -16,39 +16,59 @@ const CONFIG = {
     mlbColors: {
         blue: '#002D72',
         red: '#E31937'
+    },
+    animation: {
+        duration: 800,
+        easing: 'easeOutQuad'
+    }
+};
+
+// Smart logger that only logs important information
+const logger = {
+    debugMode: false,
+    log: function(message, data) {
+        if (this.debugMode && console && console.log) {
+            if (data) {
+                console.log(`[DEBUG] ${message}`, data);
+            } else {
+                console.log(`[DEBUG] ${message}`);
+            }
+        }
+    },
+    error: function(message, error) {
+        if (console && console.error) {
+            if (error) {
+                console.error(`[ERROR] ${message}`, error);
+            } else {
+                console.error(`[ERROR] ${message}`);
+            }
+        }
+    },
+    info: function(message, data) {
+        if (console && console.info) {
+            if (data) {
+                console.info(`[INFO] ${message}`, data);
+            } else {
+                console.info(`[INFO] ${message}`);
+            }
+        }
     }
 };
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Check if Toastify is loaded
-    console.log("==========================================");
-    console.log("Chart.js script loaded and initialized");
-    console.log("==========================================");
-    
-    // Get team data passed from Flask (will be set in the template)
+    // Get team data passed from Flask
     const teamData = window.teamData || [];
     const dataStatus = window.dataStatus || {};
     const ctx = document.getElementById('mlbChart').getContext('2d');
     
-    // VERBOSE: Log data status for debugging
-    console.log("DATA STATUS:", JSON.stringify(dataStatus, null, 2));
-    
-    // Log teams and their logo paths for debugging
-    console.log(`Team data loaded: ${teamData.length} teams`);
-    console.log("SAMPLE TEAM DATA:", JSON.stringify(teamData.slice(0, 3), null, 2));
-    
-    // Log whether data is from cache and if update is in progress
-    if (dataStatus.from_cache) {
-        console.log(`Using ${dataStatus.is_fresh ? 'FRESH' : 'STALE'} cached data`);
-    }
+    // Log minimal but useful information
+    logger.info("Chart initialization started");
     
     if (dataStatus.update_in_progress) {
-        console.log("Background update is in progress");
-        console.log(`Teams updated so far: ${dataStatus.teams_updated}/${dataStatus.total_teams}`);
+        logger.info(`Background update in progress: ${dataStatus.teams_updated}/${dataStatus.total_teams} teams`);
     }
     
     // Create datasets for team positioning
-    console.log("Creating team points dataset");
     const teamPoints = teamData.map(team => ({
         x: team.ops,
         y: team.era,
@@ -59,7 +79,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }));
     
     // Create cached image store to prevent reload issues
-    console.log("Creating image cache for team logos");
     const logoCache = {};
     
     // Preload all team logos to ensure consistent sizing
@@ -74,12 +93,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Store in cache
         logoCache[logoPath] = img;
-        
-        console.log(`Preloaded logo: ${logoPath}`);
     });
     
     // Create quadrant background plugin
-    console.log("Creating quadrant background plugin");
     const quadrantPlugin = {
         id: 'quadrantBackgrounds',
         beforeDraw: (chart) => {
@@ -107,9 +123,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
-    console.log("Creating chart instance");
-    // Create the chart
-    const mlbChart = new Chart(ctx, {
+    // Store chart reference globally for updates
+    window.mlbChart = new Chart(ctx, {
         type: 'scatter',
         data: {
             datasets: [{
@@ -118,7 +133,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     try {
                         const index = context.dataIndex;
                         if (index === undefined || !teamPoints[index]) {
-                            console.error(`Invalid data index: ${index}`);
+                            logger.error(`Invalid data index: ${index}`);
                             return null;
                         }
                         
@@ -133,18 +148,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         // If not in cache (shouldn't happen due to preloading), create new image
                         const image = new Image();
                         image.src = logoPath;
-                        
-                        // IMPORTANT: Set fixed dimensions to prevent resizing issues
-                        // This is a key fix for the "freaking out" issue
                         image.width = CONFIG.logoWidth;
                         image.height = CONFIG.logoWidth;
-                        
-                        // Cache the image
                         logoCache[logoPath] = image;
                         
                         return image;
                     } catch (error) {
-                        console.error("Error in pointStyle function:", error);
+                        logger.error("Error in pointStyle function:", error);
                         return null;
                     }
                 },
@@ -158,6 +168,18 @@ document.addEventListener('DOMContentLoaded', function() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            // Add animations for smoother transitions when data updates
+            animation: {
+                duration: CONFIG.animation.duration,
+                easing: CONFIG.animation.easing,
+            },
+            transitions: {
+                active: {
+                    animation: {
+                        duration: CONFIG.animation.duration
+                    }
+                }
+            },
             scales: {
                 x: {
                     title: {
@@ -242,31 +264,51 @@ document.addEventListener('DOMContentLoaded', function() {
     // Position the quadrant labels after chart is rendered
     setTimeout(positionQuadrantLabels, 1000);
     
-    // Update the toast message when data is loaded
-    if (typeof showToast === 'function') {
-        showToast("Chart loaded successfully", "success");
-    } else {
-        console.error("showToast function not available");
-    }
+    logger.info("Chart initialization completed");
 });
+
+// Function to update chart data with animation
+function updateChartData(newData) {
+    if (!window.mlbChart) {
+        console.error("Chart not initialized");
+        return false;
+    }
+    
+    console.info("Updating chart with new data...");
+    
+    // Format data for chart
+    const formattedData = newData.map(team => ({
+        x: team.ops,
+        y: team.era,
+        team: team.name,
+        fullName: team.full_name || team.name,
+        abbreviation: team.abbreviation,
+        logo: team.logo
+    }));
+    
+    // Update chart data
+    window.mlbChart.data.datasets[0].data = formattedData;
+    
+    // Update and animate
+    window.mlbChart.update();
+    console.info("Chart data updated with animation");
+    
+    return true;
+}
 
 // Function to position quadrant labels (defined globally so it can be called from HTML too)
 function positionQuadrantLabels() {
-    console.log("Positioning quadrant labels in corners");
     const chart = document.getElementById('mlbChart');
     if (!chart) {
         console.error("Chart element not found!");
         return;
     }
     
-    const container = chart.parentElement;
     const chartRect = chart.getBoundingClientRect();
     
     // Get chart dimensions
     const chartWidth = chartRect.width;
     const chartHeight = chartRect.height;
-    
-    console.log(`Chart dimensions: ${chartWidth}x${chartHeight}`);
     
     // Position labels - moved further into corners (15% and 85% instead of 25% and 75%)
     const labels = {
@@ -281,9 +323,6 @@ function positionQuadrantLabels() {
         if (label) {
             label.style.left = (chartWidth * pos.x) + 'px';
             label.style.top = (chartHeight * pos.y) + 'px';
-            console.log(`Positioned ${id} at ${chartWidth * pos.x}px, ${chartHeight * pos.y}px`);
-        } else {
-            console.error(`Label with id ${id} not found`);
         }
     }
 }
