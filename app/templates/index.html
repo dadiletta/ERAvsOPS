@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MLB ERA vs OPS Visualization</title>
     
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0/dist/chartjs-plugin-annotation.min.js"></script>
@@ -15,19 +18,21 @@
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-
 </head>
 <body>
     <div class="container">
         <h1>MLB Team Performance: ERA vs OPS</h1>
         
-        <!-- New update status controls -->
+        <!-- Update status controls -->
         <div class="controls">
             <span id="data-status">Data: <span id="status-text">{{ 'Fresh' if status.is_fresh else 'Stale' }}</span></span>
             <span class="status-indicator" id="status-indicator"></span>
             <button id="refresh-button" class="refresh-button">Refresh Data</button>
             <div id="update-progress" class="update-progress">
-                Updating: <span id="progress-text">0/0</span> teams
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progress-bar"></div>
+                </div>
+                <div id="progress-text">Updating: <span id="progress-count">0/0</span> teams</div>
             </div>
         </div>
         
@@ -69,6 +74,16 @@
             red: "#E31937"
         };
         
+        // App configuration
+        const CONFIG = {
+            updateInterval: 2000,     // How often to poll for updates (ms)
+            batchSize: 3,             // How many teams to update in each batch
+            animation: {
+                duration: 800,
+                easing: 'easeOutQuad'
+            }
+        };
+        
         // Utility function to show toast notifications with MLB colors
         function showToast(message, type = "info") {
             const bgColors = {
@@ -97,87 +112,167 @@
             }).showToast();
         }
         
-        // Flag to track if we need to fetch fresh data
-        let updateNeeded = false;
-        let updateCompleted = false;
+        // Status tracking
+        let updateTimer = null;
+        let isUpdating = false;
+        let lastUpdateTimestamp = window.dataStatus.last_updated;
+        
+        // Function to update the UI based on status
+        function updateUI(status) {
+            const statusIndicator = $('#status-indicator');
+            const statusText = $('#status-text');
+            const updateProgress = $('#update-progress');
+            const progressBar = $('#progress-bar');
+            const progressCount = $('#progress-count');
+            const refreshButton = $('#refresh-button');
+            const lastUpdatedElem = $('#lastUpdated');
+            
+            // Update progress display
+            if (status.in_progress) {
+                statusIndicator.addClass('active');
+                statusText.text('Updating');
+                updateProgress.addClass('visible');
+                
+                // Calculate percentage
+                const percent = status.total_teams > 0 
+                    ? (status.teams_updated / status.total_teams) * 100 
+                    : 0;
+                
+                // Update progress bar
+                progressBar.css('width', `${percent}%`);
+                progressCount.text(`${status.teams_updated}/${status.total_teams}`);
+                
+                // Hide refresh button during update
+                refreshButton.removeClass('visible');
+            } else {
+                statusIndicator.removeClass('active');
+                updateProgress.removeClass('visible');
+                
+                // Update last updated timestamp if available
+                if (status.last_updated) {
+                    lastUpdatedElem.text(status.last_updated);
+                    lastUpdateTimestamp = status.last_updated;
+                }
+                
+                // If cache is not fresh, show refresh button
+                if (!status.cache_fresh) {
+                    statusText.text('Stale');
+                    refreshButton.addClass('visible');
+                } else {
+                    statusText.text('Fresh');
+                    refreshButton.removeClass('visible');
+                }
+                
+                // If there was an error, show it
+                if (status.error) {
+                    showToast(`Error: ${status.error}`, "error");
+                }
+            }
+        }
         
         // Function to check for updates
-        function checkForUpdates() {
-            fetch('/api/update-status')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(status => {
-                    const statusIndicator = document.getElementById('status-indicator');
-                    const statusText = document.getElementById('status-text');
-                    const updateProgress = document.getElementById('update-progress');
-                    const progressText = document.getElementById('progress-text');
-                    const refreshButton = document.getElementById('refresh-button');
+        function checkUpdateStatus() {
+            $.ajax({
+                url: '/api/update-status',
+                method: 'GET',
+                dataType: 'json',
+                success: function(status) {
+                    // Update UI based on status
+                    updateUI(status);
                     
-                    console.info("Update status:", status.in_progress ? "IN PROGRESS" : "COMPLETED", status);
-                    
-                    // Update progress display
+                    // If an update is in progress, continue polling
                     if (status.in_progress) {
-                        statusIndicator.classList.add('active');
-                        statusText.textContent = 'Updating';
-                        updateProgress.classList.add('visible');
-                        progressText.textContent = `${status.teams_updated}/${status.total_teams}`;
+                        // Continue the update process if we're not at 100%
+                        if (status.teams_updated < status.total_teams) {
+                            continueUpdate();
+                        }
                         
-                        // Schedule next check
-                        setTimeout(checkForUpdates, 2000);
+                        // Schedule next status check
+                        updateTimer = setTimeout(checkUpdateStatus, CONFIG.updateInterval);
                     } else {
-                        statusIndicator.classList.remove('active');
-                        updateProgress.classList.remove('visible');
+                        // If update just completed, fetch fresh data
+                        if (isUpdating) {
+                            isUpdating = false;
+                            fetchFreshData();
+                        }
                         
-                        if (status.last_updated) {
-                            const lastUpdatedElement = document.getElementById('lastUpdated');
-                            if (lastUpdatedElement) {
-                                lastUpdatedElement.textContent = status.last_updated;
-                            }
-                            
-                            // If an update completed and we haven't fetched the new data yet
-                            if (!updateCompleted && window.lastUpdateTimestamp !== status.last_updated) {
-                                updateCompleted = true;
-                                updateNeeded = true;
-                                window.lastUpdateTimestamp = status.last_updated;
-                                
-                                showToast("MLB data update complete!", "success");
-                                statusText.textContent = "Updated";
-                                refreshButton.classList.add('visible');
-                            }
+                        // If data is stale, start automatic update
+                        if (!status.cache_fresh && !isUpdating) {
+                            startUpdate();
                         }
                     }
-                })
-                .catch(error => {
+                },
+                error: function(xhr, status, error) {
                     console.error("Error checking update status:", error);
                     showToast("Error checking for updates", "error");
-                });
+                    
+                    // Clear any existing timer
+                    if (updateTimer) {
+                        clearTimeout(updateTimer);
+                        updateTimer = null;
+                    }
+                }
+            });
+        }
+        
+        // Function to start the update process
+        function startUpdate() {
+            // Don't start if already updating
+            if (isUpdating) return;
+            
+            isUpdating = true;
+            showToast("Starting data update...", "info");
+            
+            $.ajax({
+                url: '/api/start-update',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ batch_size: CONFIG.batchSize }),
+                dataType: 'json',
+                success: function(status) {
+                    // Update UI based on status
+                    updateUI(status);
+                    
+                    // Schedule status check
+                    updateTimer = setTimeout(checkUpdateStatus, CONFIG.updateInterval);
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error starting update:", error);
+                    showToast("Error starting data update", "error");
+                    isUpdating = false;
+                }
+            });
+        }
+        
+        // Function to continue the update process
+        function continueUpdate() {
+            $.ajax({
+                url: '/api/continue-update',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ batch_size: CONFIG.batchSize }),
+                dataType: 'json',
+                success: function(status) {
+                    // Update UI based on status
+                    updateUI(status);
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error continuing update:", error);
+                    showToast("Error continuing data update", "error");
+                }
+            });
         }
         
         // Function to fetch fresh data
         function fetchFreshData() {
-            // Show loading toast
             showToast("Loading fresh data...", "info");
             
-            fetch('/api/team-data')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.info(`Loaded fresh data with ${data.length} teams`);
-                    showToast("New data loaded successfully", "success");
-                    
-                    // Update timestamp display
-                    const lastUpdatedElement = document.getElementById('lastUpdated');
-                    if (lastUpdatedElement && window.lastUpdateTimestamp) {
-                        lastUpdatedElement.textContent = window.lastUpdateTimestamp;
-                    }
+            $.ajax({
+                url: '/api/team-data',
+                method: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    showToast("Data update complete!", "success");
                     
                     // Update chart with animation
                     if (typeof updateChartData === 'function') {
@@ -186,67 +281,42 @@
                         console.error("updateChartData function not available");
                         showToast("Could not update visualization", "error");
                     }
-                    
-                    // Hide refresh button
-                    document.getElementById('refresh-button').classList.remove('visible');
-                    updateNeeded = false;
-                    
-                    // Update status text
-                    document.getElementById('status-text').textContent = "Fresh";
-                })
-                .catch(error => {
+                },
+                error: function(xhr, status, error) {
                     console.error("Error fetching fresh data:", error);
-                    showToast("Error loading new data", "error");
-                });
+                    showToast("Error loading updated data", "error");
+                }
+            });
         }
         
         // Event listener for refresh button
-        document.getElementById('refresh-button').addEventListener('click', fetchFreshData);
+        $(document).on('click', '#refresh-button', function() {
+            // Only start update if not already updating
+            if (!isUpdating) {
+                startUpdate();
+            }
+        });
+        
+        // Check status on page load
+        $(document).ready(function() {
+            // First check if we're starting with fresh data
+            if (!window.dataStatus.is_fresh && !window.dataStatus.update_in_progress) {
+                // If data is stale, start automatic update
+                setTimeout(function() {
+                    startUpdate();
+                }, 1000);
+            } else if (window.dataStatus.update_in_progress) {
+                // If update already in progress, check status
+                isUpdating = true;
+                setTimeout(checkUpdateStatus, 1000);
+            } else {
+                // Otherwise, just periodically check for staleness
+                setTimeout(checkUpdateStatus, 5000);
+            }
+        });
     </script>
     
     <!-- Chart initialization -->
     <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
-    
-    <!-- Event listeners -->
-    <script>
-        // Event listener for page load
-        window.addEventListener('DOMContentLoaded', function() {
-            // Store last update timestamp
-            window.lastUpdateTimestamp = window.dataStatus.last_updated;
-            
-            // Display appropriate toast based on data status
-            if (window.dataStatus.from_cache) {
-                if (window.dataStatus.is_fresh) {
-                    showToast("Using fresh data", "success");
-                } else {
-                    showToast("Using cached data - update starting", "info");
-                }
-            }
-            
-            // Check for updates if they're in progress
-            if (window.dataStatus.update_in_progress) {
-                document.getElementById('status-indicator').classList.add('active');
-                document.getElementById('status-text').textContent = 'Updating';
-                document.getElementById('update-progress').classList.add('visible');
-                document.getElementById('progress-text').textContent = 
-                    `${window.dataStatus.teams_updated}/${window.dataStatus.total_teams}`;
-                
-                // Start checking for updates
-                setTimeout(checkForUpdates, 1000);
-            } else if (!window.dataStatus.is_fresh) {
-                // Check if an update might have been started
-                setTimeout(checkForUpdates, 1000);
-            }
-            
-            // Add window resize handler with debounce
-            let resizeTimer;
-            window.addEventListener('resize', function() {
-                clearTimeout(resizeTimer);
-                resizeTimer = setTimeout(function() {
-                    positionQuadrantLabels();
-                }, 250);
-            });
-        });
-    </script>
 </body>
 </html>

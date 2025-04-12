@@ -46,16 +46,64 @@ const logger = {
     },
     info: function(message, data) {
         if (console && console.info) {
-            if (data) {
-                console.info(`[INFO] ${message}`, data);
-            } else {
-                console.info(`[INFO] ${message}`);
-            }
+            console.info(`[INFO] ${message}`);
         }
     }
 };
 
-document.addEventListener('DOMContentLoaded', function() {
+// Create cached image store to prevent reload issues
+const logoCache = {};
+
+// Function to preload team logos
+function preloadTeamLogos(teams) {
+    teams.forEach(team => {
+        const logoPath = team.logo.startsWith('/') ? team.logo : `/${team.logo}`;
+        
+        // Skip if already in cache
+        if (logoCache[logoPath]) return;
+        
+        const img = new Image();
+        img.src = logoPath;
+        
+        // Set fixed dimensions to prevent resizing issues
+        img.width = CONFIG.logoWidth;
+        img.height = CONFIG.logoWidth;
+        
+        // Store in cache
+        logoCache[logoPath] = img;
+    });
+}
+
+// Create quadrant background plugin
+const quadrantPlugin = {
+    id: 'quadrantBackgrounds',
+    beforeDraw: (chart) => {
+        const { ctx, chartArea, scales } = chart;
+        const { left, top, right, bottom } = chartArea;
+        const midX = scales.x.getPixelForValue(CONFIG.axisLines.xValue);
+        const midY = scales.y.getPixelForValue(CONFIG.axisLines.yValue);
+        
+        // Draw quadrant backgrounds
+        // Top-left: Good Pitching, Bad Hitting (cream)
+        ctx.fillStyle = CONFIG.quadrantColors.topLeft;
+        ctx.fillRect(left, top, midX - left, midY - top);
+        
+        // Top-right: Good Pitching, Good Hitting (light green)
+        ctx.fillStyle = CONFIG.quadrantColors.topRight;
+        ctx.fillRect(midX, top, right - midX, midY - top);
+        
+        // Bottom-left: Bad Pitching, Bad Hitting (light pink)
+        ctx.fillStyle = CONFIG.quadrantColors.bottomLeft;
+        ctx.fillRect(left, midY, midX - left, bottom - midY);
+        
+        // Bottom-right: Bad Pitching, Good Hitting (light yellow)
+        ctx.fillStyle = CONFIG.quadrantColors.bottomRight;
+        ctx.fillRect(midX, midY, right - midX, bottom - midY);
+    }
+};
+
+// Initialize chart when document is ready
+$(document).ready(function() {
     // Get team data passed from Flask
     const teamData = window.teamData || [];
     const dataStatus = window.dataStatus || {};
@@ -78,50 +126,8 @@ document.addEventListener('DOMContentLoaded', function() {
         logo: team.logo
     }));
     
-    // Create cached image store to prevent reload issues
-    const logoCache = {};
-    
     // Preload all team logos to ensure consistent sizing
-    teamPoints.forEach(point => {
-        const logoPath = point.logo.startsWith('/') ? point.logo : `/${point.logo}`;
-        const img = new Image();
-        img.src = logoPath;
-        
-        // Set fixed dimensions to prevent resizing issues
-        img.width = CONFIG.logoWidth;
-        img.height = CONFIG.logoWidth;
-        
-        // Store in cache
-        logoCache[logoPath] = img;
-    });
-    
-    // Create quadrant background plugin
-    const quadrantPlugin = {
-        id: 'quadrantBackgrounds',
-        beforeDraw: (chart) => {
-            const { ctx, chartArea, scales } = chart;
-            const { left, top, right, bottom } = chartArea;
-            const midX = scales.x.getPixelForValue(CONFIG.axisLines.xValue);
-            const midY = scales.y.getPixelForValue(CONFIG.axisLines.yValue);
-            
-            // Draw quadrant backgrounds
-            // Top-left: Good Pitching, Bad Hitting (cream)
-            ctx.fillStyle = CONFIG.quadrantColors.topLeft;
-            ctx.fillRect(left, top, midX - left, midY - top);
-            
-            // Top-right: Good Pitching, Good Hitting (light green)
-            ctx.fillStyle = CONFIG.quadrantColors.topRight;
-            ctx.fillRect(midX, top, right - midX, midY - top);
-            
-            // Bottom-left: Bad Pitching, Bad Hitting (light pink)
-            ctx.fillStyle = CONFIG.quadrantColors.bottomLeft;
-            ctx.fillRect(left, midY, midX - left, bottom - midY);
-            
-            // Bottom-right: Bad Pitching, Good Hitting (light yellow)
-            ctx.fillStyle = CONFIG.quadrantColors.bottomRight;
-            ctx.fillRect(midX, midY, right - midX, bottom - midY);
-        }
-    };
+    preloadTeamLogos(teamData);
     
     // Store chart reference globally for updates
     window.mlbChart = new Chart(ctx, {
@@ -224,7 +230,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     callbacks: {
                         label: function(context) {
                             const point = context.raw;
-                            return `${point.team}: ERA ${point.y}, OPS ${point.x}`;
+                            return `${point.fullName}: ERA ${point.y.toFixed(2)}, OPS ${point.x.toFixed(3)}`;
                         }
                     }
                 },
@@ -270,11 +276,14 @@ document.addEventListener('DOMContentLoaded', function() {
 // Function to update chart data with animation
 function updateChartData(newData) {
     if (!window.mlbChart) {
-        console.error("Chart not initialized");
+        logger.error("Chart not initialized");
         return false;
     }
     
-    console.info("Updating chart with new data...");
+    logger.info("Updating chart with new data...");
+    
+    // Preload new team logos
+    preloadTeamLogos(newData);
     
     // Format data for chart
     const formattedData = newData.map(team => ({
@@ -286,12 +295,30 @@ function updateChartData(newData) {
         logo: team.logo
     }));
     
-    // Update chart data
-    window.mlbChart.data.datasets[0].data = formattedData;
+    // Update chart data with jQuery animation for smoother transition
+    const chart = window.mlbChart;
+    
+    // First update the data
+    chart.data.datasets[0].data = formattedData;
+    
+    // Then apply a longer animation duration for this update
+    chart.options.animation = {
+        duration: 1200,  // Longer duration for better visualization
+        easing: 'easeOutQuad'
+    };
     
     // Update and animate
-    window.mlbChart.update();
-    console.info("Chart data updated with animation");
+    chart.update();
+    
+    // Return to normal animation duration after this update
+    setTimeout(() => {
+        chart.options.animation = {
+            duration: CONFIG.animation.duration,
+            easing: CONFIG.animation.easing
+        };
+    }, 1500);
+    
+    logger.info("Chart data updated with animation");
     
     return true;
 }
@@ -300,7 +327,7 @@ function updateChartData(newData) {
 function positionQuadrantLabels() {
     const chart = document.getElementById('mlbChart');
     if (!chart) {
-        console.error("Chart element not found!");
+        logger.error("Chart element not found!");
         return;
     }
     
@@ -326,3 +353,12 @@ function positionQuadrantLabels() {
         }
     }
 }
+
+// Update quadrant labels when window resizes
+$(window).resize(function() {
+    // Debounce the resize event
+    clearTimeout(window.resizeTimer);
+    window.resizeTimer = setTimeout(function() {
+        positionQuadrantLabels();
+    }, 250);
+});

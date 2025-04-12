@@ -1,21 +1,21 @@
 # app/routes/main_routes.py
-from flask import Blueprint, render_template, current_app, jsonify
+from flask import Blueprint, render_template, current_app, jsonify, request
 import json
 import os
 from datetime import datetime
-import threading
 # Import the MLBDataFetcher service
 from app.services.mlb_data import MLBDataFetcher
 
 # Create blueprint
 main_bp = Blueprint('main', __name__)
 
-# Global variable to track background update status
-bg_update_status = {
+# Global variable to track update status
+update_status = {
     "in_progress": False,
     "last_updated": None,
     "teams_updated": 0,
-    "total_teams": 0
+    "total_teams": 0,
+    "error": None
 }
 
 def get_cached_data(must_exist=False):
@@ -30,14 +30,14 @@ def get_cached_data(must_exist=False):
                 file_mod_time = datetime.fromtimestamp(os.path.getmtime(cache_file))
                 cache_age = datetime.now() - file_mod_time
                 is_fresh = cache_age.total_seconds() < current_app.config['CACHE_TIMEOUT']
-                return data, True, is_fresh  # Return data, exists flag, and freshness
+                return data, True, is_fresh, file_mod_time.strftime("%Y-%m-%d %H:%M:%S")
         except Exception as e:
             current_app.logger.error(f"Error reading cache: {str(e)}")
             if must_exist:
                 # Return fallback data if cache must exist but can't be read
-                return get_fallback_data(), False, False
+                return get_fallback_data(), False, False, None
     
-    return get_fallback_data() if must_exist else (None, False, False)
+    return get_fallback_data() if must_exist else (None, False, False, None)
 
 def save_to_cache(data):
     """Save data to cache file"""
@@ -78,108 +78,160 @@ def get_fallback_data():
         {"name": "Giants", "full_name": "San Francisco Giants", "abbreviation": "SF", "era": 2.55, "ops": 0.650, "logo": "/static/logos/giants.png"},
         # Add more teams as needed from your fallback data
         {"name": "Pirates", "full_name": "Pittsburgh Pirates", "abbreviation": "PIT", "era": 4.90, "ops": 0.600, "logo": "/static/logos/pirates.png"}
-    ], False, False
+    ], False, False, None
 
-def background_update_data():
-    """Update team data in the background"""
-    global bg_update_status
+def update_mlb_data(step=1, total_steps=30):
+    """Update MLB data one team at a time to allow for progress tracking"""
+    global update_status
     
-    # Get a reference to the current application
-    app = current_app._get_current_object()
+    # If update is already in progress, just return current status
+    if update_status["in_progress"]:
+        return update_status
     
-    # Set status to in progress
-    bg_update_status["in_progress"] = True
-    bg_update_status["teams_updated"] = 0
-    bg_update_status["total_teams"] = 30  # Default MLB team count
-    
-    # Use application context in the background thread
-    with app.app_context():
-        app.logger.info("=== STARTING BACKGROUND DATA UPDATE ===")
+    try:
+        # Get fetcher
+        fetcher = MLBDataFetcher()
         
-        try:
-            # Get fetcher
-            app.logger.info("Initializing MLB data fetcher")
-            fetcher = MLBDataFetcher()
+        # Get cached data to work with
+        data, exists, _, _ = get_cached_data(True)
+        
+        # Set initial update status
+        update_status = {
+            "in_progress": True,
+            "last_updated": None,
+            "teams_updated": 0,
+            "total_teams": total_steps,
+            "error": None
+        }
+        
+        # Update one team at a time (limited by step parameter)
+        if fetcher.api_available:
+            updated_data = fetcher.get_team_stats_batch(
+                start_index=update_status["teams_updated"],
+                batch_size=step
+            )
             
-            # Use a callback to track progress
-            def progress_callback(team_name, current, total):
-                global bg_update_status
-                bg_update_status["teams_updated"] = current
-                bg_update_status["total_teams"] = total
-                app.logger.info(f"Updated team {current}/{total}: {team_name}")
-            
-            # Get fresh data with progress tracking
-            app.logger.info("Starting data fetch from MLB Stats API")
-            fresh_data = fetcher.get_all_team_stats(progress_callback=progress_callback)
-            
-            # If we got valid data, save it to cache
-            if fresh_data and len(fresh_data) > 0:
-                app.logger.info(f"Successfully fetched data for {len(fresh_data)} teams")
-                app.logger.info("Saving data to cache file")
-                save_success = save_to_cache(fresh_data)
-                
-                if save_success:
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    bg_update_status["last_updated"] = timestamp
-                    app.logger.info(f"Cache updated at {timestamp}")
+            if updated_data:
+                # Integrate new data with existing data
+                if data:
+                    # Find and update teams by ID
+                    for new_team in updated_data:
+                        team_id = new_team.get("id")
+                        found = False
+                        
+                        # Look for existing team to update
+                        for i, existing_team in enumerate(data):
+                            if existing_team.get("id") == team_id:
+                                data[i] = new_team
+                                found = True
+                                break
+                        
+                        # If team not found, add it
+                        if not found:
+                            data.append(new_team)
                 else:
-                    app.logger.error("Failed to save data to cache")
-            else:
-                app.logger.error("No valid data received from MLB Stats API")
-        except Exception as e:
-            app.logger.error(f"Error in background update: {str(e)}")
-            import traceback
-            app.logger.error(traceback.format_exc())
-        finally:
-            # Update status
-            bg_update_status["in_progress"] = False
-            app.logger.info("=== BACKGROUND DATA UPDATE COMPLETED ===")
+                    # No existing data, just use what we got
+                    data = updated_data
+                
+                # Save to cache after each batch
+                save_to_cache(data)
+                
+                # Update progress
+                update_status["teams_updated"] += len(updated_data)
+                
+                # Check if we're done
+                if update_status["teams_updated"] >= update_status["total_teams"]:
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    update_status["in_progress"] = False
+                    update_status["last_updated"] = timestamp
         
-    return
+        return update_status
+        
+    except Exception as e:
+        current_app.logger.error(f"Error in update: {str(e)}")
+        import traceback
+        current_app.logger.error(traceback.format_exc())
+        
+        # Update error status
+        update_status["error"] = str(e)
+        update_status["in_progress"] = False
+        
+        return update_status
 
 @main_bp.route('/')
 def index():
     """Main route to display the chart"""
     # Always use cached data first if it exists
-    teams, exists, is_fresh = get_cached_data(must_exist=True)
+    teams, exists, is_fresh, last_updated = get_cached_data(must_exist=True)
     teams = fix_logo_paths(teams)
-    
-    # Start background update if cache is stale or doesn't exist
-    global bg_update_status
-    
-    needs_update = not is_fresh
-    update_in_progress = bg_update_status["in_progress"]
-    
-    # Only start a new update if one isn't already running and we need it
-    if needs_update and not update_in_progress:
-        # Start background thread to update data
-        current_app.logger.info("Starting background data update")
-        update_thread = threading.Thread(target=background_update_data)
-        update_thread.daemon = True
-        update_thread.start()
     
     # Pass status to template
     status = {
-        "from_cache": True,  # We're always using cache initially
+        "from_cache": exists,
         "is_fresh": is_fresh,
-        "update_in_progress": bg_update_status["in_progress"],
-        "last_updated": bg_update_status["last_updated"],
-        "teams_updated": bg_update_status["teams_updated"],
-        "total_teams": bg_update_status["total_teams"]
+        "update_in_progress": update_status["in_progress"],
+        "last_updated": last_updated or update_status.get("last_updated"),
+        "teams_updated": update_status["teams_updated"],
+        "total_teams": update_status["total_teams"]
     }
     
     return render_template('index.html', teams=teams, status=status)
 
 @main_bp.route('/api/update-status')
-def update_status():
+def get_update_status():
     """API endpoint to check update status"""
-    global bg_update_status
-    return jsonify(bg_update_status)
+    global update_status
+    
+    # Get cache status
+    _, exists, is_fresh, last_updated = get_cached_data()
+    
+    # Add cache info to status
+    status = update_status.copy()
+    status["cache_exists"] = exists
+    status["cache_fresh"] = is_fresh
+    
+    if not status["last_updated"] and last_updated:
+        status["last_updated"] = last_updated
+    
+    return jsonify(status)
+
+@main_bp.route('/api/start-update', methods=['POST'])
+def start_update():
+    """API endpoint to start the update process"""
+    global update_status
+    
+    # Don't start a new update if one is already in progress
+    if update_status["in_progress"]:
+        return jsonify(update_status)
+    
+    # Get requested batch size (default 1)
+    batch_size = request.json.get('batch_size', 1) if request.is_json else 1
+    
+    # Initialize update
+    update_status["in_progress"] = True
+    update_status["teams_updated"] = 0
+    update_status["error"] = None
+    
+    # Do one batch to get started
+    status = update_mlb_data(step=batch_size)
+    
+    return jsonify(status)
+
+@main_bp.route('/api/continue-update', methods=['POST'])
+def continue_update():
+    """API endpoint to continue the update process"""
+    # Get requested batch size (default 1)
+    batch_size = request.json.get('batch_size', 1) if request.is_json else 1
+    
+    # Continue update
+    status = update_mlb_data(step=batch_size)
+    
+    return jsonify(status)
 
 @main_bp.route('/api/team-data')
 def team_data():
     """API endpoint to get the latest team data"""
-    teams, exists, is_fresh = get_cached_data(must_exist=True)
+    teams, _, _, _ = get_cached_data(must_exist=True)
     teams = fix_logo_paths(teams)
     
     return jsonify(teams)
