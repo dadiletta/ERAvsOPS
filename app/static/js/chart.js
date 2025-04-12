@@ -58,26 +58,35 @@
 
     /**
      * Create a properly sized image from the original
+     * Force visibility with explicit attributes
      */
     function createSizedImage(originalImage) {
         const img = new Image();
-        img.src = originalImage.src;
-        // Explicitly set width and height
+        
+        // Set critical attributes for visibility
+        img.crossOrigin = "anonymous";
         img.width = CONFIG.logoSize;
         img.height = CONFIG.logoSize;
-        // Add specific styling to ensure visibility and proper sizing
+        
+        // Add inline styling to force visibility
         img.style.maxWidth = `${CONFIG.logoSize}px`;
         img.style.maxHeight = `${CONFIG.logoSize}px`;
         img.style.width = `${CONFIG.logoSize}px`;
         img.style.height = `${CONFIG.logoSize}px`;
         img.style.objectFit = 'contain';
         img.style.display = 'block';
+        img.style.visibility = 'visible';
+        img.style.opacity = '1';
+        
+        // Set source last
+        img.src = originalImage.src;
         
         return img;
     }
 
     /**
      * Preload team logos at the right size
+     * Uses a more robust loading technique
      */
     function preloadTeamLogos(teams) {
         teams.forEach(team => {
@@ -86,25 +95,38 @@
             // Skip if already in cache
             if (CONFIG.logoCache[logoPath]) return;
             
-            // Create and load the image
+            // Create a new image for loading
             const originalImg = new Image();
+            originalImg.crossOrigin = "anonymous"; // Handle cross-origin issues
             
+            // Set up the load event handler
             originalImg.onload = function() {
-                // Create a properly sized version when loaded
                 const sizedImg = createSizedImage(originalImg);
                 CONFIG.logoCache[logoPath] = sizedImg;
+                
+                // Force chart update if it exists to show the loaded image
+                if (window.mlbChart) {
+                    window.mlbChart.update();
+                }
             };
             
-            // Set source to trigger loading
-            originalImg.src = logoPath;
-            
-            // Create a placeholder while loading
-            const placeholder = new Image();
+            // Create a placeholder with a colored background while loading
+            const placeholder = document.createElement('canvas');
             placeholder.width = CONFIG.logoSize;
             placeholder.height = CONFIG.logoSize;
+            const ctx = placeholder.getContext('2d');
             
-            // Store the placeholder until the real image loads
+            // Draw a colored circle as placeholder
+            ctx.beginPath();
+            ctx.arc(CONFIG.logoSize/2, CONFIG.logoSize/2, CONFIG.logoSize/2.5, 0, Math.PI * 2);
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fill();
+            
+            // Store the placeholder in cache
             CONFIG.logoCache[logoPath] = placeholder;
+            
+            // Set source to trigger loading - do this AFTER setting up handlers
+            originalImg.src = logoPath;
         });
     }
 
@@ -160,7 +182,7 @@
             logo: team.logo
         }));
         
-        // Preload all team logos
+        // Preload all team logos before chart creation
         preloadTeamLogos(teamData);
         
         // Store chart reference globally for updates
@@ -176,18 +198,10 @@
                         const point = teamPoints[index];
                         const logoPath = point.logo.startsWith('/') ? point.logo : `/${point.logo}`;
                         
-                        // Use cached sized image if available
-                        if (CONFIG.logoCache[logoPath]) {
-                            return CONFIG.logoCache[logoPath];
-                        }
-                        
-                        // Return placeholder if not yet loaded
-                        const placeholder = new Image();
-                        placeholder.width = CONFIG.logoSize;
-                        placeholder.height = CONFIG.logoSize;
-                        return placeholder;
+                        // Return the cached image or placeholder
+                        return CONFIG.logoCache[logoPath] || null;
                     },
-                    // Match pointRadius to half the logo size to get proper scaling
+                    // Match pointRadius to half the logo size for proper scaling
                     pointRadius: CONFIG.logoSize / 2,
                     z: 20,
                     backgroundColor: 'rgba(0, 0, 0, 0)'
@@ -196,6 +210,8 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                // Set events to include all (not just hover)
+                events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'],
                 animation: {
                     duration: CONFIG.animation.duration,
                     easing: CONFIG.animation.easing,
@@ -287,6 +303,13 @@
             },
             plugins: [quadrantPlugin]
         });
+
+        // Force a redraw after a slight delay to ensure logos appear
+        setTimeout(() => {
+            if (window.mlbChart) {
+                window.mlbChart.update();
+            }
+        }, 300);
         
         // Position the quadrant labels after chart is rendered
         setTimeout(positionQuadrantLabels, 1000);
@@ -337,6 +360,9 @@
                 duration: CONFIG.animation.duration,
                 easing: CONFIG.animation.easing
             };
+            
+            // Force another update to ensure all logos are visible
+            chart.update();
         }, 1500);
         
         logger.info("Chart data updated with animation");
@@ -385,12 +411,9 @@
     // Expose public functions to the window object
     window.updateChartData = updateChartData;
     window.positionQuadrantLabels = positionQuadrantLabels;
-    // Expose the logo size configuration globally so it can be adjusted dynamically
-    window.setLogoSize = function(size) {
-        CONFIG.logoSize = size;
-        // If chart exists, update it
+    // Function to manually force an update (for debugging)
+    window.forceChartUpdate = function() {
         if (window.mlbChart) {
-            window.mlbChart.data.datasets[0].pointRadius = size / 2;
             window.mlbChart.update();
         }
     };

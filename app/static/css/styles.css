@@ -38,9 +38,17 @@ h1 {
     min-height: 400px; /* Ensure minimum height for small screens */
 }
 
-/* Force proper logo sizing in Chart.js */
+/* CRITICAL FIX: Force image visibility in all contexts */
+/* This ensures images are always visible, not just on hover */
+.chartjs-render-monitor [style*="cursor: default;"] > img,
+.chartjs-render-monitor [style*="cursor: pointer;"] > img,
 canvas.chartjs-render-monitor img,
-.chartjs-size-monitor img {
+.chartjs-size-monitor img,
+.chart-container img,
+[role="img"] img {
+    visibility: visible !important;
+    opacity: 1 !important;
+    display: block !important;
     max-width: var(--logo-width) !important;
     max-height: var(--logo-height) !important;
     width: var(--logo-width) !important;
@@ -54,12 +62,21 @@ canvas.chartjs-render-monitor img,
     max-height: var(--logo-height) !important;
     width: var(--logo-width) !important;
     height: var(--logo-height) !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 /* Override any Chart.js inline styling */
 img {
     max-width: var(--logo-width) !important;
     max-height: var(--logo-height) !important;
+}
+
+/* Make sure images in all contexts remain visible */
+.chartjs-tooltip img,
+.chartjs-tooltip-body img {
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .quadrant-label {
