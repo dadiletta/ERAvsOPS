@@ -38,11 +38,14 @@
     const elements = {
         statusIndicator: null,
         statusText: null,
+        statusIndicatorTitle: null,
+        statusTextTitle: null,
         updateProgress: null,
         progressBar: null,
         progressCount: null,
         refreshButton: null,
-        lastUpdatedElem: null
+        lastUpdatedElem: null,
+        lastUpdatedTitleElem: null
     };
     
     /**
@@ -69,11 +72,14 @@
     function cacheElements() {
         elements.statusIndicator = $('#status-indicator');
         elements.statusText = $('#status-text');
+        elements.statusIndicatorTitle = $('#status-indicator-title');
+        elements.statusTextTitle = $('#status-text-title');
         elements.updateProgress = $('#update-progress');
         elements.progressBar = $('#progress-bar');
         elements.progressCount = $('#progress-count');
         elements.refreshButton = $('#refresh-button');
         elements.lastUpdatedElem = $('#lastUpdated');
+        elements.lastUpdatedTitleElem = $('#lastUpdatedTitle');
         
         debugLog("DOM elements cached");
     }
@@ -115,6 +121,9 @@
         debugLog("Initial data status:", window.dataStatus);
         debugLog("Initial team data count:", window.teamData ? window.teamData.length : 0);
         
+        // Sync status indicators
+        syncStatusIndicators();
+        
         // Check initial status and take appropriate action
         if (window.dataStatus && !window.dataStatus.is_fresh && !window.dataStatus.update_in_progress) {
             // If data is stale, start automatic update
@@ -131,6 +140,30 @@
             // Otherwise, just periodically check for staleness
             debugLog("Data is fresh, will check for staleness periodically");
             setTimeout(checkUpdateStatus, 5000);
+        }
+    }
+    
+    /**
+     * Synchronize status indicators between top and title areas
+     */
+    function syncStatusIndicators() {
+        // Sync text status
+        if (elements.statusText && elements.statusTextTitle) {
+            elements.statusTextTitle.text(elements.statusText.text());
+        }
+        
+        // Sync indicator lights
+        if (elements.statusIndicator && elements.statusIndicatorTitle) {
+            if (elements.statusIndicator.hasClass('active')) {
+                elements.statusIndicatorTitle.addClass('active');
+            } else {
+                elements.statusIndicatorTitle.removeClass('active');
+            }
+        }
+        
+        // Sync last updated timestamps
+        if (elements.lastUpdatedElem && elements.lastUpdatedTitleElem) {
+            elements.lastUpdatedTitleElem.text(elements.lastUpdatedElem.text());
         }
     }
     
@@ -227,6 +260,9 @@
                 debugLog("Error in update process:", status.error);
             }
         }
+        
+        // Sync status indicators after any update
+        syncStatusIndicators();
     }
     
     /**
@@ -449,7 +485,8 @@
     window.mlbApp = {
         startUpdate: startUpdate,
         checkStatus: checkUpdateStatus,
-        refresh: fetchFreshData
+        refresh: fetchFreshData,
+        syncIndicators: syncStatusIndicators
     };
     
 })(window, document, jQuery);

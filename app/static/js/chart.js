@@ -6,13 +6,13 @@
     
     // Configuration variables for easy future adjustments
     const CONFIG = {
-        logoSize: 30,          // Base logo size in pixels (CHANGE THIS VALUE TO ADJUST LOGO SIZE)
+        logoSize: 34,          // Base logo size in pixels (aligned with CSS var)
         logoCache: {},         // Simple cache for preloaded logo images
         quadrantColors: {
-            topLeft: 'rgba(255, 248, 225, 0.3)',    // Cream (Good Pitching, Bad Hitting)
-            topRight: 'rgba(232, 245, 233, 0.3)',   // Light green (Good Pitching, Good Hitting)
-            bottomLeft: 'rgba(255, 235, 238, 0.3)', // Light pink (Bad Pitching, Bad Hitting)
-            bottomRight: 'rgba(255, 255, 224, 0.3)' // Light yellow (Bad Pitching, Good Hitting)
+            topLeft: 'rgba(255, 248, 225, 0.5)',    // Cream (Good Pitching, Bad Hitting)
+            topRight: 'rgba(232, 245, 233, 0.5)',   // Light green (Good Pitching, Good Hitting)
+            bottomLeft: 'rgba(255, 235, 238, 0.5)', // Light pink (Bad Pitching, Bad Hitting)
+            bottomRight: 'rgba(255, 255, 224, 0.5)' // Light yellow (Bad Pitching, Good Hitting)
         },
         axisLines: {
             xValue: 0.7, // OPS dividing line
@@ -20,12 +20,15 @@
         },
         mlbColors: {
             blue: '#002D72',
-            red: '#E31937'
+            red: '#E31937',
+            blueFaded: 'rgba(0, 45, 114, 0.8)',
+            redFaded: 'rgba(227, 25, 55, 0.8)'
         },
         animation: {
             duration: 800,
             easing: 'easeOutQuad'
-        }
+        },
+        fontFamily: "'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
     };
 
     // Logger for debugging
@@ -77,6 +80,7 @@
         img.style.display = 'block';
         img.style.visibility = 'visible';
         img.style.opacity = '1';
+        img.style.zIndex = '15';
         
         // Set source last
         img.src = originalImage.src;
@@ -158,6 +162,22 @@
         }
     };
 
+    // Helper to determine if the device is mobile
+    function isMobileDevice() {
+        return window.innerWidth <= 768;
+    }
+
+    // Calculate font sizes based on device
+    function getFontSizes() {
+        const base = isMobileDevice() ? 10 : 14;
+        return {
+            title: base * 1.4,
+            axisLabel: base * 1.2,
+            tickLabel: base * 0.9,
+            tooltip: base * 1.1
+        };
+    }
+
     // Initialize chart when DOM is fully loaded
     function initializeChart() {
         // Get team data passed from Flask
@@ -184,6 +204,35 @@
         
         // Preload all team logos before chart creation
         preloadTeamLogos(teamData);
+        
+        // Get font sizes
+        const fontSizes = getFontSizes();
+        
+        // Add the responsive tooltip plugin
+        const tooltipPlugin = {
+            id: 'mlbTooltip',
+            beforeTooltipDraw: (chart, args, options) => {
+                const { tooltip } = args;
+                const { chartArea } = chart;
+                
+                if (tooltip.opacity === 0) return;
+                
+                // Draw an MLB-colored border around the tooltip
+                const ctx = chart.ctx;
+                ctx.save();
+                ctx.globalAlpha = 0.8;
+                ctx.beginPath();
+                ctx.moveTo(tooltip.x, tooltip.y);
+                ctx.lineTo(tooltip.x + tooltip.width + 2, tooltip.y);
+                ctx.lineTo(tooltip.x + tooltip.width + 2, tooltip.y + tooltip.height + 2);
+                ctx.lineTo(tooltip.x, tooltip.y + tooltip.height + 2);
+                ctx.closePath();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = CONFIG.mlbColors.blue;
+                ctx.stroke();
+                ctx.restore();
+            }
+        };
         
         // Store chart reference globally for updates
         window.mlbChart = new Chart(ctx, {
@@ -227,32 +276,54 @@
                     x: {
                         title: {
                             display: true,
-                            text: 'OPS',
+                            text: 'OPS (On-base Plus Slugging)',
                             font: {
-                                size: 18,
-                                weight: 'bold'
-                            }
+                                size: fontSizes.axisLabel,
+                                weight: 'bold',
+                                family: CONFIG.fontFamily
+                            },
+                            color: CONFIG.mlbColors.blueFaded
                         },
                         min: 0.53,
                         max: 0.87,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)',
+                            lineWidth: 1
+                        },
                         ticks: {
-                            stepSize: 0.05
+                            stepSize: 0.05,
+                            font: {
+                                size: fontSizes.tickLabel,
+                                family: CONFIG.fontFamily
+                            },
+                            color: '#666'
                         }
                     },
                     y: {
                         title: {
                             display: true,
-                            text: 'ERA',
+                            text: 'ERA (Earned Run Average)',
                             font: {
-                                size: 18,
-                                weight: 'bold'
-                            }
+                                size: fontSizes.axisLabel,
+                                weight: 'bold',
+                                family: CONFIG.fontFamily
+                            },
+                            color: CONFIG.mlbColors.redFaded
                         },
                         min: 1.9,
                         max: 6.0,
                         reverse: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)',
+                            lineWidth: 1
+                        },
                         ticks: {
-                            stepSize: 0.5
+                            stepSize: 0.5,
+                            font: {
+                                size: fontSizes.tickLabel,
+                                family: CONFIG.fontFamily
+                            },
+                            color: '#666'
                         }
                     }
                 },
@@ -264,10 +335,34 @@
                         display: false
                     },
                     tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        titleColor: CONFIG.mlbColors.blue,
+                        bodyColor: '#333',
+                        borderColor: CONFIG.mlbColors.blue,
+                        borderWidth: 1,
+                        cornerRadius: 6,
+                        padding: 10,
+                        displayColors: false,
+                        titleFont: {
+                            size: fontSizes.tooltip + 2,
+                            weight: 'bold',
+                            family: CONFIG.fontFamily
+                        },
+                        bodyFont: {
+                            size: fontSizes.tooltip,
+                            family: CONFIG.fontFamily
+                        },
                         callbacks: {
+                            title: function(context) {
+                                const point = context[0].raw;
+                                return point.fullName;
+                            },
                             label: function(context) {
                                 const point = context.raw;
-                                return `${point.fullName}: ERA ${point.y.toFixed(2)}, OPS ${point.x.toFixed(3)}`;
+                                return [
+                                    `ERA: ${point.y.toFixed(2)}`,
+                                    `OPS: ${point.x.toFixed(3)}`
+                                ];
                             }
                         }
                     },
@@ -279,10 +374,17 @@
                                 xMax: CONFIG.axisLines.xValue,
                                 borderColor: 'rgba(0, 0, 0, 0.3)',
                                 borderWidth: 2,
-                                borderDash: [5, 5],
+                                borderDash: [6, 6],
                                 label: {
-                                    content: 'AVG',
-                                    position: 'bottom'
+                                    display: true,
+                                    content: 'AVG OPS',
+                                    position: 'bottom',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                    color: '#666',
+                                    font: {
+                                        family: CONFIG.fontFamily
+                                    },
+                                    padding: 4
                                 }
                             },
                             horizontalLine: {
@@ -291,17 +393,24 @@
                                 yMax: CONFIG.axisLines.yValue,
                                 borderColor: 'rgba(0, 0, 0, 0.3)',
                                 borderWidth: 2,
-                                borderDash: [5, 5],
+                                borderDash: [6, 6],
                                 label: {
-                                    content: 'AVG',
-                                    position: 'left'
+                                    display: true,
+                                    content: 'AVG ERA',
+                                    position: 'left',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                    color: '#666',
+                                    font: {
+                                        family: CONFIG.fontFamily
+                                    },
+                                    padding: 4
                                 }
                             }
                         }
                     }
                 }
             },
-            plugins: [quadrantPlugin]
+            plugins: [quadrantPlugin, tooltipPlugin]
         });
 
         // Force a redraw after a slight delay to ensure logos appear
@@ -312,7 +421,29 @@
         }, 300);
         
         // Position the quadrant labels after chart is rendered
-        setTimeout(positionQuadrantLabels, 1000);
+        setTimeout(positionQuadrantLabels, 500);
+        
+        // Add window resize listener to reposition labels
+        window.addEventListener('resize', function() {
+            // Update font sizes when screen size changes
+            if (window.mlbChart) {
+                const newSizes = getFontSizes();
+                
+                // Update font sizes in chart options
+                window.mlbChart.options.scales.x.title.font.size = newSizes.axisLabel;
+                window.mlbChart.options.scales.y.title.font.size = newSizes.axisLabel;
+                window.mlbChart.options.scales.x.ticks.font.size = newSizes.tickLabel;
+                window.mlbChart.options.scales.y.ticks.font.size = newSizes.tickLabel;
+                window.mlbChart.options.plugins.tooltip.titleFont.size = newSizes.tooltip + 2;
+                window.mlbChart.options.plugins.tooltip.bodyFont.size = newSizes.tooltip;
+                
+                // Update the chart
+                window.mlbChart.update();
+            }
+            
+            // Reposition quadrant labels
+            positionQuadrantLabels();
+        });
         
         logger.info("Chart initialization completed");
     }
@@ -365,6 +496,9 @@
             chart.update();
         }, 1500);
         
+        // Reposition quadrant labels
+        setTimeout(positionQuadrantLabels, 1600);
+        
         logger.info("Chart data updated with animation");
         
         return true;
@@ -385,16 +519,29 @@
         const chartHeight = chartRect.height;
         
         // Position labels - moved further into corners (15% and 85% instead of 25% and 75%)
-        const labels = {
-            'top-left': { x: 0.15, y: 0.15 },
-            'top-right': { x: 0.85, y: 0.15 },
-            'bottom-left': { x: 0.15, y: 0.85 },
-            'bottom-right': { x: 0.85, y: 0.85 }
-        };
+        // Adjust positioning for better visibility on mobile
+        let positions;
         
-        for (const [id, pos] of Object.entries(labels)) {
+        if (isMobileDevice()) {
+            positions = {
+                'top-left': { x: 0.20, y: 0.20 },
+                'top-right': { x: 0.80, y: 0.20 },
+                'bottom-left': { x: 0.20, y: 0.80 },
+                'bottom-right': { x: 0.80, y: 0.80 }
+            };
+        } else {
+            positions = {
+                'top-left': { x: 0.15, y: 0.15 },
+                'top-right': { x: 0.85, y: 0.15 },
+                'bottom-left': { x: 0.15, y: 0.85 },
+                'bottom-right': { x: 0.85, y: 0.85 }
+            };
+        }
+        
+        for (const id in positions) {
             const label = document.getElementById(id);
             if (label) {
+                const pos = positions[id];
                 label.style.left = (chartWidth * pos.x) + 'px';
                 label.style.top = (chartHeight * pos.y) + 'px';
             }

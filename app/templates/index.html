@@ -18,55 +18,183 @@
     <!-- Toastify for notifications -->
     <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <h1>MLB Team Performance: ERA vs OPS</h1>
-        
-        <!-- Update status controls -->
-        <div class="controls">
-            <span id="data-status">Data: <span id="status-text">{{ 'Fresh' if status.is_fresh else 'Stale' }}</span></span>
-            <span class="status-indicator" id="status-indicator"></span>
-            <button id="refresh-button" class="refresh-button">Refresh Data</button>
-            <div id="update-progress" class="update-progress">
-                <div class="progress-bar-container">
-                    <div class="progress-bar" id="progress-bar"></div>
+    <!-- Full-screen hero section with chart -->
+    <header class="hero">
+        <div class="hero-content">
+            <!-- Update status controls -->
+            <div class="controls">
+                <span id="data-status">Data: <span id="status-text">{{ 'Fresh' if status.is_fresh else 'Stale' }}</span></span>
+                <span class="status-indicator" id="status-indicator"></span>
+                <button id="refresh-button" class="refresh-button">Refresh Data</button>
+                <div id="update-progress" class="update-progress">
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progress-bar"></div>
+                    </div>
+                    <div id="progress-text">Updating: <span id="progress-count">0/0</span> teams</div>
                 </div>
-                <div id="progress-text">Updating: <span id="progress-count">0/0</span> teams</div>
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="mlbChart"></canvas>
+                
+                <!-- Quadrant labels -->
+                <div id="top-left" class="quadrant-label">Good Pitching<br>Bad Hitting</div>
+                <div id="top-right" class="quadrant-label">Good Pitching<br>Good Hitting</div>
+                <div id="bottom-left" class="quadrant-label">Bad Pitching<br>Bad Hitting</div>
+                <div id="bottom-right" class="quadrant-label">Bad Pitching<br>Good Hitting</div>
+            </div>
+        </div>
+    </header>
+    
+    <div class="spacer"></div>
+    
+    <main class="container">
+        <div class="title-container">
+            <h1 class="main-title">MLB ERA vs OPS Dashboard</h1>
+            <div class="data-status-bar">
+                <div class="status-label">
+                    <span id="data-status-title">Data: <span id="status-text-title">{{ 'Fresh' if status.is_fresh else 'Stale' }}</span></span>
+                    <span class="status-indicator-title" id="status-indicator-title"></span>
+                </div>
+                <div class="last-updated">Updated: <span id="lastUpdatedTitle">{{ status.last_updated|default('Loading...') }}</span></div>
             </div>
         </div>
         
-        <div class="chart-container">
-            <canvas id="mlbChart"></canvas>
+        <section class="metrics-explanation">
+            <h2>Understanding ERA vs OPS</h2>
             
-            <!-- Quadrant labels -->
-            <div id="top-left" class="quadrant-label">Good Pitching<br>Bad Hitting</div>
-            <div id="top-right" class="quadrant-label">Good Pitching<br>Good Hitting</div>
-            <div id="bottom-left" class="quadrant-label">Bad Pitching<br>Bad Hitting</div>
-            <div id="bottom-right" class="quadrant-label">Bad Pitching<br>Good Hitting</div>
-        </div>
+            <div class="metric-cards">
+                <div class="metric-card">
+                    <h3>ERA <span class="small">(Earned Run Average)</span></h3>
+                    <p class="metric-value">Lower is better ↓</p>
+                    <div class="metric-details">
+                        <h4>Calculation</h4>
+                        <p class="calculation">ERA = (Earned Runs ÷ Innings Pitched) × 9</p>
+                        <p>ERA measures a pitcher's effectiveness by calculating how many earned runs they allow per nine innings pitched. Only runs scored without the benefit of defensive errors are counted as "earned."</p>
+                        
+                        <h4>Historical Context</h4>
+                        <p class="metric-history">ERA was first developed and used in the early 1900s to provide a more accurate assessment of a pitcher's performance apart from their team's fielding abilities. Henry Chadwick, considered the "Father of Baseball," is often credited with developing many early baseball statistics including elements that evolved into ERA. The statistic gained prominence in the 1910s under American League President Ban Johnson and became official in 1912.</p>
+                        <p class="metric-history">The "Dead Ball Era" (1900-1919) saw ERAs commonly below 2.50, while the modern MLB has seen average ERAs typically range from 3.80-4.50. Hall of Famer Ed Walsh holds the career record with a remarkable 1.82 ERA, while the single-season record belongs to Dutch Leonard's 0.96 ERA in 1914.</p>
+                    </div>
+                    <div class="scale">
+                        <div class="scale-item excellent">≤3.00<span>Excellent</span></div>
+                        <div class="scale-item good">3.00-4.00<span>Good</span></div>
+                        <div class="scale-item average">4.00-5.00<span>Average</span></div>
+                        <div class="scale-item poor">5.00+<span>Poor</span></div>
+                    </div>
+                </div>
+                
+                <div class="metric-card">
+                    <h3>OPS <span class="small">(On-base Plus Slugging)</span></h3>
+                    <p class="metric-value">Higher is better ↑</p>
+                    <div class="metric-details">
+                        <h4>Calculation</h4>
+                        <p class="calculation">OPS = On-Base Percentage + Slugging Percentage</p>
+                        <p>Where:</p>
+                        <ul class="calculation-details">
+                            <li>On-Base Percentage (OBP) = (Hits + Walks + Hit By Pitch) ÷ (At Bats + Walks + Hit By Pitch + Sacrifice Flies)</li>
+                            <li>Slugging Percentage (SLG) = Total Bases ÷ At Bats</li>
+                            <li>Total Bases = Singles + (Doubles × 2) + (Triples × 3) + (Home Runs × 4)</li>
+                        </ul>
+                        
+                        <h4>Historical Context</h4>
+                        <p class="metric-history">While its component statistics (OBP and SLG) have been tracked since baseball's early days, OPS as a combined metric emerged in the 1970s and gained mainstream popularity during the sabermetric revolution of the 1980s. Branch Rickey and Allan Roth pioneered OBP in the 1940s, recognizing the importance of reaching base beyond just hits.</p>
+                        <p class="metric-history">Pete Palmer and John Thorn helped popularize OPS in their 1984 book "The Hidden Game of Baseball," and it became more widely adopted when the statistics were included on the backs of Topps baseball cards starting in 2004. Babe Ruth holds the career record at 1.164, while Barry Bonds' 1.422 mark in 2004 is the single-season record.</p>
+                    </div>
+                    <div class="scale">
+                        <div class="scale-item excellent">.900+<span>Excellent</span></div>
+                        <div class="scale-item good">.800-.899<span>Good</span></div>
+                        <div class="scale-item average">.700-.799<span>Average</span></div>
+                        <div class="scale-item poor">≤.699<span>Poor</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
         
-        <div class="description">
-            <p>This chart places MLB teams in performance quadrants based on their ERA (Earned Run Average) and OPS (On-base Plus Slugging):</p>
-            <ul>
-                <li><strong>Good Pitching, Good Hitting</strong>: Teams with low ERA and high OPS (top right)</li>
-                <li><strong>Good Pitching, Bad Hitting</strong>: Teams with low ERA but lower OPS (top left)</li>
-                <li><strong>Bad Pitching, Good Hitting</strong>: Teams with high ERA but good OPS (bottom right)</li>
-                <li><strong>Bad Pitching, Bad Hitting</strong>: Teams struggling in both areas (bottom left)</li>
-            </ul>
-            <p>Lower ERA values are better for pitching. Higher OPS values are better for hitting.</p>
-        </div>
+        <section class="quadrant-explanation">
+            <h2>Quadrant Analysis</h2>
+            <p>This chart places MLB teams in performance quadrants based on their ERA and OPS:</p>
+            <div class="quadrants-grid">
+                <div class="quad-item top-right">
+                    <h3>Good Pitching, Good Hitting</h3>
+                    <p>Teams with low ERA and high OPS (top right) are typically championship contenders.</p>
+                </div>
+                <div class="quad-item top-left">
+                    <h3>Good Pitching, Bad Hitting</h3>
+                    <p>Teams with low ERA but lower OPS (top left) often struggle to score runs despite strong pitching.</p>
+                </div>
+                <div class="quad-item bottom-right">
+                    <h3>Bad Pitching, Good Hitting</h3>
+                    <p>Teams with high ERA but good OPS (bottom right) can score runs but struggle to prevent them.</p>
+                </div>
+                <div class="quad-item bottom-left">
+                    <h3>Bad Pitching, Bad Hitting</h3>
+                    <p>Teams struggling in both areas (bottom left) are typically rebuilding or having disappointing seasons.</p>
+                </div>
+            </div>
+        </section>
         
         <footer>
             <p>Data source: MLB Stats API | Updated: <span id="lastUpdated">{{ status.last_updated|default('Loading...') }}</span></p>
         </footer>
-    </div>
+    </main>
     
     <!-- Pass team data from Flask to JavaScript -->
     <script>
         // Pass team data from Flask to JavaScript
         window.teamData = {{ teams|tojson }};
         window.dataStatus = {{ status|tojson }};
+        
+        // Keep the two status indicators in sync
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get elements
+            const statusText = document.getElementById('status-text');
+            const statusTextTitle = document.getElementById('status-text-title');
+            const statusIndicator = document.getElementById('status-indicator');
+            const statusIndicatorTitle = document.getElementById('status-indicator-title');
+            
+            // Set initial state
+            if (statusText && statusTextTitle) {
+                statusTextTitle.textContent = statusText.textContent;
+            }
+            
+            if (statusIndicator && statusIndicatorTitle) {
+                if (statusIndicator.classList.contains('active')) {
+                    statusIndicatorTitle.classList.add('active');
+                }
+            }
+            
+            // Update syncing function
+            window.syncStatusIndicators = function() {
+                if (statusText && statusTextTitle) {
+                    statusTextTitle.textContent = statusText.textContent;
+                }
+                
+                if (statusIndicator && statusIndicatorTitle) {
+                    if (statusIndicator.classList.contains('active')) {
+                        statusIndicatorTitle.classList.add('active');
+                    } else {
+                        statusIndicatorTitle.classList.remove('active');
+                    }
+                }
+                
+                const lastUpdated = document.getElementById('lastUpdated');
+                const lastUpdatedTitle = document.getElementById('lastUpdatedTitle');
+                if (lastUpdated && lastUpdatedTitle) {
+                    lastUpdatedTitle.textContent = lastUpdated.textContent;
+                }
+            };
+            
+            // Call this periodically to keep indicators in sync
+            setInterval(window.syncStatusIndicators, 1000);
+        });
     </script>
     
     <!-- Load chart.js first to initialize chart -->
