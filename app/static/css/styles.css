@@ -2,7 +2,7 @@
 :root {
     --mlb-blue: #002D72;
     --mlb-red: #E31937;
-    --logo-width: 30px; /* Centralized logo width variable */
+    --logo-width: 30px; /* CHANGE THIS VALUE TO ADJUST ALL LOGO SIZES */
     --logo-height: 30px; /* Keep logos square for consistency */
 }
 
@@ -38,23 +38,28 @@ h1 {
     min-height: 400px; /* Ensure minimum height for small screens */
 }
 
-/* Logo image handling */
-.team-logo {
-    width: var(--logo-width);
-    height: var(--logo-height);
-    object-fit: contain; /* Maintain aspect ratio without distortion */
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
+/* Force proper logo sizing in Chart.js */
+canvas.chartjs-render-monitor img,
+.chartjs-size-monitor img {
+    max-width: var(--logo-width) !important;
+    max-height: var(--logo-height) !important;
+    width: var(--logo-width) !important;
+    height: var(--logo-height) !important;
+    object-fit: contain !important;
 }
 
-/* Ensure logo containers are consistent */
-.logo-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--logo-width);
-    height: var(--logo-height);
+/* Extra rules to force image sizing in Chart.js */
+[class*="chartjs"] img {
+    max-width: var(--logo-width) !important;
+    max-height: var(--logo-height) !important;
+    width: var(--logo-width) !important;
+    height: var(--logo-height) !important;
+}
+
+/* Override any Chart.js inline styling */
+img {
+    max-width: var(--logo-width) !important;
+    max-height: var(--logo-height) !important;
 }
 
 .quadrant-label {
@@ -70,7 +75,7 @@ h1 {
     transform: translate(-50%, -50%);
     pointer-events: none;
     line-height: 1.5;
-    background-color: rgba(255, 255, 255, 0.5); /* Increased opacity for better visibility */
+    background-color: rgba(255, 255, 255, 0.7); /* Increased opacity for better visibility */
     padding: 5px 10px;
     border-radius: 5px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -190,7 +195,7 @@ footer {
         max-width: 95%;
     }
     
-    /* Keep logo size consistent on mobile */
+    /* Keep logo size consistent but smaller on mobile */
     :root {
         --logo-width: 24px;
         --logo-height: 24px;

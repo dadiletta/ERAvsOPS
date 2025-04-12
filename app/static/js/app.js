@@ -49,7 +49,7 @@
      * Initialize the application
      */
     function init() {
-        // Enable debug mode based on URL parameter or configuration
+        // Enable debug mode based on URL parameter
         state.debugMode = window.location.search.includes('debug=true') || false;
         debugLog("App initialization started");
         

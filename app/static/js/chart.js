@@ -6,9 +6,8 @@
     
     // Configuration variables for easy future adjustments
     const CONFIG = {
-        logoSize: 30,          // Base logo size in pixels
-        aspectRatio: 1,        // Default aspect ratio for logos (1:1)
-        logoCache: {},         // Cache for preloaded logo images
+        logoSize: 30,          // Base logo size in pixels (CHANGE THIS VALUE TO ADJUST LOGO SIZE)
+        logoCache: {},         // Simple cache for preloaded logo images
         quadrantColors: {
             topLeft: 'rgba(255, 248, 225, 0.3)',    // Cream (Good Pitching, Bad Hitting)
             topRight: 'rgba(232, 245, 233, 0.3)',   // Light green (Good Pitching, Good Hitting)
@@ -29,7 +28,7 @@
         }
     };
 
-    // Smart logger that only logs important information
+    // Logger for debugging
     const logger = {
         debugMode: false,
         log: function(message, data) {
@@ -50,7 +49,7 @@
                 }
             }
         },
-        info: function(message, data) {
+        info: function(message) {
             if (console && console.info) {
                 console.info(`[INFO] ${message}`);
             }
@@ -58,10 +57,27 @@
     };
 
     /**
-     * Preload and standardize team logos
-     * - Ensures consistent dimensions
-     * - Maintains proper aspect ratios
-     * - Prevents logo jumping during resizing
+     * Create a properly sized image from the original
+     */
+    function createSizedImage(originalImage) {
+        const img = new Image();
+        img.src = originalImage.src;
+        // Explicitly set width and height
+        img.width = CONFIG.logoSize;
+        img.height = CONFIG.logoSize;
+        // Add specific styling to ensure visibility and proper sizing
+        img.style.maxWidth = `${CONFIG.logoSize}px`;
+        img.style.maxHeight = `${CONFIG.logoSize}px`;
+        img.style.width = `${CONFIG.logoSize}px`;
+        img.style.height = `${CONFIG.logoSize}px`;
+        img.style.objectFit = 'contain';
+        img.style.display = 'block';
+        
+        return img;
+    }
+
+    /**
+     * Preload team logos at the right size
      */
     function preloadTeamLogos(teams) {
         teams.forEach(team => {
@@ -70,59 +86,24 @@
             // Skip if already in cache
             if (CONFIG.logoCache[logoPath]) return;
             
-            const img = new Image();
+            // Create and load the image
+            const originalImg = new Image();
             
-            // Set up onload handler before setting src
-            img.onload = function() {
-                // Calculate aspect ratio of the original image
-                const originalAspectRatio = img.naturalWidth / img.naturalHeight;
-                
-                // Create a canvas for standardizing the logo
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                
-                // Set canvas dimensions to our desired logo size
-                canvas.width = CONFIG.logoSize;
-                canvas.height = CONFIG.logoSize;
-                
-                // Clear canvas with transparent background
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                // Calculate dimensions that preserve aspect ratio
-                let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
-                
-                if (originalAspectRatio > 1) {
-                    // Wider than tall
-                    drawWidth = CONFIG.logoSize;
-                    drawHeight = CONFIG.logoSize / originalAspectRatio;
-                    offsetY = (CONFIG.logoSize - drawHeight) / 2;
-                } else {
-                    // Taller than wide or square
-                    drawHeight = CONFIG.logoSize;
-                    drawWidth = CONFIG.logoSize * originalAspectRatio;
-                    offsetX = (CONFIG.logoSize - drawWidth) / 2;
-                }
-                
-                // Draw the image centered and maintaining aspect ratio
-                ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
-                
-                // Create a new image from the canvas
-                const standardizedLogo = new Image();
-                standardizedLogo.src = canvas.toDataURL('image/png');
-                
-                // Store the standardized logo in cache
-                CONFIG.logoCache[logoPath] = standardizedLogo;
+            originalImg.onload = function() {
+                // Create a properly sized version when loaded
+                const sizedImg = createSizedImage(originalImg);
+                CONFIG.logoCache[logoPath] = sizedImg;
             };
             
-            // Set image source to trigger loading
-            img.src = logoPath;
+            // Set source to trigger loading
+            originalImg.src = logoPath;
             
-            // Create a placeholder while the image loads
+            // Create a placeholder while loading
             const placeholder = new Image();
             placeholder.width = CONFIG.logoSize;
             placeholder.height = CONFIG.logoSize;
             
-            // Store placeholder in cache until the real image loads
+            // Store the placeholder until the real image loads
             CONFIG.logoCache[logoPath] = placeholder;
         });
     }
@@ -179,7 +160,7 @@
             logo: team.logo
         }));
         
-        // Preload all team logos to ensure consistent sizing
+        // Preload all team logos
         preloadTeamLogos(teamData);
         
         // Store chart reference globally for updates
@@ -189,34 +170,25 @@
                 datasets: [{
                     data: teamPoints,
                     pointStyle: function(context) {
-                        try {
-                            const index = context.dataIndex;
-                            if (index === undefined || !teamPoints[index]) {
-                                logger.error(`Invalid data index: ${index}`);
-                                return null;
-                            }
-                            
-                            const point = teamPoints[index];
-                            const logoPath = point.logo.startsWith('/') ? point.logo : `/${point.logo}`;
-                            
-                            // Use cached image if available
-                            if (CONFIG.logoCache[logoPath]) {
-                                return CONFIG.logoCache[logoPath];
-                            }
-                            
-                            // If not in cache (shouldn't happen due to preloading), return placeholder
-                            const placeholder = new Image();
-                            placeholder.width = CONFIG.logoSize;
-                            placeholder.height = CONFIG.logoSize;
-                            return placeholder;
-                        } catch (error) {
-                            logger.error("Error in pointStyle function:", error);
-                            return null;
+                        const index = context.dataIndex;
+                        if (index === undefined || !teamPoints[index]) return null;
+                        
+                        const point = teamPoints[index];
+                        const logoPath = point.logo.startsWith('/') ? point.logo : `/${point.logo}`;
+                        
+                        // Use cached sized image if available
+                        if (CONFIG.logoCache[logoPath]) {
+                            return CONFIG.logoCache[logoPath];
                         }
+                        
+                        // Return placeholder if not yet loaded
+                        const placeholder = new Image();
+                        placeholder.width = CONFIG.logoSize;
+                        placeholder.height = CONFIG.logoSize;
+                        return placeholder;
                     },
-                    // Use a consistent pointRadius based on logoSize
+                    // Match pointRadius to half the logo size to get proper scaling
                     pointRadius: CONFIG.logoSize / 2,
-                    // Higher z-index to ensure logos appear above quadrant labels
                     z: 20,
                     backgroundColor: 'rgba(0, 0, 0, 0)'
                 }]
@@ -224,7 +196,6 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                // Add animations for smoother transitions when data updates
                 animation: {
                     duration: CONFIG.animation.duration,
                     easing: CONFIG.animation.easing,
@@ -246,7 +217,7 @@
                                 weight: 'bold'
                             }
                         },
-                        min: 0.53, // Adjusted to make axis symmetric around 0.7
+                        min: 0.53,
                         max: 0.87,
                         ticks: {
                             stepSize: 0.05
@@ -261,8 +232,8 @@
                                 weight: 'bold'
                             }
                         },
-                        min: 1.9, // Adjusted to move axes more central
-                        max: 6.0, // Adjusted to move axes more central
+                        min: 1.9,
+                        max: 6.0,
                         reverse: true,
                         ticks: {
                             stepSize: 0.5
@@ -271,10 +242,10 @@
                 },
                 plugins: {
                     legend: {
-                        display: false // Remove the legend/key
+                        display: false
                     },
                     title: {
-                        display: false // Remove title from chart (will use HTML title)
+                        display: false
                     },
                     tooltip: {
                         callbacks: {
@@ -353,7 +324,7 @@
         
         // Then apply a longer animation duration for this update
         chart.options.animation = {
-            duration: 1200,  // Longer duration for better visualization
+            duration: 1200,
             easing: 'easeOutQuad'
         };
         
@@ -414,5 +385,14 @@
     // Expose public functions to the window object
     window.updateChartData = updateChartData;
     window.positionQuadrantLabels = positionQuadrantLabels;
+    // Expose the logo size configuration globally so it can be adjusted dynamically
+    window.setLogoSize = function(size) {
+        CONFIG.logoSize = size;
+        // If chart exists, update it
+        if (window.mlbChart) {
+            window.mlbChart.data.datasets[0].pointRadius = size / 2;
+            window.mlbChart.update();
+        }
+    };
 
 })(window, document);
