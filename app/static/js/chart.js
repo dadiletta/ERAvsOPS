@@ -353,16 +353,36 @@
                             family: CONFIG.fontFamily
                         },
                         callbacks: {
-                            title: function(context) {
-                                const point = context[0].raw;
-                                return point.fullName;
+                            // Fix for multiple teams at the same position
+                            title: function(tooltipItems) {
+                                // Get unique team names (in case some are duplicated)
+                                const teamNames = [...new Set(tooltipItems.map(item => item.raw.fullName))];
+                                
+                                // Join team names with " & " if there are multiple
+                                if (teamNames.length > 1) {
+                                    return teamNames.join(' & ');
+                                }
+                                
+                                // Single team case
+                                return tooltipItems[0].raw.fullName;
                             },
-                            label: function(context) {
-                                const point = context.raw;
-                                return [
-                                    `ERA: ${point.y.toFixed(2)}`,
-                                    `OPS: ${point.x.toFixed(3)}`
-                                ];
+                            // Fix for duplicate stats when teams overlap
+                            label: function(tooltipItem) {
+                                const point = tooltipItem.raw;
+                                
+                                // Find index of first item with same coordinates
+                                const firstIndex = tooltipItem.dataset.data.findIndex(
+                                    p => p.x === point.x && p.y === point.y
+                                );
+                                
+                                // Only show stats for the first occurrence of this point
+                                if (tooltipItem.dataIndex === firstIndex) {
+                                    return [
+                                        `ERA: ${point.y.toFixed(2)}`,
+                                        `OPS: ${point.x.toFixed(3)}`
+                                    ];
+                                }
+                                return [];
                             }
                         }
                     },

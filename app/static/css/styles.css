@@ -250,6 +250,7 @@ img {
     opacity: 1 !important;
 }
 
+/* Modified to reduce z-index and make more transparent */
 .quadrant-label {
     position: absolute;
     display: flex;
@@ -259,11 +260,11 @@ img {
     color: #555;
     font-size: 14px;
     text-align: center;
-    z-index: 5;
+    z-index: 2; /* Reduced from 5 to 2 to place behind points */
     transform: translate(-50%, -50%);
     pointer-events: none;
     line-height: 1.5;
-    background-color: rgba(255, 255, 255, 0.8);
+    background-color: rgba(255, 255, 255, 0.5); /* Reduced opacity from 0.8 to 0.5 */
     padding: 8px 12px;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -494,6 +495,33 @@ img {
 .quad-item.bottom-left {
     background-color: rgba(255, 235, 238, 0.5);
     border-left: 4px solid var(--poor);
+}
+
+/* Footer styles - added for API and GitHub attribution */
+.footer {
+    background-color: #f8f9fa;
+    padding: 1.5rem 0;
+    margin-top: 3rem;
+    text-align: center;
+    border-top: 1px solid #e9ecef;
+}
+
+.footer-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.footer a {
+    color: var(--mlb-blue);
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.footer a:hover {
+    text-decoration: underline;
+    color: var(--mlb-red);
 }
 
 /* Responsive adjustments */
