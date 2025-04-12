@@ -31,9 +31,10 @@ h1 {
 /* Chart container and quadrants */
 .chart-container {
     position: relative;
-    height: 70vh;
+    height: 70vh; /* Viewport-relative height */
     width: 100%;
     margin-bottom: 30px;
+    min-height: 400px; /* Ensure minimum height for small screens */
 }
 
 .quadrant-label {
@@ -49,10 +50,10 @@ h1 {
     transform: translate(-50%, -50%);
     pointer-events: none;
     line-height: 1.5;
-    background-color: rgba(255, 255, 255, 0.15);
+    background-color: rgba(255, 255, 255, 0.5); /* Increased opacity for better visibility */
     padding: 5px 10px;
     border-radius: 5px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 footer {
@@ -157,6 +158,7 @@ footer {
 @media (max-width: 768px) {
     .chart-container {
         height: 60vh;
+        min-height: 350px;
     }
     
     .quadrant-label {
