@@ -36,15 +36,12 @@
     
     // DOM elements cached for performance
     const elements = {
-        statusIndicator: null,
-        statusText: null,
         statusIndicatorTitle: null,
         statusTextTitle: null,
         updateProgress: null,
         progressBar: null,
         progressCount: null,
         refreshButton: null,
-        lastUpdatedElem: null,
         lastUpdatedTitleElem: null
     };
     
@@ -70,15 +67,12 @@
      * Cache DOM elements for improved performance
      */
     function cacheElements() {
-        elements.statusIndicator = $('#status-indicator');
-        elements.statusText = $('#status-text');
         elements.statusIndicatorTitle = $('#status-indicator-title');
         elements.statusTextTitle = $('#status-text-title');
         elements.updateProgress = $('#update-progress');
         elements.progressBar = $('#progress-bar');
         elements.progressCount = $('#progress-count');
         elements.refreshButton = $('#refresh-button');
-        elements.lastUpdatedElem = $('#lastUpdated');
         elements.lastUpdatedTitleElem = $('#lastUpdatedTitle');
         
         debugLog("DOM elements cached");
@@ -121,9 +115,6 @@
         debugLog("Initial data status:", window.dataStatus);
         debugLog("Initial team data count:", window.teamData ? window.teamData.length : 0);
         
-        // Sync status indicators
-        syncStatusIndicators();
-        
         // Check initial status and take appropriate action
         if (window.dataStatus && !window.dataStatus.is_fresh && !window.dataStatus.update_in_progress) {
             // If data is stale, start automatic update
@@ -140,30 +131,6 @@
             // Otherwise, just periodically check for staleness
             debugLog("Data is fresh, will check for staleness periodically");
             setTimeout(checkUpdateStatus, 5000);
-        }
-    }
-    
-    /**
-     * Synchronize status indicators between top and title areas
-     */
-    function syncStatusIndicators() {
-        // Sync text status
-        if (elements.statusText && elements.statusTextTitle) {
-            elements.statusTextTitle.text(elements.statusText.text());
-        }
-        
-        // Sync indicator lights
-        if (elements.statusIndicator && elements.statusIndicatorTitle) {
-            if (elements.statusIndicator.hasClass('active')) {
-                elements.statusIndicatorTitle.addClass('active');
-            } else {
-                elements.statusIndicatorTitle.removeClass('active');
-            }
-        }
-        
-        // Sync last updated timestamps
-        if (elements.lastUpdatedElem && elements.lastUpdatedTitleElem) {
-            elements.lastUpdatedTitleElem.text(elements.lastUpdatedElem.text());
         }
     }
     
@@ -218,8 +185,8 @@
         
         // Update progress display
         if (status.in_progress) {
-            elements.statusIndicator.addClass('active');
-            elements.statusText.text('Updating');
+            elements.statusIndicatorTitle.addClass('active');
+            elements.statusTextTitle.text('Updating');
             elements.updateProgress.addClass('visible');
             
             // Calculate percentage
@@ -236,21 +203,21 @@
             // Hide refresh button during update
             elements.refreshButton.removeClass('visible');
         } else {
-            elements.statusIndicator.removeClass('active');
+            elements.statusIndicatorTitle.removeClass('active');
             elements.updateProgress.removeClass('visible');
             
             // Update last updated timestamp if available
             if (status.last_updated) {
-                elements.lastUpdatedElem.text(status.last_updated);
+                elements.lastUpdatedTitleElem.text(status.last_updated);
                 state.lastUpdateTimestamp = status.last_updated;
             }
             
             // If cache is not fresh, show refresh button
             if (!status.cache_fresh) {
-                elements.statusText.text('Stale');
+                elements.statusTextTitle.text('Stale');
                 elements.refreshButton.addClass('visible');
             } else {
-                elements.statusText.text('Fresh');
+                elements.statusTextTitle.text('Fresh');
                 elements.refreshButton.removeClass('visible');
             }
             
@@ -260,9 +227,6 @@
                 debugLog("Error in update process:", status.error);
             }
         }
-        
-        // Sync status indicators after any update
-        syncStatusIndicators();
     }
     
     /**
@@ -485,8 +449,7 @@
     window.mlbApp = {
         startUpdate: startUpdate,
         checkStatus: checkUpdateStatus,
-        refresh: fetchFreshData,
-        syncIndicators: syncStatusIndicators
+        refresh: fetchFreshData
     };
     
 })(window, document, jQuery);

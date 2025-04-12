@@ -70,7 +70,7 @@ body {
 .hero-content {
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
+    justify-content: center;
     align-items: center;
     height: 100%;
     padding: 2rem 1rem;
@@ -149,12 +149,13 @@ p {
 
 .data-status-bar {
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     margin: 0.5rem auto 1.5rem;
     padding: 8px 16px;
     background-color: rgba(0, 45, 114, 0.05);
-    border-radius: 30px;
+    border-radius: 8px;
     max-width: fit-content;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
@@ -170,6 +171,7 @@ p {
 .last-updated {
     font-size: 0.9rem;
     color: var(--text-light);
+    margin-top: 4px;
 }
 
 #status-text-title,
@@ -199,7 +201,7 @@ p {
 /* Chart container and quadrants */
 .chart-container {
     position: relative;
-    height: calc(100% - 120px);
+    height: calc(100% - 60px);
     width: 100%;
     flex-grow: 1;
     min-height: 400px;
@@ -267,42 +269,13 @@ img {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Controls and update status UI */
-.controls {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 1rem 0;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.status-indicator {
-    display: inline-block;
-    margin-left: 10px;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background-color: #ccc;
-}
-
-.status-indicator.active {
-    background-color: var(--status-fresh);
-    animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
-}
-
+/* Update progress UI in status bar */
 .update-progress {
     font-size: 14px;
     display: none;
     width: 100%;
-    max-width: 500px;
-    margin: 10px auto;
+    max-width: 300px;
+    margin: 10px auto 5px;
 }
 
 .update-progress.visible {
@@ -336,13 +309,13 @@ img {
     background-color: var(--mlb-blue);
     color: white;
     border: none;
-    padding: 8px 16px;
+    padding: 6px 12px;
     border-radius: 4px;
     cursor: pointer;
     font-weight: bold;
-    margin-left: 10px;
     display: none;
     transition: background-color 0.2s ease;
+    margin-left: 10px;
 }
 
 .refresh-button:hover {
@@ -351,6 +324,12 @@ img {
 
 .refresh-button.visible {
     display: inline-block;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
 }
 
 /* Metrics explanation section */
@@ -517,15 +496,6 @@ img {
     border-left: 4px solid var(--poor);
 }
 
-footer {
-    text-align: center;
-    margin-top: 3rem;
-    color: var(--text-light);
-    font-size: 0.9rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid #eee;
-}
-
 /* Responsive adjustments */
 @media (max-width: 992px) {
     .main-title {
@@ -543,7 +513,7 @@ footer {
     }
     
     .chart-container {
-        height: calc(100% - 100px);
+        height: calc(100% - 60px);
         min-height: 350px;
     }
     
@@ -560,12 +530,14 @@ footer {
     }
     
     .data-status-bar {
-        flex-direction: column;
-        gap: 8px;
+        padding: 10px;
+        width: 90%;
+        max-width: 400px;
     }
     
     .status-label {
         margin-right: 0;
+        margin-bottom: 5px;
     }
     
     .quadrant-label {

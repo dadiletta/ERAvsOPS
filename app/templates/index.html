@@ -28,19 +28,6 @@
     <!-- Full-screen hero section with chart -->
     <header class="hero">
         <div class="hero-content">
-            <!-- Update status controls -->
-            <div class="controls">
-                <span id="data-status">Data: <span id="status-text">{{ 'Fresh' if status.is_fresh else 'Stale' }}</span></span>
-                <span class="status-indicator" id="status-indicator"></span>
-                <button id="refresh-button" class="refresh-button">Refresh Data</button>
-                <div id="update-progress" class="update-progress">
-                    <div class="progress-bar-container">
-                        <div class="progress-bar" id="progress-bar"></div>
-                    </div>
-                    <div id="progress-text">Updating: <span id="progress-count">0/0</span> teams</div>
-                </div>
-            </div>
-            
             <div class="chart-container">
                 <canvas id="mlbChart"></canvas>
                 
@@ -62,8 +49,15 @@
                 <div class="status-label">
                     <span id="data-status-title">Data: <span id="status-text-title">{{ 'Fresh' if status.is_fresh else 'Stale' }}</span></span>
                     <span class="status-indicator-title" id="status-indicator-title"></span>
+                    <button id="refresh-button" class="refresh-button">Refresh Data</button>
                 </div>
                 <div class="last-updated">Updated: <span id="lastUpdatedTitle">{{ status.last_updated|default('Loading...') }}</span></div>
+                <div id="update-progress" class="update-progress">
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progress-bar"></div>
+                    </div>
+                    <div id="progress-text">Updating: <span id="progress-count">0/0</span> teams</div>
+                </div>
             </div>
         </div>
         
@@ -140,10 +134,6 @@
                 </div>
             </div>
         </section>
-        
-        <footer>
-            <p>Data source: MLB Stats API | Updated: <span id="lastUpdated">{{ status.last_updated|default('Loading...') }}</span></p>
-        </footer>
     </main>
     
     <!-- Pass team data from Flask to JavaScript -->
@@ -151,50 +141,6 @@
         // Pass team data from Flask to JavaScript
         window.teamData = {{ teams|tojson }};
         window.dataStatus = {{ status|tojson }};
-        
-        // Keep the two status indicators in sync
-        document.addEventListener('DOMContentLoaded', function() {
-            // Get elements
-            const statusText = document.getElementById('status-text');
-            const statusTextTitle = document.getElementById('status-text-title');
-            const statusIndicator = document.getElementById('status-indicator');
-            const statusIndicatorTitle = document.getElementById('status-indicator-title');
-            
-            // Set initial state
-            if (statusText && statusTextTitle) {
-                statusTextTitle.textContent = statusText.textContent;
-            }
-            
-            if (statusIndicator && statusIndicatorTitle) {
-                if (statusIndicator.classList.contains('active')) {
-                    statusIndicatorTitle.classList.add('active');
-                }
-            }
-            
-            // Update syncing function
-            window.syncStatusIndicators = function() {
-                if (statusText && statusTextTitle) {
-                    statusTextTitle.textContent = statusText.textContent;
-                }
-                
-                if (statusIndicator && statusIndicatorTitle) {
-                    if (statusIndicator.classList.contains('active')) {
-                        statusIndicatorTitle.classList.add('active');
-                    } else {
-                        statusIndicatorTitle.classList.remove('active');
-                    }
-                }
-                
-                const lastUpdated = document.getElementById('lastUpdated');
-                const lastUpdatedTitle = document.getElementById('lastUpdatedTitle');
-                if (lastUpdated && lastUpdatedTitle) {
-                    lastUpdatedTitle.textContent = lastUpdated.textContent;
-                }
-            };
-            
-            // Call this periodically to keep indicators in sync
-            setInterval(window.syncStatusIndicators, 1000);
-        });
     </script>
     
     <!-- Load chart.js first to initialize chart -->
