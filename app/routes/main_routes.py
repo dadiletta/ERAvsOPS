@@ -80,11 +80,19 @@ def fix_logo_paths(teams):
         team_name = team["name"].lower()
         
         # Handle special cases
-        if team_name == "sox" and "white" in team.get("full_name", "").lower():
-            team_name = "whitesox"
-        elif team_name == "sox" and "red" in team.get("full_name", "").lower():
+        if team_name == "red sox":
             team_name = "redsox"
-        elif team_name == "jays":
+        elif team_name == "white sox":
+            team_name = "whitesox"
+        elif team_name == "blue jays":
+            team_name = "bluejays"
+        
+        # More specific handling for common name issues
+        if team["name"] == "Sox" and "Boston" in team.get("full_name", ""):
+            team_name = "redsox"
+        elif team["name"] == "Sox" and "Chicago" in team.get("full_name", ""):
+            team_name = "whitesox"
+        elif team["name"] == "Jays":
             team_name = "bluejays"
         
         # Update logo path with leading slash
@@ -113,20 +121,14 @@ def update_mlb_data(step=1, total_steps=30):
     
     logger.info(f"Update request received: step={step}, total_steps={total_steps}")
     
-    # If update is already in progress, just return current status
-    if update_status["in_progress"]:
-        logger.info("Update already in progress, returning current status")
-        return update_status
+    # Initialize MLBDataFetcher if needed
+    fetcher = MLBDataFetcher()
     
-    try:
-        # Get fetcher
-        logger.info("Initializing MLBDataFetcher")
-        fetcher = MLBDataFetcher()
-        
-        # Get cached data to work with
-        data, exists, _, _ = get_cached_data(True)
-        
-        # Set initial update status
+    # Get cached data to work with
+    data, exists, _, _ = get_cached_data(True)
+    
+    # If update is not yet in progress, initialize the status
+    if not update_status["in_progress"]:
         update_status = {
             "in_progress": True,
             "last_updated": None,
@@ -134,43 +136,55 @@ def update_mlb_data(step=1, total_steps=30):
             "total_teams": total_steps,
             "error": None
         }
-        
         logger.info(f"Update status initialized: {update_status}")
-        current_app.logger.info(f"Update status initialized: {update_status}")
+    
+    # Check API availability
+    if not fetcher.api_available:
+        logger.error("MLB Stats API not available, cannot update")
+        update_status["error"] = "MLB Stats API not available"
+        update_status["in_progress"] = False
+        return update_status
+    
+    # Ensure we have MLB teams loaded
+    mlb_teams = fetcher.get_mlb_teams()
+    if not mlb_teams:
+        logger.error("No MLB teams found, cannot update")
+        update_status["error"] = "No MLB teams found"
+        update_status["in_progress"] = False
+        return update_status
         
-        # Check API availability
-        if not fetcher.api_available:
-            logger.error("MLB Stats API not available, cannot update")
-            update_status["error"] = "MLB Stats API not available"
-            update_status["in_progress"] = False
-            return update_status
-        
-        # Ensure we have MLB teams loaded
-        mlb_teams = fetcher.get_mlb_teams()
-        if not mlb_teams:
-            logger.error("No MLB teams found, cannot update")
-            update_status["error"] = "No MLB teams found"
-            update_status["in_progress"] = False
-            return update_status
-            
-        # Update total_teams if we have actual count
-        update_status["total_teams"] = len(mlb_teams)
-        
-        # Update one team at a time (limited by step parameter)
-        logger.info(f"Requesting batch of {step} teams starting at index {update_status['teams_updated']}")
-        
-        updated_data = fetcher.get_team_stats_batch(
-            start_index=update_status["teams_updated"],
-            batch_size=step
+    # Update total_teams if we have actual count
+    update_status["total_teams"] = len(mlb_teams)
+    
+    # Get the current index to process
+    current_index = update_status["teams_updated"]
+    
+    # Make sure we don't go beyond the total
+    if current_index >= len(mlb_teams):
+        # We're done, mark update as complete
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        update_status["in_progress"] = False
+        update_status["last_updated"] = timestamp
+        logger.info(f"Update complete. Updated {update_status['teams_updated']} teams.")
+        return update_status
+    
+    # Process one team at a time (regardless of step size to avoid rate limits)
+    logger.info(f"Processing team at index {current_index}")
+    
+    try:
+        # Get the team to process
+        team_stats = fetcher.get_team_stats_batch(
+            start_index=current_index,
+            batch_size=1  # Only get 1 team at a time to avoid rate limits
         )
         
-        logger.info(f"Received {len(updated_data)} teams from batch update")
+        logger.info(f"Received {len(team_stats)} teams from batch update")
         
-        if updated_data:
+        if team_stats:
             # Integrate new data with existing data
             if data:
-                # Find and update teams by ID
-                for new_team in updated_data:
+                # Find and update team by ID
+                for new_team in team_stats:
                     team_id = new_team.get("id")
                     found = False
                     
@@ -186,39 +200,30 @@ def update_mlb_data(step=1, total_steps=30):
                         data.append(new_team)
             else:
                 # No existing data, just use what we got
-                data = updated_data
+                data = team_stats
             
-            # Save to cache after each batch
+            # Save to cache after each team
             logger.info(f"Saving {len(data)} teams to cache")
             save_to_cache(data)
             
             # Update progress
-            update_status["teams_updated"] += len(updated_data)
-            
-            # Check if we're done
-            if update_status["teams_updated"] >= update_status["total_teams"]:
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                update_status["in_progress"] = False
-                update_status["last_updated"] = timestamp
-                logger.info(f"Update complete. Updated {update_status['teams_updated']} teams.")
+            update_status["teams_updated"] += len(team_stats)
+            logger.info(f"Updated team count: {update_status['teams_updated']}/{update_status['total_teams']}")
         else:
-            logger.warning("No team data returned from batch update")
-            
-            # If no data returned but no error occurred, try to continue with next batch
-            if update_status["teams_updated"] < update_status["total_teams"]:
-                update_status["teams_updated"] += step  # Skip this batch
-                logger.info(f"Skipping current batch, moving to index {update_status['teams_updated']}")
-            else:
-                # If we've processed all teams, mark as complete
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                update_status["in_progress"] = False
-                update_status["last_updated"] = timestamp
-                logger.info("Update marked as complete (no more teams to process)")
+            logger.warning(f"No team data returned for index {current_index}, skipping")
+            # Skip this team and move to the next
+            update_status["teams_updated"] += 1
+            logger.info(f"Skipped to index {update_status['teams_updated']}")
         
-        return update_status
-        
+        # Check if we're done
+        if update_status["teams_updated"] >= update_status["total_teams"]:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            update_status["in_progress"] = False
+            update_status["last_updated"] = timestamp
+            logger.info(f"Update complete. Updated {update_status['teams_updated']} teams.")
+    
     except Exception as e:
-        error_msg = f"Error in update: {str(e)}"
+        error_msg = f"Error updating team at index {current_index}: {str(e)}"
         logger.error(error_msg)
         current_app.logger.error(error_msg)
         
@@ -227,11 +232,11 @@ def update_mlb_data(step=1, total_steps=30):
         logger.error(trace)
         current_app.logger.error(trace)
         
-        # Update error status
-        update_status["error"] = str(e)
-        update_status["in_progress"] = False
-        
-        return update_status
+        # Skip this team and continue with the next one
+        update_status["teams_updated"] += 1
+        logger.info(f"Skipped to index {update_status['teams_updated']} after error")
+    
+    return update_status
 
 @main_bp.route('/')
 def index():
@@ -280,22 +285,17 @@ def start_update():
     
     logger.info("Received request to start update")
     
-    # Don't start a new update if one is already in progress
-    if update_status["in_progress"]:
-        logger.info("Update already in progress, returning current status")
-        return jsonify(update_status)
-    
     # Get requested batch size (default 1)
     batch_size = request.json.get('batch_size', 1) if request.is_json else 1
     logger.info(f"Starting update with batch size: {batch_size}")
     
-    # Initialize update
-    update_status["in_progress"] = True
+    # Reset update status (even if in progress)
+    update_status["in_progress"] = False
     update_status["teams_updated"] = 0
     update_status["error"] = None
     
-    # Do one batch to get started
-    status = update_mlb_data(step=batch_size)
+    # Start the update process (will set in_progress = True internally)
+    status = update_mlb_data(step=1)  # Always use step=1 to avoid rate limits
     
     logger.info(f"Update started. Current status: {status}")
     return jsonify(status)
@@ -303,8 +303,8 @@ def start_update():
 @main_bp.route('/api/continue-update', methods=['POST'])
 def continue_update():
     """API endpoint to continue the update process"""
-    # Get requested batch size (default 1)
-    batch_size = request.json.get('batch_size', 1) if request.is_json else 1
+    # Force batch size to 1 to avoid rate limits
+    batch_size = 1
     
     logger.info(f"Continuing update with batch size: {batch_size}")
     
