@@ -3,6 +3,7 @@
     --mlb-blue: #002D72;
     --mlb-red: #E31937;
     --logo-width: 30px; /* Centralized logo width variable */
+    --logo-height: 30px; /* Keep logos square for consistency */
 }
 
 /* Base styles */
@@ -35,6 +36,25 @@ h1 {
     width: 100%;
     margin-bottom: 30px;
     min-height: 400px; /* Ensure minimum height for small screens */
+}
+
+/* Logo image handling */
+.team-logo {
+    width: var(--logo-width);
+    height: var(--logo-height);
+    object-fit: contain; /* Maintain aspect ratio without distortion */
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+/* Ensure logo containers are consistent */
+.logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--logo-width);
+    height: var(--logo-height);
 }
 
 .quadrant-label {
@@ -168,5 +188,11 @@ footer {
     
     .update-progress {
         max-width: 95%;
+    }
+    
+    /* Keep logo size consistent on mobile */
+    :root {
+        --logo-width: 24px;
+        --logo-height: 24px;
     }
 }

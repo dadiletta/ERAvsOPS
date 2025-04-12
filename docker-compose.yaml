@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=your-secret-key-here-change-this
+      - CACHE_TIMEOUT=3600
+    volumes:
+      - ./data_cache.json:/app/data_cache.json
+    restart: unless-stopped

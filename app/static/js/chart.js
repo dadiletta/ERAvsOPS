@@ -1,12 +1,14 @@
 // app/static/js/chart.js
 
-// Ensure jQuery is available
+// Chart and visualization module
 (function(window, document) {
     "use strict";
     
     // Configuration variables for easy future adjustments
     const CONFIG = {
-        logoWidth: 30, // Set logo width (height will be calculated to maintain aspect ratio)
+        logoSize: 30,          // Base logo size in pixels
+        aspectRatio: 1,        // Default aspect ratio for logos (1:1)
+        logoCache: {},         // Cache for preloaded logo images
         quadrantColors: {
             topLeft: 'rgba(255, 248, 225, 0.3)',    // Cream (Good Pitching, Bad Hitting)
             topRight: 'rgba(232, 245, 233, 0.3)',   // Light green (Good Pitching, Good Hitting)
@@ -55,26 +57,73 @@
         }
     };
 
-    // Create cached image store to prevent reload issues
-    const logoCache = {};
-
-    // Function to preload team logos
+    /**
+     * Preload and standardize team logos
+     * - Ensures consistent dimensions
+     * - Maintains proper aspect ratios
+     * - Prevents logo jumping during resizing
+     */
     function preloadTeamLogos(teams) {
         teams.forEach(team => {
             const logoPath = team.logo.startsWith('/') ? team.logo : `/${team.logo}`;
             
             // Skip if already in cache
-            if (logoCache[logoPath]) return;
+            if (CONFIG.logoCache[logoPath]) return;
             
             const img = new Image();
+            
+            // Set up onload handler before setting src
+            img.onload = function() {
+                // Calculate aspect ratio of the original image
+                const originalAspectRatio = img.naturalWidth / img.naturalHeight;
+                
+                // Create a canvas for standardizing the logo
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Set canvas dimensions to our desired logo size
+                canvas.width = CONFIG.logoSize;
+                canvas.height = CONFIG.logoSize;
+                
+                // Clear canvas with transparent background
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Calculate dimensions that preserve aspect ratio
+                let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
+                
+                if (originalAspectRatio > 1) {
+                    // Wider than tall
+                    drawWidth = CONFIG.logoSize;
+                    drawHeight = CONFIG.logoSize / originalAspectRatio;
+                    offsetY = (CONFIG.logoSize - drawHeight) / 2;
+                } else {
+                    // Taller than wide or square
+                    drawHeight = CONFIG.logoSize;
+                    drawWidth = CONFIG.logoSize * originalAspectRatio;
+                    offsetX = (CONFIG.logoSize - drawWidth) / 2;
+                }
+                
+                // Draw the image centered and maintaining aspect ratio
+                ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+                
+                // Create a new image from the canvas
+                const standardizedLogo = new Image();
+                standardizedLogo.src = canvas.toDataURL('image/png');
+                
+                // Store the standardized logo in cache
+                CONFIG.logoCache[logoPath] = standardizedLogo;
+            };
+            
+            // Set image source to trigger loading
             img.src = logoPath;
             
-            // Set fixed dimensions to prevent resizing issues
-            img.width = CONFIG.logoWidth;
-            img.height = CONFIG.logoWidth;
+            // Create a placeholder while the image loads
+            const placeholder = new Image();
+            placeholder.width = CONFIG.logoSize;
+            placeholder.height = CONFIG.logoSize;
             
-            // Store in cache
-            logoCache[logoPath] = img;
+            // Store placeholder in cache until the real image loads
+            CONFIG.logoCache[logoPath] = placeholder;
         });
     }
 
@@ -151,25 +200,22 @@
                             const logoPath = point.logo.startsWith('/') ? point.logo : `/${point.logo}`;
                             
                             // Use cached image if available
-                            if (logoCache[logoPath]) {
-                                return logoCache[logoPath];
+                            if (CONFIG.logoCache[logoPath]) {
+                                return CONFIG.logoCache[logoPath];
                             }
                             
-                            // If not in cache (shouldn't happen due to preloading), create new image
-                            const image = new Image();
-                            image.src = logoPath;
-                            image.width = CONFIG.logoWidth;
-                            image.height = CONFIG.logoWidth;
-                            logoCache[logoPath] = image;
-                            
-                            return image;
+                            // If not in cache (shouldn't happen due to preloading), return placeholder
+                            const placeholder = new Image();
+                            placeholder.width = CONFIG.logoSize;
+                            placeholder.height = CONFIG.logoSize;
+                            return placeholder;
                         } catch (error) {
                             logger.error("Error in pointStyle function:", error);
                             return null;
                         }
                     },
-                    // Use fixed pointRadius to prevent sizing issues
-                    pointRadius: CONFIG.logoWidth / 2,
+                    // Use a consistent pointRadius based on logoSize
+                    pointRadius: CONFIG.logoSize / 2,
                     // Higher z-index to ensure logos appear above quadrant labels
                     z: 20,
                     backgroundColor: 'rgba(0, 0, 0, 0)'
@@ -278,7 +324,7 @@
     }
 
     // Function to update chart data with animation
-    window.updateChartData = function(newData) {
+    function updateChartData(newData) {
         if (!window.mlbChart) {
             logger.error("Chart not initialized");
             return false;
@@ -299,7 +345,7 @@
             logo: team.logo
         }));
         
-        // Update chart data with jQuery animation for smoother transition
+        // Update chart data with animation for smoother transition
         const chart = window.mlbChart;
         
         // First update the data
@@ -325,10 +371,10 @@
         logger.info("Chart data updated with animation");
         
         return true;
-    };
+    }
 
-    // Function to position quadrant labels (defined globally so it can be called from HTML too)
-    window.positionQuadrantLabels = function() {
+    // Function to position quadrant labels
+    function positionQuadrantLabels() {
         const chart = document.getElementById('mlbChart');
         if (!chart) {
             logger.error("Chart element not found!");
@@ -356,16 +402,7 @@
                 label.style.top = (chartHeight * pos.y) + 'px';
             }
         }
-    };
-
-    // Update quadrant labels when window resizes
-    window.addEventListener('resize', function() {
-        // Debounce the resize event
-        clearTimeout(window.resizeTimer);
-        window.resizeTimer = setTimeout(function() {
-            positionQuadrantLabels();
-        }, 250);
-    });
+    }
 
     // Make sure the DOM is fully loaded before initializing
     if (document.readyState === 'loading') {
@@ -373,5 +410,9 @@
     } else {
         initializeChart();
     }
+
+    // Expose public functions to the window object
+    window.updateChartData = updateChartData;
+    window.positionQuadrantLabels = positionQuadrantLabels;
 
 })(window, document);
