@@ -1,16 +1,23 @@
-envVars:
-  - key: PYTHON_VERSION
-    value: 3.10.0
-  - key: FLASK_ENV
-    value: production
-  - key: SECRET_KEY
-    value: your-secret-key-here  # Use Render's UI for sensitive values
-  - key: CACHE_TIMEOUT
-    value: 3600  # Cache timeout in seconds (1 hour)
-  - key: SNAPSHOT_INTERVAL
-    value: 86400  # Snapshot interval in seconds (24 hours)
-  - key: HISTORY_LIMIT
-    value: 30  # Maximum number of historical snapshots to keep
-  - key: API_RATE_LIMIT
-    value: 2.0  # Minimum seconds between API requests
-  # Add MLB_API_KEY if needed
+services:
+  - type: web
+    name: eravsops
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python init_db.py && gunicorn main:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        value: ${SECRET_KEY}
+      - key: CACHE_TIMEOUT
+        value: 3600  # Cache timeout in seconds (1 hour)
+      - key: SNAPSHOT_INTERVAL
+        value: 86400  # Snapshot interval in seconds (24 hours)
+      - key: HISTORY_LIMIT
+        value: 30  # Maximum number of historical snapshots to keep
+      - key: API_RATE_LIMIT
+        value: 2.0  # Minimum seconds between API requests
+      - key: DATABASE_URL
+        value: ${DATABASE_URL}  # Your Neon PostgreSQL connection string

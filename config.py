@@ -14,7 +14,13 @@ class Config:
     MLB_API_KEY = os.getenv('MLB_API_KEY', None)
     
     # Database and Cache settings
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///mlb_data_history.db')
+    # Fix potential Render PostgreSQL URI
+    database_url = os.getenv('DATABASE_URL', 'sqlite:///mlb_data_history.db')
+    # Render uses 'postgres://' but SQLAlchemy expects 'postgresql://'
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    
+    SQLALCHEMY_DATABASE_URI = database_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     CACHE_TIMEOUT = int(os.getenv('CACHE_TIMEOUT', 3600))  # 1 hour in seconds
     SNAPSHOT_INTERVAL = int(os.getenv('SNAPSHOT_INTERVAL', 86400))  # 24 hours in seconds
