@@ -561,8 +561,8 @@
                                 if (tooltipItem.dataIndex === firstIndex) {
                                     return [
                                         `ERA: ${point.y.toFixed(2)}`,
-                                        `OPS: ${point.x.toFixed(3)}`,
-                                        `[Hover to see history]`
+                                        `OPS: ${point.x.toFixed(3)}`
+                                        // Removed redundant hover instruction
                                     ];
                                 }
                                 return [];

@@ -140,16 +140,22 @@ def update_mlb_data(step=1, total_steps=30):
     
     logger.info(f"Update request received: step={step}, total_steps={total_steps}")
     
-    # Initialize MLBDataFetcher if needed
+    # If update is already marked complete, don't process again
+    if not update_status["in_progress"] and update_status.get("completed", False):
+        logger.info("Update already completed, not processing again")
+        return update_status
+    
+    # Initialize MLBDataFetcher
     fetcher = MLBDataFetcher()
     
     # Get latest data to work with
-    data, exists, _, _ = get_latest_data(True)
+    data, exists, _, _ = get_latest_data(must_exist=True)
     
     # If update is not yet in progress, initialize the status
     if not update_status["in_progress"]:
         update_status = {
             "in_progress": True,
+            "completed": False,  # Add completed flag to prevent multiple completions
             "last_updated": None,
             "teams_updated": 0,
             "total_teams": total_steps,
@@ -181,15 +187,26 @@ def update_mlb_data(step=1, total_steps=30):
     
     # Make sure we don't go beyond the total
     if current_index >= len(mlb_teams):
-        # We're done, mark update as complete
-        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-        update_status["in_progress"] = False
-        update_status["last_updated"] = timestamp
-        
-        # Save a final snapshot when complete
-        save_snapshot(data)
-        
-        logger.info(f"Update complete. Updated {update_status['teams_updated']} teams.")
+        # Only perform completion steps if not already marked as completed
+        if not update_status.get("completed", False):
+            # Mark update as complete
+            timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            update_status["in_progress"] = False
+            update_status["completed"] = True
+            update_status["last_updated"] = timestamp
+            
+            # Save a final snapshot when complete - ONLY at the very end
+            if data and len(data) >= len(mlb_teams) - 3:  # Allow for a small margin of error
+                save_snapshot(data)
+                logger.info(f"Update complete. Saved final snapshot with {len(data)} teams.")
+            else:
+                logger.error(f"Update complete but data incomplete. Expected {len(mlb_teams)} teams but have {len(data)}.")
+                update_status["error"] = "Update completed with incomplete data"
+            
+            logger.info(f"Update completed and finalized.")
+        else:
+            logger.info(f"Update already completed, skipping finalization.")
+            
         return update_status
     
     # OPTIMIZATION: Process multiple teams at once up to the configured batch size
@@ -243,30 +260,32 @@ def update_mlb_data(step=1, total_steps=30):
                 # No existing data, just use what we got
                 data = team_stats
             
-            # Save an intermediate snapshot if halfway done or every 10 teams
-            if current_index == len(mlb_teams) // 2 or current_index % 10 == 0:
-                save_snapshot(data)
+            # NEVER save intermediate snapshots
             
-            # Update progress
-            update_status["teams_updated"] += len(team_stats)
+            # Update progress but ensure we don't exceed total
+            update_status["teams_updated"] = min(update_status["teams_updated"] + len(team_stats), update_status["total_teams"])
             logger.info(f"Updated team count: {update_status['teams_updated']}/{update_status['total_teams']}")
         else:
             logger.warning(f"No team data returned for batch starting at index {current_index}, skipping")
-            # Skip this batch and move to the next
-            update_status["teams_updated"] += len(current_batch)
+            # Skip this batch and move to the next, but ensure we don't exceed total
+            update_status["teams_updated"] = min(update_status["teams_updated"] + len(current_batch), update_status["total_teams"])
             logger.info(f"Skipped to index {update_status['teams_updated']}")
         
         # Check if we're done
-        if update_status["teams_updated"] >= update_status["total_teams"]:
+        if update_status["teams_updated"] >= update_status["total_teams"] and not update_status.get("completed", False):
             timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             update_status["in_progress"] = False
+            update_status["completed"] = True
             update_status["last_updated"] = timestamp
             
-            # Save final snapshot
-            save_snapshot(data)
-            
-            logger.info(f"Update complete. Updated {update_status['teams_updated']} teams.")
-    
+            # Save final snapshot ONLY when we have all teams and ONLY if not already saved
+            if data and len(data) >= len(mlb_teams) - 3:  # Allow for a small margin of error
+                save_snapshot(data)
+                logger.info(f"Update complete. Saved final snapshot with {len(data)} teams.")
+            else:
+                logger.error(f"Update complete but data incomplete. Expected {len(mlb_teams)} teams but have {len(data)}.")
+                update_status["error"] = "Update completed with incomplete data"
+        
     except Exception as e:
         error_msg = f"Error updating teams starting at index {current_index}: {str(e)}"
         logger.error(error_msg)
@@ -277,8 +296,8 @@ def update_mlb_data(step=1, total_steps=30):
         logger.error(trace)
         current_app.logger.error(trace)
         
-        # Skip this batch and continue with the next one
-        update_status["teams_updated"] += len(current_batch)
+        # Skip this batch and continue with the next one, but ensure we don't exceed total
+        update_status["teams_updated"] = min(update_status["teams_updated"] + len(current_batch), update_status["total_teams"])
         logger.info(f"Skipped to index {update_status['teams_updated']} after error")
     
     return update_status
@@ -342,10 +361,8 @@ def start_update():
     batch_size = min(4, request.json.get('batch_size', 1) if request.is_json else 1)
     logger.info(f"Starting update with batch size: {batch_size}")
     
-    # Reset update status (even if in progress)
-    update_status["in_progress"] = False
-    update_status["teams_updated"] = 0
-    update_status["error"] = None
+    # Reset update status completely
+    reset_update_status()
     
     # Start the update process (will set in_progress = True internally)
     status = update_mlb_data(step=batch_size)
@@ -414,13 +431,29 @@ def get_snapshot(snapshot_id):
         teams = snapshot.teams
         teams = fix_logo_paths(teams)
         
-        # Add snapshot timestamp to each team for frontend display
-        snapshot_time = snapshot.timestamp.isoformat()
-        for team in teams:
-            team['snapshot_time'] = snapshot_time
-        
-        logger.info(f"Snapshot {snapshot_id} requested. Returning {len(teams)} teams with timestamp {snapshot_time}")
+        logger.info(f"Snapshot {snapshot_id} requested. Returning {len(teams)} teams")
         return jsonify(teams)
     except Exception as e:
         logger.error(f"Error getting snapshot {snapshot_id}: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+def reset_update_status():
+    """Reset the update status completely"""
+    global update_status
+    update_status = {
+        "in_progress": False,
+        "completed": False,
+        "last_updated": None,
+        "teams_updated": 0,
+        "total_teams": 30,
+        "error": None,
+        "snapshot_count": MLBSnapshot.query.count()
+    }
+    logger.info("Update status reset")
+    return update_status
+
+@main_bp.route('/api/reset-update', methods=['POST'])
+def api_reset_update():
+    """API endpoint to reset update status"""
+    status = reset_update_status()
+    return jsonify(status)

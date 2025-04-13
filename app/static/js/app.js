@@ -303,16 +303,20 @@
             elements.statusTextTitle.text('Updating');
             elements.updateProgress.addClass('visible');
             
-            // Calculate percentage
+            // Calculate percentage, ensuring it doesn't exceed 100%
+            const teamsUpdated = Math.min(status.teams_updated, status.total_teams);
             const percent = status.total_teams > 0 
-                ? (status.teams_updated / status.total_teams) * 100 
+                ? (teamsUpdated / status.total_teams) * 100 
                 : 0;
             
-            debugLog(`Update progress: ${status.teams_updated}/${status.total_teams} (${percent.toFixed(1)}%)`);
+            // Cap at 100%
+            const cappedPercent = Math.min(percent, 100);
+            
+            debugLog(`Update progress: ${teamsUpdated}/${status.total_teams} (${cappedPercent.toFixed(1)}%)`);
             
             // Update progress bar
-            elements.progressBar.css('width', `${percent}%`);
-            elements.progressCount.text(`${status.teams_updated}/${status.total_teams}`);
+            elements.progressBar.css('width', `${cappedPercent}%`);
+            elements.progressCount.text(`${teamsUpdated}/${status.total_teams}`);
             
             // Hide refresh button during update
             elements.refreshButton.removeClass('visible');
@@ -345,6 +349,11 @@
             if (status.snapshot_count) {
                 state.snapshotCount = status.snapshot_count;
                 elements.snapshotCountElem.text(state.snapshotCount);
+                
+                // Refresh snapshot selector if count changed
+                if (state.snapshotCount > 1) {
+                    fetchSnapshotInfo();
+                }
             }
         }
     }
