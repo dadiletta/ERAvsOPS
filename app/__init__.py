@@ -91,7 +91,9 @@ def create_app():
     
     # Register blueprints
     from app.routes.main_routes import main_bp
+    from app.routes.data_routes import data_bp
     app.register_blueprint(main_bp)
+    app.register_blueprint(data_bp)
     
     # Create database tables if they don't exist
     with app.app_context():
