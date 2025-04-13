@@ -23,7 +23,8 @@ update_status = {
     "teams_updated": 0,
     "total_teams": 0,
     "last_updated": None,
-    "snapshot_count": 0
+    "snapshot_count": 0,
+    "error": None
 }
 
 # Helper function to get latest data
@@ -43,7 +44,7 @@ def get_latest_data(must_exist=False):
             # Check if data is fresh
             # Use timezone-aware comparison
             now = datetime.now(timezone.utc)
-            timestamp = snapshot.timestamp_aware  # Use the new property
+            timestamp = snapshot.timestamp_aware  # Use the property
             
             cache_age = now - timestamp
             is_fresh = cache_age.total_seconds() < current_app.config['CACHE_TIMEOUT']
@@ -112,25 +113,25 @@ def cleanup_old_snapshots(limit):
         error_msg = f"Error cleaning up old snapshots: {str(e)}"
         logger.error(error_msg)
 
-# Update function to use datetime.now(timezone.utc)
+# Fixed update function
 def update_mlb_data(step=1, total_steps=30):
     """Update MLB data one team at a time to allow for progress tracking"""
     global update_status
     
-    # Skip if already updating
-    if update_status["in_progress"]:
-        logger.info("Update already in progress, skipping")
-        return False
-    
     # Create MLB data fetcher instance
     fetcher = MLBDataFetcher()
+    
+    # Check if MLB Stats API is available
+    if not fetcher.api_available:
+        error_msg = "MLB Stats API is not available. Cannot update data."
+        logger.error(error_msg)
+        update_status["error"] = error_msg
+        update_status["in_progress"] = False
+        return False
     
     # Get total team count if not already set
     if update_status["total_teams"] == 0:
         update_status["total_teams"] = len(fetcher.get_mlb_teams())
-    
-    # Mark as in progress
-    update_status["in_progress"] = True
     
     # Calculate start index
     start_index = update_status["teams_updated"]
@@ -141,74 +142,90 @@ def update_mlb_data(step=1, total_steps=30):
         update_status["in_progress"] = False
         return True
     
-    # Get a batch of team stats
-    batch = fetcher.get_team_stats_batch(start_index, step)
+    logger.info(f"Processing teams starting at index {start_index} with step size {step}")
     
-    # Update progress
-    update_status["teams_updated"] += len(batch)
-    
-    # If made progress, store in database
-    if len(batch) > 0:
-        try:
-            # Get existing data
-            existing_data, _, _, _ = get_latest_data()
-            
-            # Update existing data with new team data
-            updated = False
-            for new_team in batch:
-                # Find matching team in existing data
-                for i, existing_team in enumerate(existing_data):
-                    if existing_team.get('id') == new_team.get('id'):
-                        # Update team
-                        existing_data[i] = new_team
+    try:
+        # Get a batch of team stats
+        batch = fetcher.get_team_stats_batch(start_index, step)
+        
+        # Log the batch results
+        logger.info(f"Received batch of {len(batch)} teams")
+        
+        # Update progress
+        update_status["teams_updated"] += len(batch)
+        
+        # If made progress, store in database
+        if len(batch) > 0:
+            try:
+                # Get existing data
+                existing_data, _, _, _ = get_latest_data()
+                
+                # Update existing data with new team data
+                updated = False
+                for new_team in batch:
+                    # Find matching team in existing data
+                    for i, existing_team in enumerate(existing_data):
+                        if existing_team.get('id') == new_team.get('id'):
+                            # Update team
+                            existing_data[i] = new_team
+                            updated = True
+                            break
+                    else:
+                        # Team not found, add it
+                        existing_data.append(new_team)
                         updated = True
-                        break
-                else:
-                    # Team not found, add it
-                    existing_data.append(new_team)
-                    updated = True
+                
+                # If updates were made, validate and save to database
+                if updated:
+                    # Validate again
+                    validated_data = validate_mlb_data(existing_data)
+                    
+                    # Save to database as a new snapshot
+                    snapshot = MLBSnapshot(
+                        timestamp=datetime.now(timezone.utc),
+                        data=json.dumps(validated_data)
+                    )
+                    db.session.add(snapshot)
+                    db.session.commit()
+                    
+                    logger.info(f"Updated database with {len(validated_data)} teams")
+                    
+                    # Check if we need to clean up old snapshots
+                    history_limit = current_app.config.get('HISTORY_LIMIT', 30)
+                    if history_limit > 0:
+                        cleanup_old_snapshots(history_limit)
             
-            # If updates were made, validate and save to database
-            if updated:
-                # Validate again
-                validated_data = validate_mlb_data(existing_data)
-                
-                # Save to database as a new snapshot
-                snapshot = MLBSnapshot(
-                    timestamp=datetime.now(timezone.utc),
-                    data=json.dumps(validated_data)
-                )
-                db.session.add(snapshot)
-                db.session.commit()
-                
-                logger.info(f"Updated database with {len(validated_data)} teams")
-                
-                # Check if we need to clean up old snapshots
-                history_limit = current_app.config.get('HISTORY_LIMIT', 30)
-                if history_limit > 0:
-                    cleanup_old_snapshots(history_limit)
+            except Exception as e:
+                error_msg = f"Error updating database: {str(e)}"
+                logger.error(error_msg)
+                import traceback
+                logger.error(traceback.format_exc())
+                update_status["error"] = error_msg
+        else:
+            logger.warning(f"No teams were processed in this batch (start_index={start_index}, step={step})")
+            update_status["error"] = "No teams processed in batch"
         
-        except Exception as e:
-            error_msg = f"Error updating database: {str(e)}"
-            logger.error(error_msg)
-            import traceback
-            logger.error(traceback.format_exc())
-    
-    # If all teams updated, mark as complete
-    if update_status["teams_updated"] >= update_status["total_teams"] and not update_status.get("completed", False):
-        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-        update_status["in_progress"] = False
-        update_status["completed"] = True
-        update_status["last_updated"] = timestamp
+        # If all teams updated, mark as complete
+        if update_status["teams_updated"] >= update_status["total_teams"]:
+            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            update_status["in_progress"] = False
+            update_status["last_updated"] = timestamp
+            
+            logger.info(f"Update completed at {timestamp}")
+            
+            # Reset for next update
+            update_status["teams_updated"] = 0
+            update_status["total_teams"] = 0
         
-        logger.info(f"Update completed at {timestamp}")
+        return True
         
-        # Reset for next update
-        update_status["teams_updated"] = 0
-        update_status["total_teams"] = 0
-        update_status["completed"] = False
-    
-    return True
+    except Exception as e:
+        error_msg = f"Error in update process: {str(e)}"
+        logger.error(error_msg)
+        import traceback
+        logger.error(traceback.format_exc())
+        update_status["error"] = error_msg
+        return False
 
 @main_bp.route('/')
 def index():
@@ -248,7 +265,8 @@ def get_update_status():
         "total_teams": update_status["total_teams"],
         "cache_fresh": is_fresh,
         "last_updated": last_updated,
-        "snapshot_count": update_status["snapshot_count"]
+        "snapshot_count": update_status["snapshot_count"],
+        "error": update_status.get("error")
     }
     
     return jsonify(status)
@@ -256,19 +274,39 @@ def get_update_status():
 @main_bp.route('/api/start-update', methods=['POST'])
 def start_update():
     """API endpoint to start updating MLB data."""
-    # Only start if not already updating
-    if not update_status["in_progress"]:
-        # Reset update status
-        update_status["in_progress"] = True
-        update_status["teams_updated"] = 0
-        update_status["total_teams"] = 0
+    global update_status
+    
+    # Reset status first to avoid stuck updates
+    update_status["in_progress"] = False
+    update_status["teams_updated"] = 0
+    update_status["total_teams"] = 0
+    update_status["error"] = None
+    
+    # Mark as in progress
+    update_status["in_progress"] = True
+    
+    # Get batch size from request
+    data = request.get_json() or {}
+    batch_size = data.get('batch_size', 1)
+    
+    # Start update
+    try:
+        result = update_mlb_data(step=batch_size)
         
-        # Get batch size from request
-        data = request.get_json() or {}
-        batch_size = data.get('batch_size', 1)
+        if not result:
+            logger.error("Failed to start update process")
+            if not update_status.get("error"):
+                update_status["error"] = "Unknown error starting update"
+    except Exception as e:
+        logger.error(f"Error starting update: {str(e)}")
+        # Reset status on error
+        update_status["in_progress"] = False
+        update_status["error"] = str(e)
         
-        # Start update
-        update_mlb_data(step=batch_size)
+        return jsonify({
+            "error": f"Failed to start update: {str(e)}",
+            "in_progress": False
+        })
     
     # Return current status
     return get_update_status()
@@ -276,14 +314,27 @@ def start_update():
 @main_bp.route('/api/continue-update', methods=['POST'])
 def continue_update():
     """API endpoint to continue updating MLB data."""
+    global update_status
+    
+    # Get batch size from request
+    data = request.get_json() or {}
+    batch_size = data.get('batch_size', 1)
+    
     # Only continue if already updating
     if update_status["in_progress"]:
-        # Get batch size from request
-        data = request.get_json() or {}
-        batch_size = data.get('batch_size', 1)
-        
-        # Continue update
-        update_mlb_data(step=batch_size)
+        try:
+            result = update_mlb_data(step=batch_size)
+            
+            if not result:
+                logger.error("Failed to continue update process")
+                if not update_status.get("error"):
+                    update_status["error"] = "Unknown error continuing update"
+        except Exception as e:
+            logger.error(f"Error continuing update: {str(e)}")
+            update_status["error"] = str(e)
+    else:
+        # If not in progress, start a new update
+        return start_update()
     
     # Return current status
     return get_update_status()
@@ -328,7 +379,6 @@ def get_team_history(team_id):
     history = MLBSnapshot.get_team_history(team_id, limit=days)
     return jsonify(history)
 
-# Reset the update status to fix the stuck update process
 @main_bp.route('/api/reset-update', methods=['POST'])
 def reset_update():
     """API endpoint to reset a stuck update process."""
@@ -340,7 +390,8 @@ def reset_update():
         "teams_updated": 0,
         "total_teams": 0,
         "last_updated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
-        "snapshot_count": MLBSnapshot.query.count()
+        "snapshot_count": MLBSnapshot.query.count(),
+        "error": None
     }
     
     logger.info("Update status has been manually reset")
@@ -350,39 +401,3 @@ def reset_update():
         "message": "Update status has been reset",
         "current_status": update_status
     })
-
-# Modified start_update function to reset status first
-@main_bp.route('/api/start-update', methods=['POST'])
-def start_update():
-    """API endpoint to start updating MLB data."""
-    global update_status
-    
-    # Reset status first to avoid stuck updates
-    update_status["in_progress"] = False
-    update_status["teams_updated"] = 0
-    update_status["total_teams"] = 0
-    
-    # Only start if not already updating
-    if not update_status["in_progress"]:
-        # Mark as in progress
-        update_status["in_progress"] = True
-        
-        # Get batch size from request
-        data = request.get_json() or {}
-        batch_size = data.get('batch_size', 1)
-        
-        # Start update
-        try:
-            update_mlb_data(step=batch_size)
-        except Exception as e:
-            logger.error(f"Error starting update: {str(e)}")
-            # Reset status on error
-            update_status["in_progress"] = False
-            
-            return jsonify({
-                "error": f"Failed to start update: {str(e)}",
-                "in_progress": False
-            })
-    
-    # Return current status
-    return get_update_status()
