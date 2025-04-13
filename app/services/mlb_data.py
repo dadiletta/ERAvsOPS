@@ -1,7 +1,7 @@
 # app/services/mlb_data.py
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import current_app
 import time
 import logging
@@ -31,7 +31,7 @@ class MLBDataFetcher:
         self.api_available = MLB_STATS_API_AVAILABLE
         logger.info(f"MLBDataFetcher initialized with API available: {self.api_available}")
         
-        self.current_year = datetime.now().year
+        self.current_year = datetime.now(timezone.utc).year
         
         # Hardcoded list of MLB team IDs with names (based on MLB API data)
         # This replaces the broken lookup_team() function
@@ -194,7 +194,7 @@ class MLBDataFetcher:
         return team_stats
     
     def _fetch_team_stats(self, team, season):
-        """Fetch stats for a specific team
+        """Fetch stats for a specific team with improved validation
         
         Args:
             team: Team dict with id, name, etc.
@@ -227,27 +227,48 @@ class MLBDataFetcher:
                 {"teamId": team_id, "group": "hitting", "stats": "season", "season": season}
             )
             
-            # Extract ERA
+            # Extract ERA with improved validation
             era = None
             if pitching_stats and 'stats' in pitching_stats:
                 for stat_group in pitching_stats['stats']:
                     if 'splits' in stat_group:
                         for split in stat_group['splits']:
                             if 'stat' in split and 'era' in split['stat']:
-                                era = float(split['stat']['era'])
-                                logger.info(f"{team_name} ERA: {era}")
+                                try:
+                                    era_value = float(split['stat']['era'])
+                                    # Validate ERA is within reasonable range
+                                    if 1.0 <= era_value <= 7.0:
+                                        era = era_value
+                                        logger.info(f"{team_name} ERA: {era}")
+                                    else:
+                                        logger.warning(f"Invalid ERA value for {team_name}: {era_value}, outside valid range")
+                                except (ValueError, TypeError) as e:
+                                    logger.error(f"Error converting ERA for {team_name}: {str(e)}")
                                 break
             
-            # Extract OPS
+            # Extract OPS with improved validation
             ops = None
             if hitting_stats and 'stats' in hitting_stats:
                 for stat_group in hitting_stats['stats']:
                     if 'splits' in stat_group:
                         for split in stat_group['splits']:
                             if 'stat' in split and 'ops' in split['stat']:
-                                ops = float(split['stat']['ops'])
-                                logger.info(f"{team_name} OPS: {ops}")
+                                try:
+                                    ops_value = float(split['stat']['ops'])
+                                    # Validate OPS is within reasonable range
+                                    if 0.5 <= ops_value <= 1.0:
+                                        ops = ops_value
+                                        logger.info(f"{team_name} OPS: {ops}")
+                                    else:
+                                        logger.warning(f"Invalid OPS value for {team_name}: {ops_value}, outside valid range")
+                                except (ValueError, TypeError) as e:
+                                    logger.error(f"Error converting OPS for {team_name}: {str(e)}")
                                 break
+            
+            # Additional validation: Both values must be present
+            if era is None or ops is None:
+                logger.warning(f"Missing data for {team_name} - ERA: {era}, OPS: {ops}")
+                return None
             
             # Get proper logo filename from team name
             logo_name = team_name.lower()
@@ -260,22 +281,17 @@ class MLBDataFetcher:
             elif team_name == "Blue Jays":
                 logo_name = "bluejays"
             
-            # Only add teams with both ERA and OPS
-            if era is not None and ops is not None:
-                team_data = {
-                    "id": team_id,
-                    "name": team_name,
-                    "full_name": team['full_name'],
-                    "abbreviation": team_abbrev,
-                    "era": era,
-                    "ops": ops,
-                    "logo": f"/static/logos/{logo_name}.png"
-                }
-                logger.info(f"Successfully processed {team_name}")
-                return team_data
-            else:
-                logger.warning(f"Missing stats for {team_name} - ERA: {era}, OPS: {ops}")
-                return None
+            team_data = {
+                "id": team_id,
+                "name": team_name,
+                "full_name": team['full_name'],
+                "abbreviation": team_abbrev,
+                "era": era,
+                "ops": ops,
+                "logo": f"/static/logos/{logo_name}.png"
+            }
+            logger.info(f"Successfully processed {team_name}")
+            return team_data
                 
         except Exception as e:
             error_msg = f"Error getting stats for {team_name}: {str(e)}"
@@ -294,8 +310,40 @@ class MLBDataFetcher:
             try:
                 with open(cache_file, 'r') as f:
                     data = json.load(f)
-                    logger.info(f"Loaded {len(data)} teams from cache file")
-                    return data
+                    
+                    # Validate the data before returning
+                    valid_data = []
+                    for team in data:
+                        # Skip teams with missing ERA or OPS
+                        if team.get('era') is None or team.get('ops') is None:
+                            logger.warning(f"Skipping team with incomplete data: {team.get('name', 'Unknown')}")
+                            continue
+                            
+                        # Validate ERA is within reasonable range (1.0 to 7.0)
+                        try:
+                            era = float(team['era'])
+                            if not (1.0 <= era <= 7.0):
+                                logger.warning(f"Skipping team with invalid ERA {team['era']}: {team.get('name', 'Unknown')}")
+                                continue
+                        except (ValueError, TypeError):
+                            logger.warning(f"Skipping team with non-numeric ERA {team.get('era')}: {team.get('name', 'Unknown')}")
+                            continue
+                            
+                        # Validate OPS is within reasonable range (0.5 to 1.0)
+                        try:
+                            ops = float(team['ops'])
+                            if not (0.5 <= ops <= 1.0):
+                                logger.warning(f"Skipping team with invalid OPS {team['ops']}: {team.get('name', 'Unknown')}")
+                                continue
+                        except (ValueError, TypeError):
+                            logger.warning(f"Skipping team with non-numeric OPS {team.get('ops')}: {team.get('name', 'Unknown')}")
+                            continue
+                        
+                        # Add valid team to result
+                        valid_data.append(team)
+                    
+                    logger.info(f"Loaded {len(valid_data)} valid teams from cache file (filtered from {len(data)} total)")
+                    return valid_data
             except Exception as e:
                 error_msg = f"Error reading cache file: {str(e)}"
                 logger.error(error_msg)
@@ -304,7 +352,7 @@ class MLBDataFetcher:
         # Return hardcoded fallback data if cache file not available
         logger.warning("Using hardcoded fallback data")
         current_app.logger.warning("Using hardcoded fallback data")
-        return [
+        fallback_data = [
             {"id": 121, "name": "Mets", "full_name": "New York Mets", "abbreviation": "NYM", "era": 2.00, "ops": 0.700, "logo": "/static/logos/mets.png"},
             {"id": 137, "name": "Giants", "full_name": "San Francisco Giants", "abbreviation": "SF", "era": 2.55, "ops": 0.650, "logo": "/static/logos/giants.png"},
             {"id": 113, "name": "Reds", "full_name": "Cincinnati Reds", "abbreviation": "CIN", "era": 2.90, "ops": 0.610, "logo": "/static/logos/reds.png"},
@@ -313,3 +361,5 @@ class MLBDataFetcher:
             {"id": 119, "name": "Dodgers", "full_name": "Los Angeles Dodgers", "abbreviation": "LAD", "era": 3.10, "ops": 0.740, "logo": "/static/logos/dodgers.png"},
             {"id": 147, "name": "Yankees", "full_name": "New York Yankees", "abbreviation": "NYY", "era": 4.60, "ops": 0.850, "logo": "/static/logos/yankees.png"}
         ]
+        
+        return fallback_data

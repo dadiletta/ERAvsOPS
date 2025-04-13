@@ -1,6 +1,6 @@
 # app/models/mlb_snapshot.py
 from app import db
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 class MLBSnapshot(db.Model):
@@ -8,7 +8,7 @@ class MLBSnapshot(db.Model):
     __tablename__ = 'mlb_snapshots'
     
     id = db.Column(db.Integer, primary_key=True)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     # Store the complete team data as JSON
     data = db.Column(db.Text, nullable=False)
     

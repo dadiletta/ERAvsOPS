@@ -4,9 +4,63 @@ from flask_sqlalchemy import SQLAlchemy
 from config import get_config
 import os
 import json
+from datetime import datetime, timezone
 
 # Initialize SQLAlchemy
 db = SQLAlchemy()
+
+def validate_mlb_data(data):
+    """
+    Validate MLB team data to ensure quality and accuracy
+    
+    Args:
+        data: List of team data dictionaries
+    
+    Returns:
+        List of validated team data dictionaries
+    """
+    valid_data = []
+    seen_teams = set()
+    team_count_before = len(data)
+    
+    for team in data:
+        # Skip teams with missing ERA or OPS
+        if team.get('era') is None or team.get('ops') is None:
+            app.logger.warning(f"Skipping team with incomplete data: {team.get('name', 'Unknown')}")
+            continue
+            
+        # Validate ERA is within reasonable range (1.0 to 7.0)
+        try:
+            era = float(team['era'])
+            if not (1.0 <= era <= 7.0):
+                app.logger.warning(f"Skipping team with invalid ERA {team['era']}: {team.get('name', 'Unknown')}")
+                continue
+        except (ValueError, TypeError):
+            app.logger.warning(f"Skipping team with non-numeric ERA {team.get('era')}: {team.get('name', 'Unknown')}")
+            continue
+            
+        # Validate OPS is within reasonable range (0.5 to 1.0)
+        try:
+            ops = float(team['ops'])
+            if not (0.5 <= ops <= 1.0):
+                app.logger.warning(f"Skipping team with invalid OPS {team['ops']}: {team.get('name', 'Unknown')}")
+                continue
+        except (ValueError, TypeError):
+            app.logger.warning(f"Skipping team with non-numeric OPS {team.get('ops')}: {team.get('name', 'Unknown')}")
+            continue
+            
+        # Check for duplicate teams (by ID)
+        team_id = team.get('id')
+        if team_id in seen_teams:
+            app.logger.warning(f"Skipping duplicate team: {team.get('name', 'Unknown')}")
+            continue
+            
+        seen_teams.add(team_id)
+        valid_data.append(team)
+    
+    app.logger.info(f"Data validation: {team_count_before} teams before, {len(valid_data)} after validation")
+    
+    return valid_data
 
 def create_app():
     """Initialize the Flask application"""
@@ -20,6 +74,9 @@ def create_app():
     database_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'mlb_data_history.db')
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{database_path}'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # Make app available globally in this module
+    global app
     
     # Initialize extensions
     db.init_app(app)
@@ -36,7 +93,7 @@ def create_app():
         from app.models.mlb_snapshot import MLBSnapshot
         if MLBSnapshot.query.count() == 0:
             try:
-                app.logger.info("Database is empty, initializing with data from data_cache.json")
+                app.logger.info("Database is empty, initializing with data_cache.json")
                 
                 # Load data directly from data_cache.json
                 cache_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data_cache.json')
@@ -44,15 +101,18 @@ def create_app():
                     initial_data = json.load(f)
                 
                 if initial_data and len(initial_data) > 0:
+                    # Validate the data
+                    initial_data = validate_mlb_data(initial_data)
+                    
                     # Create a new snapshot with yesterday's date (to ensure it's not fresh)
-                    from datetime import datetime, timedelta
+                    from datetime import timedelta
                     snapshot = MLBSnapshot(
-                        timestamp=datetime.utcnow() - timedelta(days=1),
+                        timestamp=datetime.now(timezone.utc) - timedelta(days=1),
                         data=json.dumps(initial_data)
                     )
                     db.session.add(snapshot)
                     db.session.commit()
-                    app.logger.info(f"Initialized database with {len(initial_data)} teams")
+                    app.logger.info(f"Initialized database with {len(initial_data)} validated teams")
             except Exception as e:
                 app.logger.error(f"Error initializing database: {str(e)}")
                 import traceback
