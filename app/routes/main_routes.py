@@ -1,4 +1,4 @@
-# app/routes/main_routes.py - Update these sections
+# app/routes/main_routes.py
 
 from flask import Blueprint, render_template, current_app, jsonify, request
 import json
@@ -41,7 +41,11 @@ def get_latest_data(must_exist=False):
         
         if snapshot:
             # Check if data is fresh
-            cache_age = datetime.now(timezone.utc) - snapshot.timestamp
+            # Use timezone-aware comparison
+            now = datetime.now(timezone.utc)
+            timestamp = snapshot.timestamp_aware  # Use the new property
+            
+            cache_age = now - timestamp
             is_fresh = cache_age.total_seconds() < current_app.config['CACHE_TIMEOUT']
             
             # Get teams and validate
@@ -50,8 +54,8 @@ def get_latest_data(must_exist=False):
             # Validate teams on retrieval
             teams = validate_mlb_data(teams)
             
-            logger.info(f"Latest snapshot found from {snapshot.timestamp}. Fresh: {is_fresh}, Age: {cache_age.total_seconds()} seconds, Valid teams: {len(teams)}")
-            return teams, True, is_fresh, snapshot.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            logger.info(f"Latest snapshot found from {timestamp}. Fresh: {is_fresh}, Age: {cache_age.total_seconds()} seconds, Valid teams: {len(teams)}")
+            return teams, True, is_fresh, timestamp.strftime("%Y-%m-%d %H:%M:%S")
     
     except Exception as e:
         error_msg = f"Error reading from database: {str(e)}"
@@ -83,6 +87,30 @@ def get_latest_data(must_exist=False):
         
     # Otherwise, return an empty list with appropriate flags
     return [], False, False, "No data available"
+
+def cleanup_old_snapshots(limit):
+    """Remove old snapshots exceeding the limit"""
+    try:
+        # Get total count of snapshots
+        count = MLBSnapshot.query.count()
+        
+        # If we're over the limit, delete the oldest ones
+        if count > limit:
+            # Calculate how many to delete
+            to_delete = count - limit
+            
+            # Get the oldest snapshots
+            oldest_snapshots = MLBSnapshot.query.order_by(MLBSnapshot.timestamp.asc()).limit(to_delete).all()
+            
+            # Delete them
+            for snapshot in oldest_snapshots:
+                db.session.delete(snapshot)
+            
+            db.session.commit()
+            logger.info(f"Cleaned up {len(oldest_snapshots)} old snapshots, keeping most recent {limit}")
+    except Exception as e:
+        error_msg = f"Error cleaning up old snapshots: {str(e)}"
+        logger.error(error_msg)
 
 # Update function to use datetime.now(timezone.utc)
 def update_mlb_data(step=1, total_steps=30):
@@ -181,3 +209,180 @@ def update_mlb_data(step=1, total_steps=30):
         update_status["completed"] = False
     
     return True
+
+@main_bp.route('/')
+def index():
+    """Render the homepage with MLB team data visualization."""
+    # Get latest team data
+    teams, db_exists, is_fresh, last_updated = get_latest_data()
+    
+    # Prepare status info for the template
+    status = {
+        "is_fresh": is_fresh,
+        "last_updated": last_updated,
+        "update_in_progress": update_status["in_progress"],
+        "teams_updated": update_status["teams_updated"],
+        "total_teams": update_status["total_teams"],
+        "snapshot_count": update_status["snapshot_count"]
+    }
+    
+    # Render the template with team data and status
+    return render_template('index.html', teams=teams, status=status)
+
+@main_bp.route('/api/team-data')
+def get_team_data():
+    """API endpoint to get the latest team data."""
+    teams, _, _, _ = get_latest_data(must_exist=True)
+    return jsonify(teams)
+
+@main_bp.route('/api/update-status')
+def get_update_status():
+    """API endpoint to get the status of the data update."""
+    # Get latest data
+    _, db_exists, is_fresh, last_updated = get_latest_data()
+    
+    # Prepare status response
+    status = {
+        "in_progress": update_status["in_progress"],
+        "teams_updated": update_status["teams_updated"],
+        "total_teams": update_status["total_teams"],
+        "cache_fresh": is_fresh,
+        "last_updated": last_updated,
+        "snapshot_count": update_status["snapshot_count"]
+    }
+    
+    return jsonify(status)
+
+@main_bp.route('/api/start-update', methods=['POST'])
+def start_update():
+    """API endpoint to start updating MLB data."""
+    # Only start if not already updating
+    if not update_status["in_progress"]:
+        # Reset update status
+        update_status["in_progress"] = True
+        update_status["teams_updated"] = 0
+        update_status["total_teams"] = 0
+        
+        # Get batch size from request
+        data = request.get_json() or {}
+        batch_size = data.get('batch_size', 1)
+        
+        # Start update
+        update_mlb_data(step=batch_size)
+    
+    # Return current status
+    return get_update_status()
+
+@main_bp.route('/api/continue-update', methods=['POST'])
+def continue_update():
+    """API endpoint to continue updating MLB data."""
+    # Only continue if already updating
+    if update_status["in_progress"]:
+        # Get batch size from request
+        data = request.get_json() or {}
+        batch_size = data.get('batch_size', 1)
+        
+        # Continue update
+        update_mlb_data(step=batch_size)
+    
+    # Return current status
+    return get_update_status()
+
+@main_bp.route('/api/snapshots')
+def get_snapshots():
+    """API endpoint to get available snapshots."""
+    snapshots = MLBSnapshot.query.order_by(MLBSnapshot.timestamp.desc()).all()
+    
+    # Convert to JSON-serializable format
+    snapshot_list = [{
+        "id": s.id,
+        "timestamp": s.timestamp.isoformat()
+    } for s in snapshots]
+    
+    return jsonify(snapshot_list)
+
+@main_bp.route('/api/snapshot/<snapshot_id>')
+def get_snapshot(snapshot_id):
+    """API endpoint to get data from a specific snapshot."""
+    if snapshot_id == 'latest':
+        # Get latest snapshot
+        snapshot = MLBSnapshot.get_latest()
+    else:
+        # Get specific snapshot by ID
+        snapshot = MLBSnapshot.query.get_or_404(int(snapshot_id))
+    
+    # Return validated team data
+    if snapshot:
+        teams = validate_mlb_data(snapshot.teams)
+        # Add timestamp to each team
+        for team in teams:
+            team['snapshot_time'] = snapshot.timestamp.isoformat()
+        return jsonify(teams)
+    
+    return jsonify([])
+
+@main_bp.route('/api/team-history/<team_id>')
+def get_team_history(team_id):
+    """API endpoint to get historical data for a specific team."""
+    days = request.args.get('days', 30, type=int)
+    history = MLBSnapshot.get_team_history(team_id, limit=days)
+    return jsonify(history)
+
+# Reset the update status to fix the stuck update process
+@main_bp.route('/api/reset-update', methods=['POST'])
+def reset_update():
+    """API endpoint to reset a stuck update process."""
+    global update_status
+    
+    # Reset update status
+    update_status = {
+        "in_progress": False,
+        "teams_updated": 0,
+        "total_teams": 0,
+        "last_updated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+        "snapshot_count": MLBSnapshot.query.count()
+    }
+    
+    logger.info("Update status has been manually reset")
+    
+    return jsonify({
+        "status": "success",
+        "message": "Update status has been reset",
+        "current_status": update_status
+    })
+
+# Modified start_update function to reset status first
+@main_bp.route('/api/start-update', methods=['POST'])
+def start_update():
+    """API endpoint to start updating MLB data."""
+    global update_status
+    
+    # Reset status first to avoid stuck updates
+    update_status["in_progress"] = False
+    update_status["teams_updated"] = 0
+    update_status["total_teams"] = 0
+    
+    # Only start if not already updating
+    if not update_status["in_progress"]:
+        # Mark as in progress
+        update_status["in_progress"] = True
+        
+        # Get batch size from request
+        data = request.get_json() or {}
+        batch_size = data.get('batch_size', 1)
+        
+        # Start update
+        try:
+            update_mlb_data(step=batch_size)
+        except Exception as e:
+            logger.error(f"Error starting update: {str(e)}")
+            # Reset status on error
+            update_status["in_progress"] = False
+            
+            return jsonify({
+                "error": f"Failed to start update: {str(e)}",
+                "in_progress": False
+            })
+    
+    # Return current status
+    return get_update_status()

@@ -28,6 +28,14 @@ class MLBSnapshot(db.Model):
         """Get the most recent snapshot"""
         return MLBSnapshot.query.order_by(MLBSnapshot.timestamp.desc()).first()
     
+    @property
+    def timestamp_aware(self):
+        """Return timestamp with timezone awareness if needed"""
+        if self.timestamp.tzinfo is None:
+            # If timestamp is naive, make it timezone-aware
+            return self.timestamp.replace(tzinfo=timezone.utc)
+        return self.timestamp
+    
     @staticmethod
     def get_team_history(team_id, limit=10):
         """Get historical positions for a specific team"""
@@ -47,7 +55,7 @@ class MLBSnapshot(db.Model):
             for team in teams:
                 if isinstance(team, dict) and team.get('id') == team_id:
                     history.append({
-                        'timestamp': snapshot.timestamp.isoformat(),
+                        'timestamp': snapshot.timestamp_aware.isoformat(),
                         'era': team.get('era', 0),
                         'ops': team.get('ops', 0)
                     })
