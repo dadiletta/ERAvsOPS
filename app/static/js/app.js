@@ -224,7 +224,21 @@
                 // Update chart with the snapshot data
                 if (typeof window.updateChartData === 'function') {
                     window.updateChartData(data);
-                    showToast(`Loaded snapshot from ${new Date(data[0].timestamp).toLocaleString()}`, "info");
+                    
+                    // Format date display using the snapshot_time added to each team
+                    let dateDisplay = "Unknown Date";
+                    if (data && data.length > 0 && data[0].snapshot_time) {
+                        try {
+                            const date = new Date(data[0].snapshot_time);
+                            if (!isNaN(date.getTime())) {
+                                dateDisplay = date.toLocaleString();
+                            }
+                        } catch (e) {
+                            console.error("Error formatting date:", e);
+                        }
+                    }
+                    
+                    showToast(`Loaded snapshot from ${dateDisplay}`, "info");
                 }
             },
             error: function(xhr, status, error) {

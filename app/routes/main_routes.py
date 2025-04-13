@@ -54,9 +54,25 @@ def get_latest_data(must_exist=False):
         current_app.logger.error(error_msg)
     
     if must_exist:
-        # Return fallback data if no snapshot exists but one is required
-        logger.warning("No snapshot found in database, returning fallback data")
-        return get_fallback_data(), False, False, None
+        # We expect data to exist at this point since we seed the database on initialization
+        # If we still don't have data, this indicates a serious issue
+        logger.critical("No snapshot found in database despite initialization. This indicates a serious error.")
+        
+        # In production, we could consider raising an exception here instead
+        # For now, as a last resort, try to directly read from data_cache.json
+        cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data_cache.json')
+        try:
+            with open(cache_file, 'r') as f:
+                data = json.load(f)
+                logger.critical(f"Emergency fallback: Loaded {len(data)} teams directly from cache file")
+                return data, False, False, None
+        except Exception as e:
+            logger.critical(f"Complete data failure. Cannot load from database or cache file: {str(e)}")
+            # Return minimal emergency data - this should never happen in production
+            return [
+                {"id": 121, "name": "Mets", "full_name": "New York Mets", "abbreviation": "NYM", "era": 2.41, "ops": 0.662, "logo": "/static/logos/mets.png"},
+                {"id": 147, "name": "Yankees", "full_name": "New York Yankees", "abbreviation": "NYY", "era": 4.6, "ops": 0.85, "logo": "/static/logos/yankees.png"}
+            ], False, False, None
     
     return None, False, False, None
 
@@ -117,21 +133,6 @@ def fix_logo_paths(teams):
         team["logo"] = f"/static/logos/{team_name}.png"
     
     return teams
-
-def get_fallback_data():
-    """Return hardcoded fallback data"""
-    logger.warning("Using hardcoded fallback data")
-    current_app.logger.warning("Using hardcoded fallback data")
-    
-    # Return at least a few teams from the hardcoded data
-    return [
-        {"id": 121, "name": "Mets", "full_name": "New York Mets", "abbreviation": "NYM", "era": 2.00, "ops": 0.700, "logo": "/static/logos/mets.png"},
-        {"id": 137, "name": "Giants", "full_name": "San Francisco Giants", "abbreviation": "SF", "era": 2.55, "ops": 0.650, "logo": "/static/logos/giants.png"},
-        {"id": 113, "name": "Reds", "full_name": "Cincinnati Reds", "abbreviation": "CIN", "era": 2.90, "ops": 0.610, "logo": "/static/logos/reds.png"},
-        {"id": 119, "name": "Dodgers", "full_name": "Los Angeles Dodgers", "abbreviation": "LAD", "era": 3.10, "ops": 0.740, "logo": "/static/logos/dodgers.png"},
-        {"id": 147, "name": "Yankees", "full_name": "New York Yankees", "abbreviation": "NYY", "era": 4.60, "ops": 0.850, "logo": "/static/logos/yankees.png"},
-        {"id": 134, "name": "Pirates", "full_name": "Pittsburgh Pirates", "abbreviation": "PIT", "era": 4.90, "ops": 0.600, "logo": "/static/logos/pirates.png"}
-    ]
 
 def update_mlb_data(step=1, total_steps=30):
     """Update MLB data one team at a time to allow for progress tracking"""
@@ -413,7 +414,12 @@ def get_snapshot(snapshot_id):
         teams = snapshot.teams
         teams = fix_logo_paths(teams)
         
-        logger.info(f"Snapshot {snapshot_id} requested. Returning {len(teams)} teams")
+        # Add snapshot timestamp to each team for frontend display
+        snapshot_time = snapshot.timestamp.isoformat()
+        for team in teams:
+            team['snapshot_time'] = snapshot_time
+        
+        logger.info(f"Snapshot {snapshot_id} requested. Returning {len(teams)} teams with timestamp {snapshot_time}")
         return jsonify(teams)
     except Exception as e:
         logger.error(f"Error getting snapshot {snapshot_id}: {str(e)}")

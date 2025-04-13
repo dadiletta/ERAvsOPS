@@ -240,14 +240,17 @@
             const dataPoint = chart.data.datasets[datasetIndex].data[index];
             
             // Skip if no team ID
-            if (!dataPoint.id) return;
+            if (!dataPoint || !dataPoint.id) return;
             
             // Check if we have history data for this team
             if (historyCache[dataPoint.id]) {
                 const history = historyCache[dataPoint.id];
                 
                 // Need at least 2 points to draw a line
-                if (history.length < 2) return;
+                if (!history || history.length < 2) {
+                    logger.log(`Not enough history points for team ${dataPoint.id}: ${history ? history.length : 0}`);
+                    return;
+                }
                 
                 // Get animation progress (0.0 to 1.0)
                 const timestamp = Date.now();
@@ -271,6 +274,9 @@
                 // Use chart scales to convert data to pixels
                 let first = true;
                 animatedHistory.forEach(point => {
+                    // Skip points with invalid data
+                    if (point.era === undefined || point.ops === undefined) return;
+                    
                     const x = chart.scales.x.getPixelForValue(point.ops);
                     const y = chart.scales.y.getPixelForValue(point.era);
                     
@@ -289,6 +295,9 @@
                 
                 // Now add dots at each point
                 animatedHistory.forEach((point, i) => {
+                    // Skip points with invalid data
+                    if (point.era === undefined || point.ops === undefined) return;
+                    
                     const x = chart.scales.x.getPixelForValue(point.ops);
                     const y = chart.scales.y.getPixelForValue(point.era);
                     
@@ -304,14 +313,20 @@
                     
                     // Add date tooltip on hover for each point
                     if (isLatest && point.timestamp) {
-                        const date = new Date(point.timestamp);
-                        const dateStr = date.toLocaleDateString();
-                        
-                        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                        ctx.font = '10px Roboto';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(dateStr, x, y - 10);
+                        try {
+                            const date = new Date(point.timestamp);
+                            if (!isNaN(date.getTime())) {
+                                const dateStr = date.toLocaleDateString();
+                                
+                                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                                ctx.font = '10px Roboto';
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'middle';
+                                ctx.fillText(dateStr, x, y - 10);
+                            }
+                        } catch (e) {
+                            logger.error(`Error formatting date: ${e}`);
+                        }
                     }
                 });
                 
@@ -323,6 +338,17 @@
                         chart.draw();
                     });
                 }
+            } else {
+                // If no history data in cache, try to fetch it
+                fetchTeamHistory(dataPoint.id)
+                    .then(history => {
+                        if (history && history.length > 0) {
+                            logger.log(`Fetched ${history.length} history points for team ${dataPoint.id}`);
+                            chart.draw(); // Redraw to show history
+                        } else {
+                            logger.log(`No history found for team ${dataPoint.id}`);
+                        }
+                    });
             }
         }
     };

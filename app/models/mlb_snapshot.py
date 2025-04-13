@@ -39,16 +39,42 @@ class MLBSnapshot(db.Model):
         
         # Extract team data from each snapshot
         history = []
+        missing_snapshots = 0
+        
         for snapshot in snapshots:
+            found = False
             teams = snapshot.teams
             for team in teams:
-                if team['id'] == team_id:
+                if isinstance(team, dict) and team.get('id') == team_id:
                     history.append({
                         'timestamp': snapshot.timestamp.isoformat(),
-                        'era': team['era'],
-                        'ops': team['ops']
+                        'era': team.get('era', 0),
+                        'ops': team.get('ops', 0)
                     })
+                    found = True
                     break
+            
+            # Log if team not found in a snapshot
+            if not found:
+                missing_snapshots += 1
+                import logging
+                logging.getLogger('mlb_snapshot').warning(
+                    f"Team ID {team_id} not found in snapshot from {snapshot.timestamp}"
+                )
+        
+        if missing_snapshots > 0:
+            import logging
+            logging.getLogger('mlb_snapshot').warning(
+                f"Team ID {team_id} was missing from {missing_snapshots} out of {len(snapshots)} snapshots"
+            )
         
         # Return in chronological order (oldest first)
-        return sorted(history, key=lambda x: x['timestamp'])
+        history_sorted = sorted(history, key=lambda x: x['timestamp'])
+        
+        # Log the history data for debugging
+        import logging
+        logging.getLogger('mlb_snapshot').info(
+            f"Returning {len(history_sorted)} history points for team {team_id}"
+        )
+        
+        return history_sorted
