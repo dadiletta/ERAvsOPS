@@ -19,7 +19,8 @@ update_status = {
     "total_teams": 0,
     "last_updated": None,
     "snapshot_count": 0,
-    "error": None
+    "error": None,
+    "collected_data": [],  # New: Store collected team data during batch updates
 }
 
 def get_latest_data(must_exist=False):
@@ -147,15 +148,24 @@ def update_mlb_data(step=1, total_steps=30):
         # Update progress
         update_status["teams_updated"] += len(batch)
         
-        # If made progress, store in database
+        # If made progress, collect the data
         if len(batch) > 0:
+            # Add batch to collected data
+            update_status["collected_data"].extend(batch)
+            logger.info(f"Added {len(batch)} teams to collected data, total now: {len(update_status['collected_data'])}")
+        else:
+            logger.warning(f"No teams were processed in this batch (start_index={start_index}, step={step})")
+            update_status["error"] = "No teams processed in batch"
+        
+        # If all teams updated, create a single snapshot with all collected data
+        if update_status["teams_updated"] >= update_status["total_teams"]:
             try:
                 # Get existing data
                 existing_data, _, _, _ = get_latest_data()
                 
                 # Update existing data with new team data
                 updated = False
-                for new_team in batch:
+                for new_team in update_status["collected_data"]:
                     # Find matching team in existing data
                     for i, existing_team in enumerate(existing_data):
                         if existing_team.get('id') == new_team.get('id'):
@@ -173,7 +183,7 @@ def update_mlb_data(step=1, total_steps=30):
                     # Validate again
                     validated_data = validate_mlb_data(existing_data)
                     
-                    # Save to database as a new snapshot
+                    # Save to database as a new snapshot (once per update)
                     snapshot = MLBSnapshot(
                         timestamp=datetime.now(timezone.utc),
                         data=json.dumps(validated_data)
@@ -181,34 +191,32 @@ def update_mlb_data(step=1, total_steps=30):
                     db.session.add(snapshot)
                     db.session.commit()
                     
-                    logger.info(f"Updated database with {len(validated_data)} teams")
+                    logger.info(f"Created a new snapshot with {len(validated_data)} teams")
                     
                     # Check if we need to clean up old snapshots
                     history_limit = current_app.config.get('HISTORY_LIMIT', 30)
                     if history_limit > 0:
                         cleanup_old_snapshots(history_limit)
-            
+                
+                # Reset collected data for next update
+                update_status["collected_data"] = []
+                
+                # Update status
+                timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+                update_status["in_progress"] = False
+                update_status["last_updated"] = timestamp
+                logger.info(f"Update completed at {timestamp}")
+                
+                # Reset for next update
+                update_status["teams_updated"] = 0
+                update_status["total_teams"] = 0
+                
             except Exception as e:
-                error_msg = f"Error updating database: {str(e)}"
+                error_msg = f"Error creating snapshot: {str(e)}"
                 logger.error(error_msg)
                 import traceback
                 logger.error(traceback.format_exc())
                 update_status["error"] = error_msg
-        else:
-            logger.warning(f"No teams were processed in this batch (start_index={start_index}, step={step})")
-            update_status["error"] = "No teams processed in batch"
-        
-        # If all teams updated, mark as complete
-        if update_status["teams_updated"] >= update_status["total_teams"]:
-            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-            update_status["in_progress"] = False
-            update_status["last_updated"] = timestamp
-            
-            logger.info(f"Update completed at {timestamp}")
-            
-            # Reset for next update
-            update_status["teams_updated"] = 0
-            update_status["total_teams"] = 0
         
         return True
         

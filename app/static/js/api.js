@@ -56,9 +56,6 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
                         logger.log("Update process completed, fetching fresh data");
                         state.isUpdating = false;
                         fetchFreshData();
-                        
-                        // Refresh snapshot info after update
-                        fetchSnapshotInfo();
                     }
                     
                     // If data is stale, start automatic update
@@ -235,69 +232,9 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
         });
     }
     
-    /**
-     * Fetch information about available snapshots
-     */
-    function fetchSnapshotInfo() {
-        logger.log("Fetching snapshot information");
-        
-        $.ajax({
-            url: '/api/snapshots',
-            method: 'GET',
-            dataType: 'json',
-            success: function(data) {
-                logger.log("Received snapshot info", data);
-                
-                if (data && data.length > 0) {
-                    // Update UI with snapshot data
-                    MLBUI.updateSnapshotSelector(data);
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error("Error fetching snapshot info:", error);
-            }
-        });
-    }
+    // Removed fetchSnapshotInfo function
     
-    /**
-     * Load data from a specific snapshot
-     */
-    function loadSnapshotData(snapshotId) {
-        logger.log(`Loading data from snapshot ID: ${snapshotId}`);
-        
-        $.ajax({
-            url: `/api/snapshot/${snapshotId}`,
-            method: 'GET',
-            dataType: 'json',
-            success: function(data) {
-                logger.log(`Loaded data from snapshot ${snapshotId} with ${data.length} teams`);
-                
-                // Update chart with the snapshot data
-                if (typeof MLBChart.updateChartData === 'function') {
-                    MLBChart.updateChartData(data);
-                    
-                    // Format date display using the snapshot_time added to each team
-                    let dateDisplay = "Unknown Date";
-                    if (data && data.length > 0 && data[0].snapshot_time) {
-                        try {
-                            const date = new Date(data[0].snapshot_time);
-                            if (!isNaN(date.getTime())) {
-                                dateDisplay = date.toLocaleString();
-                            }
-                        } catch (e) {
-                            console.error("Error formatting date:", e);
-                        }
-                    }
-                    
-                    showToast(`Loaded snapshot from ${dateDisplay}`, "info");
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error(`Error loading snapshot ${snapshotId}:`, error);
-                showToast(`Error loading snapshot: ${error}`, "error");
-            }
-        });
-    }
+    // Removed loadSnapshotData function
     
     /**
      * Initialize data from the server
@@ -334,8 +271,8 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
         startUpdate: startUpdate,
         checkUpdateStatus: checkUpdateStatus,
         fetchFreshData: fetchFreshData,
-        fetchSnapshotInfo: fetchSnapshotInfo,
-        loadSnapshotData: loadSnapshotData,
+        // Removed fetchSnapshotInfo
+        // Removed loadSnapshotData
         isUpdating: function() { return state.isUpdating; }
     };
 })(window, document, jQuery, MLBConfig);

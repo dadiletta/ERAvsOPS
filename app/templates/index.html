@@ -67,11 +67,7 @@
                 </div>
                 <div class="last-updated">Updated: <span id="lastUpdatedTitle">{{ status.last_updated|default('Loading...') }}</span></div>
                 <div class="snapshots">Snapshots: <span id="snapshot-count">{{ status.snapshot_count }}</span></div>
-                <div class="snapshot-selection" style="display: {{ 'block' if status.snapshot_count > 1 else 'none' }}">
-                    <select id="snapshot-selector" class="snapshot-selector">
-                        <option value="latest">Latest Data</option>
-                    </select>
-                </div>
+                <!-- Removed snapshot selection dropdown -->
                 <div id="update-progress" class="update-progress">
                     <div class="progress-bar-container">
                         <div class="progress-bar" id="progress-bar"></div>

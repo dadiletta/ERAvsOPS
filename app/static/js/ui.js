@@ -13,7 +13,6 @@ const MLBUI = (function(window, document, $, MLBConfig) {
     // App state
     const state = {
         snapshotCount: 0,
-        currentSnapshot: 0,
         resizeTimer: null
     };
     
@@ -26,8 +25,8 @@ const MLBUI = (function(window, document, $, MLBConfig) {
         progressCount: null,
         refreshButton: null,
         lastUpdatedTitleElem: null,
-        snapshotCountElem: null,
-        snapshotSelector: null
+        snapshotCountElem: null
+        // Removed snapshotSelector
     };
     
     /**
@@ -42,7 +41,7 @@ const MLBUI = (function(window, document, $, MLBConfig) {
         elements.refreshButton = $('#refresh-button');
         elements.lastUpdatedTitleElem = $('#lastUpdatedTitle');
         elements.snapshotCountElem = $('#snapshot-count');
-        elements.snapshotSelector = $('#snapshot-selector');
+        // Removed snapshotSelector
         
         logger.log("DOM elements cached");
     }
@@ -62,12 +61,7 @@ const MLBUI = (function(window, document, $, MLBConfig) {
             }
         });
         
-        // Snapshot selector change handler
-        elements.snapshotSelector.on('change', function() {
-            const snapshotId = $(this).val();
-            logger.log(`Snapshot changed to: ${snapshotId}`);
-            MLBAPI.loadSnapshotData(snapshotId);
-        });
+        // Removed snapshot selector change handler
         
         // Window resize handler
         $(window).on('resize', function() {
@@ -138,48 +132,11 @@ const MLBUI = (function(window, document, $, MLBConfig) {
             if (status.snapshot_count) {
                 state.snapshotCount = status.snapshot_count;
                 elements.snapshotCountElem.text(state.snapshotCount);
-                
-                // Refresh snapshot selector if count changed
-                if (state.snapshotCount > 1) {
-                    MLBAPI.fetchSnapshotInfo();
-                }
             }
         }
     }
     
-    /**
-     * Update the snapshot selector dropdown
-     */
-    function updateSnapshotSelector(snapshots) {
-        // Clear existing options
-        elements.snapshotSelector.empty();
-        
-        // Add option for latest
-        elements.snapshotSelector.append($('<option>', {
-            value: 'latest',
-            text: 'Latest Data'
-        }));
-        
-        // Add options for each snapshot, newest first
-        snapshots.forEach(function(snapshot) {
-            const date = new Date(snapshot.timestamp);
-            const formattedDate = date.toLocaleString();
-            
-            elements.snapshotSelector.append($('<option>', {
-                value: snapshot.id,
-                text: `Snapshot ${snapshot.id} (${formattedDate})`
-            }));
-        });
-        
-        // Show the selector if we have multiple snapshots
-        if (snapshots.length > 1) {
-            elements.snapshotSelector.closest('.snapshot-selection').show();
-        }
-        
-        // Update state
-        state.snapshotCount = snapshots.length;
-        elements.snapshotCountElem.text(state.snapshotCount);
-    }
+    // Removed updateSnapshotSelector function
     
     /**
      * Initialize the user interface
@@ -199,7 +156,7 @@ const MLBUI = (function(window, document, $, MLBConfig) {
     // Public API
     return {
         initialize: initialize,
-        updateStatusBar: updateStatusBar,
-        updateSnapshotSelector: updateSnapshotSelector
+        updateStatusBar: updateStatusBar
+        // Removed updateSnapshotSelector
     };
 })(window, document, jQuery, MLBConfig);
