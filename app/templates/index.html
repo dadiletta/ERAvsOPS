@@ -3,11 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MLB ERA vs OPS Visualization</title>
+    <meta name="description" content="MLB Team ERA vs OPS Chart">
+    <meta name="author" content="Dan Adiletta">
+    <meta name="keywords" content="MLB, Baseball, ERA, OPS, Statistics, Chart, Visualization">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="ERA v OPS">
+    <meta name="application-name" content="ERA v OPS">
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="msapplication-TileImage" content="{{ url_for('static', filename='favicon.png') }}">
+    <title>MLB Team ERA vs OPS Chart</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    
+
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
     
@@ -44,7 +58,7 @@
     
     <main class="container">
         <div class="title-container">
-            <h1 class="main-title">MLB ERA vs OPS Dashboard</h1>
+            <h1 class="main-title">MLB Team ERA vs OPS Chart</h1>
             <div class="data-status-bar">
                 <div class="status-label">
                     <span id="data-status-title">Data: <span id="status-text-title">{{ 'Fresh' if status.is_fresh else 'Stale' }}</span></span>
@@ -159,10 +173,12 @@
         window.dataStatus = {{ status|tojson }};
     </script>
     
-    <!-- Load chart.js first to initialize chart -->
+    <script src="{{ url_for('static', filename='js/config.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/api.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/history.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/index.js') }}"></script>
     
-    <!-- Load app.js after chart.js to handle data updates -->
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

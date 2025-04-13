@@ -1,65 +1,19 @@
 // app/static/js/chart.js
 
-// Chart and visualization module
-(function(window, document) {
+/**
+ * MLB ERA vs OPS Visualization - Chart Module
+ * Handles chart creation and team data visualization
+ */
+
+const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
     "use strict";
     
-    // Configuration variables for easy future adjustments
-    const CONFIG = {
-        logoSize: 34,          // Base logo size in pixels (aligned with CSS var)
-        logoCache: {},         // Simple cache for preloaded logo images
-        quadrantColors: {
-            topLeft: 'rgba(255, 248, 225, 0.5)',    // Cream (Good Pitching, Bad Hitting)
-            topRight: 'rgba(232, 245, 233, 0.5)',   // Light green (Good Pitching, Good Hitting)
-            bottomLeft: 'rgba(255, 235, 238, 0.5)', // Light pink (Bad Pitching, Bad Hitting)
-            bottomRight: 'rgba(255, 255, 224, 0.5)' // Light yellow (Bad Pitching, Good Hitting)
-        },
-        axisLines: {
-            xValue: 0.7, // OPS dividing line
-            yValue: 4.0  // ERA dividing line
-        },
-        mlbColors: {
-            blue: '#002D72',
-            red: '#E31937',
-            blueFaded: 'rgba(0, 45, 114, 0.8)',
-            redFaded: 'rgba(227, 25, 55, 0.8)'
-        },
-        animation: {
-            duration: 800,
-            easing: 'easeOutQuad'
-        },
-        fontFamily: "'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-        debugMode: true // Enable for troubleshooting logo issues
-    };
-
-    // Logger for debugging
-    const logger = {
-        debugMode: CONFIG.debugMode,
-        log: function(message, data) {
-            if (this.debugMode && console && console.log) {
-                if (data) {
-                    console.log(`[DEBUG] ${message}`, data);
-                } else {
-                    console.log(`[DEBUG] ${message}`);
-                }
-            }
-        },
-        error: function(message, error) {
-            if (console && console.error) {
-                if (error) {
-                    console.error(`[ERROR] ${message}`, error);
-                } else {
-                    console.error(`[ERROR] ${message}`);
-                }
-            }
-        },
-        info: function(message) {
-            if (console && console.info) {
-                console.info(`[INFO] ${message}`);
-            }
-        }
-    };
-
+    const logger = MLBConfig.logger;
+    const CONFIG = MLBConfig.CHART;
+    
+    // Store the chart reference
+    let mlbChart = null;
+    
     /**
      * Create a properly sized image from the original
      * Force visibility with explicit attributes
@@ -146,8 +100,8 @@
                     CONFIG.logoCache[logoPath] = img;
                     
                     // Force chart update if it exists
-                    if (window.mlbChart) {
-                        window.mlbChart.update();
+                    if (mlbChart) {
+                        mlbChart.update();
                     }
                 })
                 .catch(error => {
@@ -156,7 +110,7 @@
                 });
         });
     }
-
+    
     // Create quadrant background plugin
     const quadrantPlugin = {
         id: 'quadrantBackgrounds',
@@ -184,189 +138,44 @@
             ctx.fillRect(midX, midY, right - midX, bottom - midY);
         }
     };
-
-    // Helper to determine if the device is mobile
-    function isMobileDevice() {
-        return window.innerWidth <= 768;
-    }
-
-    // Calculate font sizes based on device
-    function getFontSizes() {
-        const base = isMobileDevice() ? 10 : 14;
-        return {
-            title: base * 1.4,
-            axisLabel: base * 1.2,
-            tickLabel: base * 0.9,
-            tooltip: base * 1.1
-        };
-    }
-
-    // Team history tracking and visualization
-    const historyCache = {};
-
-    // Function to fetch historical data for a team
-    function fetchTeamHistory(teamId, days = 30) {
-        // If already in cache, return promise of cached data
-        if (historyCache[teamId]) {
-            return Promise.resolve(historyCache[teamId]);
-        }
-        
-        logger.log(`Fetching history for team ID: ${teamId}`);
-        
-        // Otherwise fetch from API
-        return fetch(`/api/team-history/${teamId}?days=${days}`)
-            .then(response => response.json())
-            .then(history => {
-                logger.log(`Received ${history.length} historical points for team ${teamId}`);
-                // Store in cache
-                historyCache[teamId] = history;
-                return history;
-            })
-            .catch(err => {
-                logger.error('Error fetching team history:', err);
-                return [];
-            });
-    }
-
-    // Create a plugin to draw historical lines on hover
-    const historyLinePlugin = {
-        id: 'historyLine',
-        afterDraw: (chart) => {
-            if (!chart.tooltip._active || chart.tooltip._active.length === 0) return;
+    
+    // Custom tooltip plugin
+    const tooltipPlugin = {
+        id: 'mlbTooltip',
+        beforeTooltipDraw: (chart, args, options) => {
+            const { tooltip } = args;
+            const { chartArea } = chart;
             
-            // Get the hovered point
-            const activePoint = chart.tooltip._active[0];
-            const { datasetIndex, index } = activePoint;
-            const dataPoint = chart.data.datasets[datasetIndex].data[index];
+            if (tooltip.opacity === 0) return;
             
-            // Skip if no team ID
-            if (!dataPoint || !dataPoint.id) return;
-            
-            // Check if we have history data for this team
-            if (historyCache[dataPoint.id]) {
-                const history = historyCache[dataPoint.id];
-                
-                // Need at least 2 points to draw a line
-                if (!history || history.length < 2) {
-                    logger.log(`Not enough history points for team ${dataPoint.id}: ${history ? history.length : 0}`);
-                    return;
-                }
-                
-                // Get animation progress (0.0 to 1.0)
-                const timestamp = Date.now();
-                const animDuration = 1500; // 1.5 seconds for full animation
-                const animStartTime = chart._historyAnimStart || timestamp;
-                chart._historyAnimStart = animStartTime;
-                
-                const progress = Math.min(1.0, (timestamp - animStartTime) / animDuration);
-                
-                // Draw the line
-                const ctx = chart.ctx;
-                ctx.save();
-                
-                // Calculate how many points to draw based on animation progress
-                const pointsToDraw = Math.max(2, Math.ceil(history.length * progress));
-                const animatedHistory = history.slice(0, pointsToDraw);
-                
-                // First draw the line
-                ctx.beginPath();
-                
-                // Use chart scales to convert data to pixels
-                let first = true;
-                animatedHistory.forEach(point => {
-                    // Skip points with invalid data
-                    if (point.era === undefined || point.ops === undefined) return;
-                    
-                    const x = chart.scales.x.getPixelForValue(point.ops);
-                    const y = chart.scales.y.getPixelForValue(point.era);
-                    
-                    if (first) {
-                        ctx.moveTo(x, y);
-                        first = false;
-                    } else {
-                        ctx.lineTo(x, y);
-                    }
-                });
-                
-                // Style the line
-                ctx.strokeStyle = 'rgba(0, 45, 114, 0.7)';  // MLB blue with opacity
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                
-                // Now add dots at each point
-                animatedHistory.forEach((point, i) => {
-                    // Skip points with invalid data
-                    if (point.era === undefined || point.ops === undefined) return;
-                    
-                    const x = chart.scales.x.getPixelForValue(point.ops);
-                    const y = chart.scales.y.getPixelForValue(point.era);
-                    
-                    // Highlight the most recent point
-                    const isLatest = i === animatedHistory.length - 1;
-                    
-                    ctx.beginPath();
-                    ctx.arc(x, y, isLatest ? 5 : 3, 0, Math.PI * 2);
-                    ctx.fillStyle = isLatest ? 
-                        'rgba(227, 25, 55, 0.9)' :  // MLB red with higher opacity for latest
-                        'rgba(227, 25, 55, 0.7)';   // MLB red with lower opacity for others
-                    ctx.fill();
-                    
-                    // Add date tooltip on hover for each point
-                    if (isLatest && point.timestamp) {
-                        try {
-                            const date = new Date(point.timestamp);
-                            if (!isNaN(date.getTime())) {
-                                const dateStr = date.toLocaleDateString();
-                                
-                                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                                ctx.font = '10px Roboto';
-                                ctx.textAlign = 'center';
-                                ctx.textBaseline = 'middle';
-                                ctx.fillText(dateStr, x, y - 10);
-                            }
-                        } catch (e) {
-                            logger.error(`Error formatting date: ${e}`);
-                        }
-                    }
-                });
-                
-                ctx.restore();
-                
-                // Request animation frame if not complete
-                if (progress < 1.0) {
-                    chart._historyAnimRequest = window.requestAnimationFrame(() => {
-                        chart.draw();
-                    });
-                }
-            } else {
-                // If no history data in cache, try to fetch it
-                fetchTeamHistory(dataPoint.id)
-                    .then(history => {
-                        if (history && history.length > 0) {
-                            logger.log(`Fetched ${history.length} history points for team ${dataPoint.id}`);
-                            chart.draw(); // Redraw to show history
-                        } else {
-                            logger.log(`No history found for team ${dataPoint.id}`);
-                        }
-                    });
-            }
+            // Draw an MLB-colored border around the tooltip
+            const ctx = chart.ctx;
+            ctx.save();
+            ctx.globalAlpha = 0.8;
+            ctx.beginPath();
+            ctx.moveTo(tooltip.x, tooltip.y);
+            ctx.lineTo(tooltip.x + tooltip.width + 2, tooltip.y);
+            ctx.lineTo(tooltip.x + tooltip.width + 2, tooltip.y + tooltip.height + 2);
+            ctx.lineTo(tooltip.x, tooltip.y + tooltip.height + 2);
+            ctx.closePath();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = MLBConfig.COLORS.blue;
+            ctx.stroke();
+            ctx.restore();
         }
     };
-
-    // Initialize chart when DOM is fully loaded
+    
+    /**
+     * Initialize chart when DOM is fully loaded
+     */
     function initializeChart() {
         // Get team data passed from Flask
         const teamData = window.teamData || [];
-        const dataStatus = window.dataStatus || {};
         const ctx = document.getElementById('mlbChart').getContext('2d');
         
         // Log minimal but useful information
         logger.info("Chart initialization started");
         logger.log("Team data count:", teamData.length);
-        
-        if (dataStatus.update_in_progress) {
-            logger.info(`Background update in progress: ${dataStatus.teams_updated}/${dataStatus.total_teams} teams`);
-        }
         
         // Create datasets for team positioning
         const teamPoints = teamData.map(team => ({
@@ -383,36 +192,13 @@
         preloadTeamLogos(teamData);
         
         // Get font sizes
-        const fontSizes = getFontSizes();
+        const fontSizes = MLBConfig.getFontSizes();
         
-        // Add the responsive tooltip plugin
-        const tooltipPlugin = {
-            id: 'mlbTooltip',
-            beforeTooltipDraw: (chart, args, options) => {
-                const { tooltip } = args;
-                const { chartArea } = chart;
-                
-                if (tooltip.opacity === 0) return;
-                
-                // Draw an MLB-colored border around the tooltip
-                const ctx = chart.ctx;
-                ctx.save();
-                ctx.globalAlpha = 0.8;
-                ctx.beginPath();
-                ctx.moveTo(tooltip.x, tooltip.y);
-                ctx.lineTo(tooltip.x + tooltip.width + 2, tooltip.y);
-                ctx.lineTo(tooltip.x + tooltip.width + 2, tooltip.y + tooltip.height + 2);
-                ctx.lineTo(tooltip.x, tooltip.y + tooltip.height + 2);
-                ctx.closePath();
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = CONFIG.mlbColors.blue;
-                ctx.stroke();
-                ctx.restore();
-            }
-        };
+        // Get the history line plugin
+        const historyLinePlugin = MLBHistory.createHistoryLinePlugin();
         
-        // Store chart reference globally for updates
-        window.mlbChart = new Chart(ctx, {
+        // Create the chart
+        mlbChart = new Chart(ctx, {
             type: 'scatter',
             data: {
                 datasets: [{
@@ -464,7 +250,7 @@
                                 weight: 'bold',
                                 family: CONFIG.fontFamily
                             },
-                            color: CONFIG.mlbColors.blueFaded
+                            color: MLBConfig.COLORS.blueFaded
                         },
                         min: 0.53,
                         max: 0.87,
@@ -490,7 +276,7 @@
                                 weight: 'bold',
                                 family: CONFIG.fontFamily
                             },
-                            color: CONFIG.mlbColors.redFaded
+                            color: MLBConfig.COLORS.redFaded
                         },
                         min: 1.9,
                         max: 6.0,
@@ -518,9 +304,9 @@
                     },
                     tooltip: {
                         backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                        titleColor: CONFIG.mlbColors.blue,
+                        titleColor: MLBConfig.COLORS.blue,
                         bodyColor: '#333',
-                        borderColor: CONFIG.mlbColors.blue,
+                        borderColor: MLBConfig.COLORS.blue,
                         borderWidth: 1,
                         cornerRadius: 6,
                         padding: 10,
@@ -562,7 +348,6 @@
                                     return [
                                         `ERA: ${point.y.toFixed(2)}`,
                                         `OPS: ${point.x.toFixed(3)}`
-                                        // Removed redundant hover instruction
                                     ];
                                 }
                                 return [];
@@ -615,14 +400,17 @@
             },
             plugins: [quadrantPlugin, tooltipPlugin, historyLinePlugin]
         });
-
+        
+        // Store chart in window for external access
+        window.mlbChart = mlbChart;
+        
         // Set up history tracking
-        setupHistoryTracking();
-
+        MLBHistory.setupHistoryTracking(mlbChart);
+        
         // Force a redraw after a slight delay to ensure logos appear
         setTimeout(() => {
-            if (window.mlbChart) {
-                window.mlbChart.update();
+            if (mlbChart) {
+                mlbChart.update();
                 logger.log("Forced chart update after initialization");
             }
         }, 300);
@@ -630,71 +418,60 @@
         // Position the quadrant labels after chart is rendered
         setTimeout(positionQuadrantLabels, 500);
         
-        // Add window resize listener to reposition labels
-        window.addEventListener('resize', function() {
-            // Update font sizes when screen size changes
-            if (window.mlbChart) {
-                const newSizes = getFontSizes();
-                
-                // Update font sizes in chart options
-                window.mlbChart.options.scales.x.title.font.size = newSizes.axisLabel;
-                window.mlbChart.options.scales.y.title.font.size = newSizes.axisLabel;
-                window.mlbChart.options.scales.x.ticks.font.size = newSizes.tickLabel;
-                window.mlbChart.options.scales.y.ticks.font.size = newSizes.tickLabel;
-                window.mlbChart.options.plugins.tooltip.titleFont.size = newSizes.tooltip + 2;
-                window.mlbChart.options.plugins.tooltip.bodyFont.size = newSizes.tooltip;
-                
-                // Update the chart
-                window.mlbChart.update();
-            }
-            
-            // Reposition quadrant labels
-            positionQuadrantLabels();
-        });
-        
         logger.info("Chart initialization completed");
     }
-
-    // Set up hover listener to fetch team history
-    function setupHistoryTracking() {
-        if (!window.mlbChart) return;
+    
+    /**
+     * Function to position quadrant labels
+     */
+    function positionQuadrantLabels() {
+        const chart = document.getElementById('mlbChart');
+        if (!chart) {
+            logger.error("Chart element not found!");
+            return;
+        }
         
-        // Clean up any existing event listeners
-        const canvas = window.mlbChart.canvas;
-        if (canvas._historyListenerAdded) return;
+        const chartRect = chart.getBoundingClientRect();
         
-        canvas.addEventListener('mousemove', (e) => {
-            const points = window.mlbChart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, false);
-            
-            if (points.length > 0) {
-                const firstPoint = points[0];
-                const { datasetIndex, index } = firstPoint;
-                const dataPoint = window.mlbChart.data.datasets[datasetIndex].data[index];
-                
-                // Reset animation start time
-                window.mlbChart._historyAnimStart = Date.now();
-                
-                // Get the team ID from the data point
-                const teamId = dataPoint.id;
-                
-                // Fetch history data if needed
-                if (teamId && !historyCache[teamId]) {
-                    fetchTeamHistory(teamId)
-                        .then(() => {
-                            // Trigger a redraw to show the history line
-                            window.mlbChart.update();
-                        });
-                }
+        // Get chart dimensions
+        const chartWidth = chartRect.width;
+        const chartHeight = chartRect.height;
+        
+        // Position labels - moved further into corners (15% and 85% instead of 25% and 75%)
+        // Adjust positioning for better visibility on mobile
+        let positions;
+        
+        if (MLBConfig.isMobileDevice()) {
+            positions = {
+                'top-left': { x: 0.20, y: 0.20 },
+                'top-right': { x: 0.80, y: 0.20 },
+                'bottom-left': { x: 0.20, y: 0.80 },
+                'bottom-right': { x: 0.80, y: 0.80 }
+            };
+        } else {
+            positions = {
+                'top-left': { x: 0.15, y: 0.15 },
+                'top-right': { x: 0.85, y: 0.15 },
+                'bottom-left': { x: 0.15, y: 0.85 },
+                'bottom-right': { x: 0.85, y: 0.85 }
+            };
+        }
+        
+        for (const id in positions) {
+            const label = document.getElementById(id);
+            if (label) {
+                const pos = positions[id];
+                label.style.left = (chartWidth * pos.x) + 'px';
+                label.style.top = (chartHeight * pos.y) + 'px';
             }
-        });
-        
-        canvas._historyListenerAdded = true;
-        logger.log("History tracking event listeners set up");
+        }
     }
-
-    // Function to update chart data with animation
+    
+    /**
+     * Function to update chart data with animation
+     */
     function updateChartData(newData) {
-        if (!window.mlbChart) {
+        if (!mlbChart) {
             logger.error("Chart not initialized");
             return false;
         }
@@ -716,7 +493,7 @@
         }));
         
         // Update chart data with animation for smoother transition
-        const chart = window.mlbChart;
+        const chart = mlbChart;
         
         // First update the data
         chart.data.datasets[0].data = formattedData;
@@ -748,67 +525,17 @@
         
         return true;
     }
-
-    // Function to position quadrant labels
-    function positionQuadrantLabels() {
-        const chart = document.getElementById('mlbChart');
-        if (!chart) {
-            logger.error("Chart element not found!");
-            return;
-        }
-        
-        const chartRect = chart.getBoundingClientRect();
-        
-        // Get chart dimensions
-        const chartWidth = chartRect.width;
-        const chartHeight = chartRect.height;
-        
-        // Position labels - moved further into corners (15% and 85% instead of 25% and 75%)
-        // Adjust positioning for better visibility on mobile
-        let positions;
-        
-        if (isMobileDevice()) {
-            positions = {
-                'top-left': { x: 0.20, y: 0.20 },
-                'top-right': { x: 0.80, y: 0.20 },
-                'bottom-left': { x: 0.20, y: 0.80 },
-                'bottom-right': { x: 0.80, y: 0.80 }
-            };
-        } else {
-            positions = {
-                'top-left': { x: 0.15, y: 0.15 },
-                'top-right': { x: 0.85, y: 0.15 },
-                'bottom-left': { x: 0.15, y: 0.85 },
-                'bottom-right': { x: 0.85, y: 0.85 }
-            };
-        }
-        
-        for (const id in positions) {
-            const label = document.getElementById(id);
-            if (label) {
-                const pos = positions[id];
-                label.style.left = (chartWidth * pos.x) + 'px';
-                label.style.top = (chartHeight * pos.y) + 'px';
+    
+    // Public API
+    return {
+        initialize: initializeChart,
+        updateChartData: updateChartData,
+        positionQuadrantLabels: positionQuadrantLabels,
+        forceUpdate: function() {
+            if (mlbChart) {
+                mlbChart.update();
+                logger.log("Manual chart update triggered");
             }
         }
-    }
-
-    // Make sure the DOM is fully loaded before initializing
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initializeChart);
-    } else {
-        initializeChart();
-    }
-
-    // Expose public functions to the window object
-    window.updateChartData = updateChartData;
-    window.positionQuadrantLabels = positionQuadrantLabels;
-    // Function to manually force an update (for debugging)
-    window.forceChartUpdate = function() {
-        if (window.mlbChart) {
-            window.mlbChart.update();
-            logger.log("Manual chart update triggered");
-        }
     };
-
-})(window, document);
+})(window, document, MLBConfig, MLBHistory);
