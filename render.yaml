@@ -6,5 +6,11 @@ envVars:
   - key: SECRET_KEY
     value: your-secret-key-here  # Use Render's UI for sensitive values
   - key: CACHE_TIMEOUT
-    value: 3600
+    value: 3600  # Cache timeout in seconds (1 hour)
+  - key: SNAPSHOT_INTERVAL
+    value: 86400  # Snapshot interval in seconds (24 hours)
+  - key: HISTORY_LIMIT
+    value: 30  # Maximum number of historical snapshots to keep
+  - key: API_RATE_LIMIT
+    value: 2.0  # Minimum seconds between API requests
   # Add MLB_API_KEY if needed

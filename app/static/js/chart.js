@@ -28,12 +28,13 @@
             duration: 800,
             easing: 'easeOutQuad'
         },
-        fontFamily: "'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+        fontFamily: "'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+        debugMode: true // Enable for troubleshooting logo issues
     };
 
     // Logger for debugging
     const logger = {
-        debugMode: false,
+        debugMode: CONFIG.debugMode,
         log: function(message, data) {
             if (this.debugMode && console && console.log) {
                 if (data) {
@@ -63,74 +64,96 @@
      * Create a properly sized image from the original
      * Force visibility with explicit attributes
      */
-    function createSizedImage(originalImage) {
-        const img = new Image();
-        
-        // Set critical attributes for visibility
-        img.crossOrigin = "anonymous";
-        img.width = CONFIG.logoSize;
-        img.height = CONFIG.logoSize;
-        
-        // Add inline styling to force visibility
-        img.style.maxWidth = `${CONFIG.logoSize}px`;
-        img.style.maxHeight = `${CONFIG.logoSize}px`;
-        img.style.width = `${CONFIG.logoSize}px`;
-        img.style.height = `${CONFIG.logoSize}px`;
-        img.style.objectFit = 'contain';
-        img.style.display = 'block';
-        img.style.visibility = 'visible';
-        img.style.opacity = '1';
-        img.style.zIndex = '15';
-        
-        // Set source last
-        img.src = originalImage.src;
-        
-        return img;
+    function createImage(src) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            
+            // Set critical attributes for visibility
+            img.crossOrigin = "anonymous";
+            img.width = CONFIG.logoSize;
+            img.height = CONFIG.logoSize;
+            
+            // Add inline styling to force visibility
+            img.style.maxWidth = `${CONFIG.logoSize}px`;
+            img.style.maxHeight = `${CONFIG.logoSize}px`;
+            img.style.width = `${CONFIG.logoSize}px`;
+            img.style.height = `${CONFIG.logoSize}px`;
+            img.style.objectFit = 'contain';
+            img.style.display = 'block';
+            img.style.visibility = 'visible';
+            img.style.opacity = '1';
+            img.style.zIndex = '15';
+            
+            // Handle load event
+            img.onload = function() {
+                resolve(img);
+            };
+            
+            // Handle error event
+            img.onerror = function(e) {
+                logger.error(`Failed to load image: ${src}`, e);
+                reject(e);
+            };
+            
+            // Set source last
+            img.src = src;
+        });
     }
 
     /**
      * Preload team logos at the right size
-     * Uses a more robust loading technique
+     * Improved with proper Promise handling
      */
     function preloadTeamLogos(teams) {
+        logger.log(`Preloading logos for ${teams.length} teams`);
+        
         teams.forEach(team => {
+            // Ensure logo path has leading slash
             const logoPath = team.logo.startsWith('/') ? team.logo : `/${team.logo}`;
             
             // Skip if already in cache
-            if (CONFIG.logoCache[logoPath]) return;
+            if (CONFIG.logoCache[logoPath]) {
+                logger.log(`Logo already in cache: ${logoPath}`);
+                return;
+            }
             
-            // Create a new image for loading
-            const originalImg = new Image();
-            originalImg.crossOrigin = "anonymous"; // Handle cross-origin issues
+            logger.log(`Loading logo: ${logoPath} for team ${team.name}`);
             
-            // Set up the load event handler
-            originalImg.onload = function() {
-                const sizedImg = createSizedImage(originalImg);
-                CONFIG.logoCache[logoPath] = sizedImg;
-                
-                // Force chart update if it exists to show the loaded image
-                if (window.mlbChart) {
-                    window.mlbChart.update();
-                }
-            };
-            
-            // Create a placeholder with a colored background while loading
+            // Create placeholder while loading
             const placeholder = document.createElement('canvas');
             placeholder.width = CONFIG.logoSize;
             placeholder.height = CONFIG.logoSize;
             const ctx = placeholder.getContext('2d');
             
-            // Draw a colored circle as placeholder
+            // Draw team abbreviation on placeholder
             ctx.beginPath();
             ctx.arc(CONFIG.logoSize/2, CONFIG.logoSize/2, CONFIG.logoSize/2.5, 0, Math.PI * 2);
             ctx.fillStyle = '#f0f0f0';
             ctx.fill();
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(team.abbreviation || team.name.substring(0, 3).toUpperCase(), CONFIG.logoSize/2, CONFIG.logoSize/2);
             
             // Store the placeholder in cache
             CONFIG.logoCache[logoPath] = placeholder;
             
-            // Set source to trigger loading - do this AFTER setting up handlers
-            originalImg.src = logoPath;
+            // Load the actual image
+            createImage(logoPath)
+                .then(img => {
+                    logger.log(`Successfully loaded logo: ${logoPath}`);
+                    CONFIG.logoCache[logoPath] = img;
+                    
+                    // Force chart update if it exists
+                    if (window.mlbChart) {
+                        window.mlbChart.update();
+                    }
+                })
+                .catch(error => {
+                    logger.error(`Error loading logo for ${team.name}: ${error}`);
+                    // Keep using placeholder if image fails to load
+                });
         });
     }
 
@@ -178,6 +201,132 @@
         };
     }
 
+    // Team history tracking and visualization
+    const historyCache = {};
+
+    // Function to fetch historical data for a team
+    function fetchTeamHistory(teamId, days = 30) {
+        // If already in cache, return promise of cached data
+        if (historyCache[teamId]) {
+            return Promise.resolve(historyCache[teamId]);
+        }
+        
+        logger.log(`Fetching history for team ID: ${teamId}`);
+        
+        // Otherwise fetch from API
+        return fetch(`/api/team-history/${teamId}?days=${days}`)
+            .then(response => response.json())
+            .then(history => {
+                logger.log(`Received ${history.length} historical points for team ${teamId}`);
+                // Store in cache
+                historyCache[teamId] = history;
+                return history;
+            })
+            .catch(err => {
+                logger.error('Error fetching team history:', err);
+                return [];
+            });
+    }
+
+    // Create a plugin to draw historical lines on hover
+    const historyLinePlugin = {
+        id: 'historyLine',
+        afterDraw: (chart) => {
+            if (!chart.tooltip._active || chart.tooltip._active.length === 0) return;
+            
+            // Get the hovered point
+            const activePoint = chart.tooltip._active[0];
+            const { datasetIndex, index } = activePoint;
+            const dataPoint = chart.data.datasets[datasetIndex].data[index];
+            
+            // Skip if no team ID
+            if (!dataPoint.id) return;
+            
+            // Check if we have history data for this team
+            if (historyCache[dataPoint.id]) {
+                const history = historyCache[dataPoint.id];
+                
+                // Need at least 2 points to draw a line
+                if (history.length < 2) return;
+                
+                // Get animation progress (0.0 to 1.0)
+                const timestamp = Date.now();
+                const animDuration = 1500; // 1.5 seconds for full animation
+                const animStartTime = chart._historyAnimStart || timestamp;
+                chart._historyAnimStart = animStartTime;
+                
+                const progress = Math.min(1.0, (timestamp - animStartTime) / animDuration);
+                
+                // Draw the line
+                const ctx = chart.ctx;
+                ctx.save();
+                
+                // Calculate how many points to draw based on animation progress
+                const pointsToDraw = Math.max(2, Math.ceil(history.length * progress));
+                const animatedHistory = history.slice(0, pointsToDraw);
+                
+                // First draw the line
+                ctx.beginPath();
+                
+                // Use chart scales to convert data to pixels
+                let first = true;
+                animatedHistory.forEach(point => {
+                    const x = chart.scales.x.getPixelForValue(point.ops);
+                    const y = chart.scales.y.getPixelForValue(point.era);
+                    
+                    if (first) {
+                        ctx.moveTo(x, y);
+                        first = false;
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                
+                // Style the line
+                ctx.strokeStyle = 'rgba(0, 45, 114, 0.7)';  // MLB blue with opacity
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // Now add dots at each point
+                animatedHistory.forEach((point, i) => {
+                    const x = chart.scales.x.getPixelForValue(point.ops);
+                    const y = chart.scales.y.getPixelForValue(point.era);
+                    
+                    // Highlight the most recent point
+                    const isLatest = i === animatedHistory.length - 1;
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, isLatest ? 5 : 3, 0, Math.PI * 2);
+                    ctx.fillStyle = isLatest ? 
+                        'rgba(227, 25, 55, 0.9)' :  // MLB red with higher opacity for latest
+                        'rgba(227, 25, 55, 0.7)';   // MLB red with lower opacity for others
+                    ctx.fill();
+                    
+                    // Add date tooltip on hover for each point
+                    if (isLatest && point.timestamp) {
+                        const date = new Date(point.timestamp);
+                        const dateStr = date.toLocaleDateString();
+                        
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                        ctx.font = '10px Roboto';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(dateStr, x, y - 10);
+                    }
+                });
+                
+                ctx.restore();
+                
+                // Request animation frame if not complete
+                if (progress < 1.0) {
+                    chart._historyAnimRequest = window.requestAnimationFrame(() => {
+                        chart.draw();
+                    });
+                }
+            }
+        }
+    };
+
     // Initialize chart when DOM is fully loaded
     function initializeChart() {
         // Get team data passed from Flask
@@ -187,6 +336,7 @@
         
         // Log minimal but useful information
         logger.info("Chart initialization started");
+        logger.log("Team data count:", teamData.length);
         
         if (dataStatus.update_in_progress) {
             logger.info(`Background update in progress: ${dataStatus.teams_updated}/${dataStatus.total_teams} teams`);
@@ -199,7 +349,8 @@
             team: team.name,
             fullName: team.full_name || team.name,
             abbreviation: team.abbreviation,
-            logo: team.logo
+            logo: team.logo,
+            id: team.id  // Important: Include team ID for history tracking
         }));
         
         // Preload all team logos before chart creation
@@ -245,10 +396,15 @@
                         if (index === undefined || !teamPoints[index]) return null;
                         
                         const point = teamPoints[index];
+                        // Make sure logo path has leading slash
                         const logoPath = point.logo.startsWith('/') ? point.logo : `/${point.logo}`;
                         
                         // Return the cached image or placeholder
-                        return CONFIG.logoCache[logoPath] || null;
+                        const image = CONFIG.logoCache[logoPath];
+                        if (!image) {
+                            logger.error(`No image in cache for ${logoPath}`);
+                        }
+                        return image || null;
                     },
                     // Match pointRadius to half the logo size for proper scaling
                     pointRadius: CONFIG.logoSize / 2,
@@ -379,7 +535,8 @@
                                 if (tooltipItem.dataIndex === firstIndex) {
                                     return [
                                         `ERA: ${point.y.toFixed(2)}`,
-                                        `OPS: ${point.x.toFixed(3)}`
+                                        `OPS: ${point.x.toFixed(3)}`,
+                                        `[Hover to see history]`
                                     ];
                                 }
                                 return [];
@@ -430,13 +587,17 @@
                     }
                 }
             },
-            plugins: [quadrantPlugin, tooltipPlugin]
+            plugins: [quadrantPlugin, tooltipPlugin, historyLinePlugin]
         });
+
+        // Set up history tracking
+        setupHistoryTracking();
 
         // Force a redraw after a slight delay to ensure logos appear
         setTimeout(() => {
             if (window.mlbChart) {
                 window.mlbChart.update();
+                logger.log("Forced chart update after initialization");
             }
         }, 300);
         
@@ -468,6 +629,43 @@
         logger.info("Chart initialization completed");
     }
 
+    // Set up hover listener to fetch team history
+    function setupHistoryTracking() {
+        if (!window.mlbChart) return;
+        
+        // Clean up any existing event listeners
+        const canvas = window.mlbChart.canvas;
+        if (canvas._historyListenerAdded) return;
+        
+        canvas.addEventListener('mousemove', (e) => {
+            const points = window.mlbChart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, false);
+            
+            if (points.length > 0) {
+                const firstPoint = points[0];
+                const { datasetIndex, index } = firstPoint;
+                const dataPoint = window.mlbChart.data.datasets[datasetIndex].data[index];
+                
+                // Reset animation start time
+                window.mlbChart._historyAnimStart = Date.now();
+                
+                // Get the team ID from the data point
+                const teamId = dataPoint.id;
+                
+                // Fetch history data if needed
+                if (teamId && !historyCache[teamId]) {
+                    fetchTeamHistory(teamId)
+                        .then(() => {
+                            // Trigger a redraw to show the history line
+                            window.mlbChart.update();
+                        });
+                }
+            }
+        });
+        
+        canvas._historyListenerAdded = true;
+        logger.log("History tracking event listeners set up");
+    }
+
     // Function to update chart data with animation
     function updateChartData(newData) {
         if (!window.mlbChart) {
@@ -487,7 +685,8 @@
             team: team.name,
             fullName: team.full_name || team.name,
             abbreviation: team.abbreviation,
-            logo: team.logo
+            logo: team.logo,
+            id: team.id  // Important: Include team ID for history tracking
         }));
         
         // Update chart data with animation for smoother transition
@@ -582,6 +781,7 @@
     window.forceChartUpdate = function() {
         if (window.mlbChart) {
             window.mlbChart.update();
+            logger.log("Manual chart update triggered");
         }
     };
 

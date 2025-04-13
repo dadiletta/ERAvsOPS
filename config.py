@@ -13,9 +13,15 @@ class Config:
     # MLB API config
     MLB_API_KEY = os.getenv('MLB_API_KEY', None)
     
-    # Cache settings
+    # Database and Cache settings
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///mlb_data_history.db')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
     CACHE_TIMEOUT = int(os.getenv('CACHE_TIMEOUT', 3600))  # 1 hour in seconds
-    CACHE_FILE = os.path.join(os.path.dirname(__file__), 'data_cache.json')
+    SNAPSHOT_INTERVAL = int(os.getenv('SNAPSHOT_INTERVAL', 86400))  # 24 hours in seconds
+    HISTORY_LIMIT = int(os.getenv('HISTORY_LIMIT', 30))  # Max number of historical data points to keep
+    
+    # Rate limiting settings
+    API_RATE_LIMIT = float(os.getenv('API_RATE_LIMIT', 2.0))  # Minimum seconds between API requests
 
 class DevelopmentConfig(Config):
     """Development environment configuration"""

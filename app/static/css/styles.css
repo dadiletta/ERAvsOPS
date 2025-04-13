@@ -615,3 +615,28 @@ img {
         --logo-height: 24px;
     }
 }
+
+.snapshots {
+    font-size: 0.9rem;
+    color: var(--text-light);
+    margin-top: 4px;
+}
+
+.snapshot-selection {
+    margin-top: 8px;
+    display: none;
+}
+
+.snapshot-selector {
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    background-color: white;
+    font-size: 0.9rem;
+    color: var(--text-dark);
+    cursor: pointer;
+}
+
+.snapshot-selector:hover {
+    border-color: var(--mlb-blue);
+}

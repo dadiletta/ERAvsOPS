@@ -31,7 +31,9 @@
         lastUpdateTimestamp: null,
         updateRetries: 0,
         maxRetries: 3,
-        debugMode: false          // Set to true to enable verbose logging
+        debugMode: true,         // Set to true to enable verbose logging
+        snapshotCount: 0,
+        currentSnapshot: 0
     };
     
     // DOM elements cached for performance
@@ -42,7 +44,9 @@
         progressBar: null,
         progressCount: null,
         refreshButton: null,
-        lastUpdatedTitleElem: null
+        lastUpdatedTitleElem: null,
+        snapshotCountElem: null,
+        snapshotSelector: null
     };
     
     /**
@@ -50,7 +54,7 @@
      */
     function init() {
         // Enable debug mode based on URL parameter
-        state.debugMode = window.location.search.includes('debug=true') || false;
+        state.debugMode = window.location.search.includes('debug=true') || state.debugMode;
         debugLog("App initialization started");
         
         // Cache DOM elements for better performance
@@ -61,6 +65,9 @@
         
         // Initialize data from server
         initializeData();
+        
+        // Fetch snapshot count
+        fetchSnapshotInfo();
     }
     
     /**
@@ -74,6 +81,8 @@
         elements.progressCount = $('#progress-count');
         elements.refreshButton = $('#refresh-button');
         elements.lastUpdatedTitleElem = $('#lastUpdatedTitle');
+        elements.snapshotCountElem = $('#snapshot-count');
+        elements.snapshotSelector = $('#snapshot-selector');
         
         debugLog("DOM elements cached");
     }
@@ -91,6 +100,13 @@
             } else {
                 showToast("Update already in progress", "info");
             }
+        });
+        
+        // Snapshot selector change handler
+        elements.snapshotSelector.on('change', function() {
+            const snapshotId = $(this).val();
+            debugLog(`Snapshot changed to: ${snapshotId}`);
+            loadSnapshotData(snapshotId);
         });
         
         // Window resize handler
@@ -132,6 +148,90 @@
             debugLog("Data is fresh, will check for staleness periodically");
             setTimeout(checkUpdateStatus, 5000);
         }
+    }
+    
+    /**
+     * Fetch information about available snapshots
+     */
+    function fetchSnapshotInfo() {
+        debugLog("Fetching snapshot information");
+        
+        $.ajax({
+            url: '/api/snapshots',
+            method: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                debugLog("Received snapshot info", data);
+                
+                if (data && data.length > 0) {
+                    // Update count
+                    state.snapshotCount = data.length;
+                    elements.snapshotCountElem.text(state.snapshotCount);
+                    
+                    // Update selector
+                    updateSnapshotSelector(data);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error("Error fetching snapshot info:", error);
+            }
+        });
+    }
+    
+    /**
+     * Update the snapshot selector dropdown
+     */
+    function updateSnapshotSelector(snapshots) {
+        // Clear existing options
+        elements.snapshotSelector.empty();
+        
+        // Add option for latest
+        elements.snapshotSelector.append($('<option>', {
+            value: 'latest',
+            text: 'Latest Data'
+        }));
+        
+        // Add options for each snapshot, newest first
+        snapshots.forEach(function(snapshot) {
+            const date = new Date(snapshot.timestamp);
+            const formattedDate = date.toLocaleString();
+            
+            elements.snapshotSelector.append($('<option>', {
+                value: snapshot.id,
+                text: `Snapshot ${snapshot.id} (${formattedDate})`
+            }));
+        });
+        
+        // Show the selector if we have multiple snapshots
+        if (snapshots.length > 1) {
+            elements.snapshotSelector.closest('.snapshot-selection').show();
+        }
+    }
+    
+    /**
+     * Load data from a specific snapshot
+     */
+    function loadSnapshotData(snapshotId) {
+        debugLog(`Loading data from snapshot ID: ${snapshotId}`);
+        
+        $.ajax({
+            url: `/api/snapshot/${snapshotId}`,
+            method: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                debugLog(`Loaded data from snapshot ${snapshotId} with ${data.length} teams`);
+                
+                // Update chart with the snapshot data
+                if (typeof window.updateChartData === 'function') {
+                    window.updateChartData(data);
+                    showToast(`Loaded snapshot from ${new Date(data[0].timestamp).toLocaleString()}`, "info");
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error(`Error loading snapshot ${snapshotId}:`, error);
+                showToast(`Error loading snapshot: ${error}`, "error");
+            }
+        });
     }
     
     /**
@@ -226,6 +326,12 @@
                 showToast(`Error: ${status.error}`, "error");
                 debugLog("Error in update process:", status.error);
             }
+            
+            // Update snapshot count if available
+            if (status.snapshot_count) {
+                state.snapshotCount = status.snapshot_count;
+                elements.snapshotCountElem.text(state.snapshotCount);
+            }
         }
     }
     
@@ -266,6 +372,9 @@
                         debugLog("Update process completed, fetching fresh data");
                         state.isUpdating = false;
                         fetchFreshData();
+                        
+                        // Refresh snapshot info after update
+                        fetchSnapshotInfo();
                     }
                     
                     // If data is stale, start automatic update
@@ -449,7 +558,9 @@
     window.mlbApp = {
         startUpdate: startUpdate,
         checkStatus: checkUpdateStatus,
-        refresh: fetchFreshData
+        refresh: fetchFreshData,
+        fetchSnapshotInfo: fetchSnapshotInfo,
+        loadSnapshotData: loadSnapshotData
     };
     
 })(window, document, jQuery);
