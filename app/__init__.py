@@ -1,5 +1,5 @@
 # app/__init__.py
-from flask import Flask
+from flask import Flask, current_app
 from flask_sqlalchemy import SQLAlchemy
 from config import get_config
 import os
@@ -8,6 +8,9 @@ from datetime import datetime, timezone
 
 # Initialize SQLAlchemy
 db = SQLAlchemy()
+
+# Create a module-level variable for the app
+app = None
 
 def validate_mlb_data(data):
     """
@@ -26,45 +29,53 @@ def validate_mlb_data(data):
     for team in data:
         # Skip teams with missing ERA or OPS
         if team.get('era') is None or team.get('ops') is None:
-            app.logger.warning(f"Skipping team with incomplete data: {team.get('name', 'Unknown')}")
+            if app:  # Check if app exists before using its logger
+                app.logger.warning(f"Skipping team with incomplete data: {team.get('name', 'Unknown')}")
             continue
             
         # Validate ERA is within reasonable range (1.0 to 7.0)
         try:
             era = float(team['era'])
             if not (1.0 <= era <= 7.0):
-                app.logger.warning(f"Skipping team with invalid ERA {team['era']}: {team.get('name', 'Unknown')}")
+                if app:
+                    app.logger.warning(f"Skipping team with invalid ERA {team['era']}: {team.get('name', 'Unknown')}")
                 continue
         except (ValueError, TypeError):
-            app.logger.warning(f"Skipping team with non-numeric ERA {team.get('era')}: {team.get('name', 'Unknown')}")
+            if app:
+                app.logger.warning(f"Skipping team with non-numeric ERA {team.get('era')}: {team.get('name', 'Unknown')}")
             continue
             
         # Validate OPS is within reasonable range (0.5 to 1.0)
         try:
             ops = float(team['ops'])
             if not (0.5 <= ops <= 1.0):
-                app.logger.warning(f"Skipping team with invalid OPS {team['ops']}: {team.get('name', 'Unknown')}")
+                if app:
+                    app.logger.warning(f"Skipping team with invalid OPS {team['ops']}: {team.get('name', 'Unknown')}")
                 continue
         except (ValueError, TypeError):
-            app.logger.warning(f"Skipping team with non-numeric OPS {team.get('ops')}: {team.get('name', 'Unknown')}")
+            if app:
+                app.logger.warning(f"Skipping team with non-numeric OPS {team.get('ops')}: {team.get('name', 'Unknown')}")
             continue
             
         # Check for duplicate teams (by ID)
         team_id = team.get('id')
         if team_id in seen_teams:
-            app.logger.warning(f"Skipping duplicate team: {team.get('name', 'Unknown')}")
+            if app:
+                app.logger.warning(f"Skipping duplicate team: {team.get('name', 'Unknown')}")
             continue
             
         seen_teams.add(team_id)
         valid_data.append(team)
     
-    app.logger.info(f"Data validation: {team_count_before} teams before, {len(valid_data)} after validation")
+    if app:
+        app.logger.info(f"Data validation: {team_count_before} teams before, {len(valid_data)} after validation")
     
     return valid_data
 
 def create_app():
     """Initialize the Flask application"""
     # Create the Flask app
+    global app  # Now this is inside a function, which is valid
     app = Flask(__name__)
     
     # Load configuration
@@ -74,9 +85,6 @@ def create_app():
     database_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'mlb_data_history.db')
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{database_path}'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    
-    # Make app available globally in this module
-    global app
     
     # Initialize extensions
     db.init_app(app)
