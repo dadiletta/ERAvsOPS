@@ -40,7 +40,7 @@ const MLBConfig = (function() {
     // App configuration
     const APP_CONFIG = {
         updateInterval: 2000,     // How often to poll for updates (ms)
-        batchSize: 3,             // How many teams to update in each batch
+        batchSize: 10,            // Increased from 3 to 10 teams per batch
         animation: {
             duration: 800,
             easing: 'easeOutQuad'

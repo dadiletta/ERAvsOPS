@@ -109,7 +109,7 @@ def cleanup_old_snapshots(limit):
         logger.error(error_msg)
 
 def update_mlb_data(step=1, total_steps=30):
-    """Update MLB data one team at a time to allow for progress tracking"""
+    """Update MLB data in larger batches with optimized processing"""
     global update_status
     
     # Create MLB data fetcher instance
@@ -153,19 +153,16 @@ def update_mlb_data(step=1, total_steps=30):
             # Add batch to collected data
             update_status["collected_data"].extend(batch)
             logger.info(f"Added {len(batch)} teams to collected data, total now: {len(update_status['collected_data'])}")
-        else:
-            logger.warning(f"No teams were processed in this batch (start_index={start_index}, step={step})")
-            update_status["error"] = "No teams processed in batch"
-        
-        # If all teams updated, create a single snapshot with all collected data
-        if update_status["teams_updated"] >= update_status["total_teams"]:
+            
+            # Create incremental snapshot for immediate UI visibility
+            # This allows historical data to be immediately available
             try:
                 # Get existing data
                 existing_data, _, _, _ = get_latest_data()
                 
-                # Update existing data with new team data
+                # Update existing data with new team data - just this batch
                 updated = False
-                for new_team in update_status["collected_data"]:
+                for new_team in batch:  # Only process this batch, not all collected data
                     # Find matching team in existing data
                     for i, existing_team in enumerate(existing_data):
                         if existing_team.get('id') == new_team.get('id'):
@@ -183,7 +180,7 @@ def update_mlb_data(step=1, total_steps=30):
                     # Validate again
                     validated_data = validate_mlb_data(existing_data)
                     
-                    # Save to database as a new snapshot (once per update)
+                    # Save to database as a new snapshot (once per batch)
                     snapshot = MLBSnapshot(
                         timestamp=datetime.now(timezone.utc),
                         data=json.dumps(validated_data)
@@ -191,13 +188,20 @@ def update_mlb_data(step=1, total_steps=30):
                     db.session.add(snapshot)
                     db.session.commit()
                     
-                    logger.info(f"Created a new snapshot with {len(validated_data)} teams")
+                    logger.info(f"Created an incremental snapshot with {len(validated_data)} teams")
                     
-                    # Check if we need to clean up old snapshots
-                    history_limit = current_app.config.get('HISTORY_LIMIT', 30)
-                    if history_limit > 0:
-                        cleanup_old_snapshots(history_limit)
-                
+                    # Update snapshot count in status
+                    update_status["snapshot_count"] = MLBSnapshot.query.count()
+            except Exception as e:
+                logger.error(f"Error creating incremental snapshot: {str(e)}")
+                # Continue despite error - this is just for immediate updates
+        else:
+            logger.warning(f"No teams were processed in this batch (start_index={start_index}, step={step})")
+            update_status["error"] = "No teams processed in batch"
+        
+        # If all teams updated, perform final cleanup
+        if update_status["teams_updated"] >= update_status["total_teams"]:
+            try:
                 # Reset collected data for next update
                 update_status["collected_data"] = []
                 
@@ -211,8 +215,13 @@ def update_mlb_data(step=1, total_steps=30):
                 update_status["teams_updated"] = 0
                 update_status["total_teams"] = 0
                 
+                # Check if we need to clean up old snapshots
+                history_limit = current_app.config.get('HISTORY_LIMIT', 30)
+                if history_limit > 0:
+                    cleanup_old_snapshots(history_limit)
+                
             except Exception as e:
-                error_msg = f"Error creating snapshot: {str(e)}"
+                error_msg = f"Error in final update cleanup: {str(e)}"
                 logger.error(error_msg)
                 import traceback
                 logger.error(traceback.format_exc())

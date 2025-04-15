@@ -26,8 +26,8 @@ class Config:
     SNAPSHOT_INTERVAL = int(os.getenv('SNAPSHOT_INTERVAL', 86400))  # 24 hours in seconds
     HISTORY_LIMIT = int(os.getenv('HISTORY_LIMIT', 30))  # Max number of historical data points to keep
     
-    # Rate limiting settings
-    API_RATE_LIMIT = float(os.getenv('API_RATE_LIMIT', 2.0))  # Minimum seconds between API requests
+    # Rate limiting settings - reduced from 2.0 to 0.5
+    API_RATE_LIMIT = float(os.getenv('API_RATE_LIMIT', 0.5))  # Minimum seconds between API requests
 
 class DevelopmentConfig(Config):
     """Development environment configuration"""

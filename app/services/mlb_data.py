@@ -75,10 +75,10 @@ class MLBDataFetcher:
         
         # Get rate limiting from config if available
         try:
-            self.min_request_interval = current_app.config.get('API_RATE_LIMIT', 2.0)
+            self.min_request_interval = current_app.config.get('API_RATE_LIMIT', 0.5)
         except:
             # If current_app is not available, use default value
-            self.min_request_interval = 2.0
+            self.min_request_interval = 0.5
             
         logger.info(f"Using API rate limit of {self.min_request_interval} seconds between requests")
         
@@ -87,13 +87,13 @@ class MLBDataFetcher:
         return self._mlb_teams
     
     def _rate_limit_request(self):
-        """Apply rate limiting to API requests"""
+        """Apply rate limiting to API requests with reduced delay"""
         current_time = time.time()
         elapsed_since_last = current_time - self.last_request_time
         
         if elapsed_since_last < self.min_request_interval:
-            # Add a random component to avoid synchronized requests
-            sleep_time = self.min_request_interval - elapsed_since_last + random.uniform(0.5, 1.5)
+            # Reduced random component to minimum needed
+            sleep_time = self.min_request_interval - elapsed_since_last + random.uniform(0.1, 0.3)
             logger.info(f"Rate limiting: Sleeping for {sleep_time:.2f} seconds")
             time.sleep(sleep_time)
         
@@ -131,7 +131,7 @@ class MLBDataFetcher:
         return self._get_fallback_stats()
     
     def get_team_stats_batch(self, start_index=0, batch_size=1, season=None):
-        """Get stats for a batch of teams
+        """Get stats for a batch of teams with reduced delays
         
         Args:
             start_index: Starting index in teams list
@@ -193,13 +193,13 @@ class MLBDataFetcher:
                             break
                         else:
                             logger.warning(f"Failed to get stats for {team['name']} on attempt {attempt+1}")
-                            time.sleep(2 + attempt * 2)  # Increase delay with each attempt
+                            time.sleep(1 + attempt)  # Reduced delay with each attempt
                     except Exception as e:
                         logger.error(f"Error on attempt {attempt+1}: {str(e)}")
-                        time.sleep(2 + attempt * 2)  # Increase delay with each attempt
+                        time.sleep(1 + attempt)  # Reduced delay with each attempt
                 
-                # Add a delay after processing a team (successful or not)
-                time.sleep(3.0 + random.uniform(1.0, 2.0))
+                # Reduced delay after processing a team (successful or not)
+                time.sleep(0.5 + random.uniform(0.1, 0.5))  # Significantly reduced from 3.0 + random(1.0, 2.0)
                 
             except Exception as e:
                 error_msg = f"Error processing team at index {index}: {str(e)}"

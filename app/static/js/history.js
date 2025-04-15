@@ -13,8 +13,11 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
     // Team history tracking and visualization
     const historyCache = {};
     
+    // Track active team to prevent animation restarts 
+    let activeTeamId = null;
+    
     /**
-     * Function to fetch historical data for a team
+     * Function to fetch historical data for a team with caching improvements
      * @param {number} teamId - The team ID
      * @param {number} days - Number of days of history to fetch
      * @returns {Promise} Promise that resolves with history data
@@ -27,23 +30,41 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
         
         logger.log(`Fetching history for team ID: ${teamId}`);
         
-        // Otherwise fetch from API
-        return fetch(`/api/team-history/${teamId}?days=${days}`)
-            .then(response => response.json())
-            .then(history => {
-                logger.log(`Received ${history.length} historical points for team ${teamId}`);
-                // Store in cache
-                historyCache[teamId] = history;
-                return history;
-            })
-            .catch(err => {
-                logger.error('Error fetching team history:', err);
-                return [];
-            });
+        // Add a cache timestamp to avoid browser caching
+        const cacheParam = new Date().getTime();
+        
+        // Otherwise fetch from API with a timeout
+        return new Promise((resolve, reject) => {
+            // Create a timeout for the fetch
+            const timeoutId = setTimeout(() => {
+                logger.error(`History fetch timeout for team ${teamId}`);
+                // Resolve with empty array to avoid blocking UI
+                resolve([]);
+            }, 5000); // 5 second timeout
+            
+            // Execute the fetch
+            fetch(`/api/team-history/${teamId}?days=${days}&_=${cacheParam}`)
+                .then(response => {
+                    clearTimeout(timeoutId);
+                    return response.json();
+                })
+                .then(history => {
+                    logger.log(`Received ${history.length} historical points for team ${teamId}`);
+                    // Store in cache
+                    historyCache[teamId] = history;
+                    return resolve(history);
+                })
+                .catch(err => {
+                    clearTimeout(timeoutId);
+                    logger.error('Error fetching team history:', err);
+                    // Resolve with empty array to avoid blocking UI
+                    resolve([]);
+                });
+        });
     }
     
     /**
-     * Set up hover listener to fetch team history
+     * Set up hover listener to fetch team history with improved animation
      * @param {object} chart - The Chart.js chart instance
      */
     function setupHistoryTracking(chart) {
@@ -53,33 +74,69 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
         const canvas = chart.canvas;
         if (canvas._historyListenerAdded) return;
         
+        // Cache for recently viewed teams to reduce fetch calls
+        const recentTeams = new Set();
+        
+        // Use a debounce function to prevent excessive API calls
+        let debounceTimer = null;
+        
         canvas.addEventListener('mousemove', (e) => {
-            const points = chart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, false);
+            // Clear any pending debounce timer
+            if (debounceTimer) clearTimeout(debounceTimer);
             
-            if (points.length > 0) {
-                const firstPoint = points[0];
-                const { datasetIndex, index } = firstPoint;
-                const dataPoint = chart.data.datasets[datasetIndex].data[index];
+            // Set a new debounce timer (50ms)
+            debounceTimer = setTimeout(() => {
+                const points = chart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, false);
                 
-                // Reset animation start time
-                chart._historyAnimStart = Date.now();
-                
-                // Get the team ID from the data point
-                const teamId = dataPoint.id;
-                
-                // Fetch history data if needed
-                if (teamId && !historyCache[teamId]) {
-                    fetchTeamHistory(teamId)
-                        .then(() => {
-                            // Trigger a redraw to show the history line
-                            chart.update();
-                        });
+                if (points.length > 0) {
+                    const firstPoint = points[0];
+                    const { datasetIndex, index } = firstPoint;
+                    const dataPoint = chart.data.datasets[datasetIndex].data[index];
+                    
+                    // Get the team ID from the data point
+                    const teamId = dataPoint.id;
+                    
+                    // Only set animation start time if this is a new team
+                    if (teamId !== activeTeamId) {
+                        // Reset animation start time for new team only
+                        chart._historyAnimStart = Date.now();
+                        activeTeamId = teamId;
+                    }
+                    
+                    // Fetch history data if needed and not recently viewed
+                    if (teamId && !historyCache[teamId] && !recentTeams.has(teamId)) {
+                        // Add to recent teams set to prevent duplicate fetches
+                        recentTeams.add(teamId);
+                        
+                        // Limit the size of recentTeams
+                        if (recentTeams.size > 5) {
+                            // Remove oldest entry (first item in set)
+                            recentTeams.delete(recentTeams.values().next().value);
+                        }
+                        
+                        fetchTeamHistory(teamId)
+                            .then(() => {
+                                // Only trigger update if component is still mounted and this is still the active team
+                                if (chart.ctx && activeTeamId === teamId) {
+                                    // Use requestAnimationFrame for smoother updates
+                                    requestAnimationFrame(() => chart.draw());
+                                }
+                            });
+                    }
+                } else {
+                    // Mouse is not over any team point, reset active team
+                    activeTeamId = null;
                 }
-            }
+            }, 50);
+        });
+        
+        // Add mouseout event to reset active team when mouse leaves chart
+        canvas.addEventListener('mouseout', () => {
+            activeTeamId = null;
         });
         
         canvas._historyListenerAdded = true;
-        logger.log("History tracking event listeners set up");
+        logger.log("History tracking event listeners set up with improved animation");
     }
     
     /**
@@ -111,8 +168,12 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
             // Get animation progress (0.0 to 1.0)
             const timestamp = Date.now();
             const animDuration = 1500; // 1.5 seconds for full animation
-            const animStartTime = chart._historyAnimStart || timestamp;
-            chart._historyAnimStart = animStartTime;
+            
+            // Only use stored animation start time if this is the active team
+            // This prevents flashing the full line and restarting animation
+            const animStartTime = (activeTeamId === dataPoint.id && chart._historyAnimStart) 
+                ? chart._historyAnimStart 
+                : timestamp;
             
             const progress = Math.min(1.0, (timestamp - animStartTime) / animDuration);
             
@@ -188,8 +249,8 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
             
             ctx.restore();
             
-            // Request animation frame if not complete
-            if (progress < 1.0) {
+            // Request animation frame if not complete and this is still the active team
+            if (progress < 1.0 && dataPoint.id === activeTeamId) {
                 chart._historyAnimRequest = window.requestAnimationFrame(() => {
                     chart.draw();
                 });
@@ -200,7 +261,10 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
                 .then(history => {
                     if (history && history.length > 0) {
                         logger.log(`Fetched ${history.length} history points for team ${dataPoint.id}`);
-                        chart.draw(); // Redraw to show history
+                        // Only redraw if this is still the active team
+                        if (activeTeamId === dataPoint.id) {
+                            chart.draw(); // Redraw to show history
+                        }
                     } else {
                         logger.log(`No history found for team ${dataPoint.id}`);
                     }

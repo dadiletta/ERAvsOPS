@@ -16,27 +16,40 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
         updateRetries: 0,
         updateTimer: null,
         isUpdating: false,
-        lastUpdateTimestamp: null
+        lastUpdateTimestamp: null,
+        lastStatus: null  // Track last status to minimize UI updates
     };
     
     /**
-     * Check for updates with improved error handling
+     * Check for updates with reduced UI impact
      */
     function checkUpdateStatus() {
         logger.log("Checking update status...");
         
-        $.ajax({
-            url: '/api/update-status',
-            method: 'GET',
-            dataType: 'json',
-            success: function(status) {
+        // Use fetch API instead of jQuery AJAX for better performance
+        fetch('/api/update-status')
+            .then(response => response.json())
+            .then(status => {
                 logger.log("Received update status", status);
                 
                 // Reset retry counter on successful response
                 state.updateRetries = 0;
                 
-                // Update UI based on status
-                MLBUI.updateStatusBar(status);
+                // Update UI based on status - but with reduced UI updates
+                // Only update UI elements if status has actually changed
+                const statusChanged = 
+                    !state.lastStatus || 
+                    state.lastStatus.in_progress !== status.in_progress ||
+                    state.lastStatus.teams_updated !== status.teams_updated ||
+                    state.lastStatus.total_teams !== status.total_teams;
+                    
+                if (statusChanged) {
+                    MLBUI.updateStatusBar(status);
+                    // Store the last status to compare next time
+                    state.lastStatus = JSON.parse(JSON.stringify(status));
+                } else {
+                    logger.log("Status unchanged, skipping UI update");
+                }
                 
                 // If an update is in progress, continue polling
                 if (status.in_progress) {
@@ -48,8 +61,10 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
                         logger.log("All teams updated, waiting for process to complete");
                     }
                     
-                    // Schedule next status check
-                    state.updateTimer = setTimeout(checkUpdateStatus, MLBConfig.APP.updateInterval);
+                    // Schedule next status check with a longer interval if update is ongoing
+                    // This reduces UI interference
+                    state.updateTimer = setTimeout(checkUpdateStatus, 
+                        status.teams_updated > 0 ? MLBConfig.APP.updateInterval * 1.5 : MLBConfig.APP.updateInterval);
                 } else {
                     // If update just completed, fetch fresh data
                     if (state.isUpdating) {
@@ -57,16 +72,14 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
                         state.isUpdating = false;
                         fetchFreshData();
                     }
-                    
-                    // Removed auto-update trigger for stale data
                 }
-            },
-            error: function(xhr, status, error) {
+            })
+            .catch(error => {
                 console.error("Error checking update status:", error);
-                logger.log("AJAX error details:", {xhr: xhr, status: status, error: error});
+                logger.log("Fetch error details:", error);
                 
                 // Show error toast with more details
-                showToast(`Error checking updates: ${error}`, "error");
+                showToast(`Error checking updates: ${error.message || 'Network error'}`, "error");
                 
                 // Increment retry counter
                 state.updateRetries++;
@@ -86,8 +99,7 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
                     state.isUpdating = false;
                     showToast("Update failed after multiple attempts", "error");
                 }
-            }
-        });
+            });
     }
     
     /**
@@ -117,6 +129,9 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
                 // Update UI based on status
                 MLBUI.updateStatusBar(status);
                 
+                // Store the last status
+                state.lastStatus = JSON.parse(JSON.stringify(status));
+                
                 // Schedule status check
                 state.updateTimer = setTimeout(checkUpdateStatus, MLBConfig.APP.updateInterval);
             },
@@ -137,55 +152,57 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
     }
     
     /**
-     * Continue the update process with improved error handling
+     * Continue the update process with improved performance
      */
     function continueUpdate() {
         logger.log("Continuing update process");
         
-        $.ajax({
-            url: '/api/continue-update',
+        // Use fetch API for better performance
+        fetch('/api/continue-update', {
             method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({ batch_size: MLBConfig.APP.batchSize }),
-            dataType: 'json',
-            success: function(status) {
-                logger.log("Update continued successfully", status);
-                
-                // Update UI based on status
-                MLBUI.updateStatusBar(status);
-                
-                // If we've made progress, show a toast
-                if (status.teams_updated > 0) {
-                    const percent = ((status.teams_updated / status.total_teams) * 100).toFixed(0);
-                    showToast(`Update progress: ${percent}% complete`, "update");
-                }
+            headers: {
+                'Content-Type': 'application/json',
             },
-            error: function(xhr, status, error) {
-                console.error("Error continuing update:", error);
-                logger.log("AJAX error details:", {xhr: xhr, status: status, error: error});
+            body: JSON.stringify({ batch_size: MLBConfig.APP.batchSize })
+        })
+        .then(response => response.json())
+        .then(status => {
+            logger.log("Update continued successfully", status);
+            
+            // Update UI based on status - but only if percentage changes significantly
+            const previousPercent = state.lastStatus ? 
+                Math.floor((state.lastStatus.teams_updated / state.lastStatus.total_teams) * 100) : 0;
                 
-                // Show detailed error message
-                if (xhr.responseJSON && xhr.responseJSON.error) {
-                    showToast(`Error: ${xhr.responseJSON.error}`, "error");
-                } else {
-                    showToast(`Error continuing update: ${error}`, "error");
+            const currentPercent = Math.floor((status.teams_updated / status.total_teams) * 100);
+            
+            // Only update UI and show toast if percentage changed by at least 10%
+            if (Math.abs(currentPercent - previousPercent) >= 10) {
+                MLBUI.updateStatusBar(status);
+                showToast(`Update progress: ${currentPercent}% complete`, "update");
+                state.lastStatus = JSON.parse(JSON.stringify(status));
+            }
+        })
+        .catch(error => {
+            console.error("Error continuing update:", error);
+            logger.log("Fetch error details:", error);
+            
+            // Show detailed error message
+            showToast(`Error continuing update: ${error.message || 'Network error'}`, "error");
+            
+            // Increment retry counter
+            state.updateRetries++;
+            
+            // If we've reached max retries, abort the update
+            if (state.updateRetries >= MLBConfig.APP.maxRetries) {
+                logger.log("Maximum retries reached, stopping update process");
+                state.isUpdating = false;
+                
+                if (state.updateTimer) {
+                    clearTimeout(state.updateTimer);
+                    state.updateTimer = null;
                 }
                 
-                // Increment retry counter
-                state.updateRetries++;
-                
-                // If we've reached max retries, abort the update
-                if (state.updateRetries >= MLBConfig.APP.maxRetries) {
-                    logger.log("Maximum retries reached, stopping update process");
-                    state.isUpdating = false;
-                    
-                    if (state.updateTimer) {
-                        clearTimeout(state.updateTimer);
-                        state.updateTimer = null;
-                    }
-                    
-                    showToast("Update failed after multiple attempts", "error");
-                }
+                showToast("Update failed after multiple attempts", "error");
             }
         });
     }
