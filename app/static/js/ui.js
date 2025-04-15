@@ -26,7 +26,6 @@ const MLBUI = (function(window, document, $, MLBConfig) {
         refreshButton: null,
         lastUpdatedTitleElem: null,
         snapshotCountElem: null
-        // Removed snapshotSelector
     };
     
     /**
@@ -41,7 +40,6 @@ const MLBUI = (function(window, document, $, MLBConfig) {
         elements.refreshButton = $('#refresh-button');
         elements.lastUpdatedTitleElem = $('#lastUpdatedTitle');
         elements.snapshotCountElem = $('#snapshot-count');
-        // Removed snapshotSelector
         
         logger.log("DOM elements cached");
     }
@@ -60,8 +58,6 @@ const MLBUI = (function(window, document, $, MLBConfig) {
                 MLBConfig.showToast("Update already in progress", "info");
             }
         });
-        
-        // Removed snapshot selector change handler
         
         // Window resize handler
         $(window).on('resize', function() {
@@ -113,14 +109,15 @@ const MLBUI = (function(window, document, $, MLBConfig) {
                 elements.lastUpdatedTitleElem.text(status.last_updated);
             }
             
-            // If cache is not fresh, show refresh button
+            // Show the status as fresh or stale, but always show refresh button
             if (!status.cache_fresh) {
                 elements.statusTextTitle.text('Stale');
-                elements.refreshButton.addClass('visible');
             } else {
                 elements.statusTextTitle.text('Fresh');
-                elements.refreshButton.removeClass('visible');
             }
+            
+            // Always show refresh button (key change)
+            elements.refreshButton.addClass('visible');
             
             // If there was an error, show it
             if (status.error) {
@@ -136,8 +133,6 @@ const MLBUI = (function(window, document, $, MLBConfig) {
         }
     }
     
-    // Removed updateSnapshotSelector function
-    
     /**
      * Initialize the user interface
      */
@@ -150,6 +145,9 @@ const MLBUI = (function(window, document, $, MLBConfig) {
         // Set up event listeners
         setupEventListeners();
         
+        // Always show refresh button on initialization (key change)
+        elements.refreshButton.addClass('visible');
+        
         logger.log("UI initialization completed");
     }
     
@@ -157,6 +155,5 @@ const MLBUI = (function(window, document, $, MLBConfig) {
     return {
         initialize: initialize,
         updateStatusBar: updateStatusBar
-        // Removed updateSnapshotSelector
     };
 })(window, document, jQuery, MLBConfig);

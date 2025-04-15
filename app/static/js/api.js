@@ -58,11 +58,7 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
                         fetchFreshData();
                     }
                     
-                    // If data is stale, start automatic update
-                    if (!status.cache_fresh && !state.isUpdating) {
-                        logger.log("Data is stale, starting automatic update");
-                        startUpdate();
-                    }
+                    // Removed auto-update trigger for stale data
                 }
             },
             error: function(xhr, status, error) {
@@ -232,10 +228,6 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
         });
     }
     
-    // Removed fetchSnapshotInfo function
-    
-    // Removed loadSnapshotData function
-    
     /**
      * Initialize data from the server
      */
@@ -246,22 +238,12 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
         logger.log("Initial data status:", window.dataStatus);
         logger.log("Initial team data count:", window.teamData ? window.teamData.length : 0);
         
-        // Check initial status and take appropriate action
-        if (window.dataStatus && !window.dataStatus.is_fresh && !window.dataStatus.update_in_progress) {
-            // If data is stale, start automatic update
-            logger.log("Initial data is stale, will start update shortly");
-            setTimeout(function() {
-                startUpdate();
-            }, 2000);
-        } else if (window.dataStatus && window.dataStatus.update_in_progress) {
+        // No automatic update start for stale data - this is now manual only
+        if (window.dataStatus && window.dataStatus.update_in_progress) {
             // If update already in progress, check status
             logger.log("Update already in progress, will check status shortly");
             state.isUpdating = true;
             setTimeout(checkUpdateStatus, 2000);
-        } else {
-            // Otherwise, just periodically check for staleness
-            logger.log("Data is fresh, will check for staleness periodically");
-            setTimeout(checkUpdateStatus, 5000);
         }
     }
     
@@ -271,8 +253,6 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
         startUpdate: startUpdate,
         checkUpdateStatus: checkUpdateStatus,
         fetchFreshData: fetchFreshData,
-        // Removed fetchSnapshotInfo
-        // Removed loadSnapshotData
         isUpdating: function() { return state.isUpdating; }
     };
 })(window, document, jQuery, MLBConfig);

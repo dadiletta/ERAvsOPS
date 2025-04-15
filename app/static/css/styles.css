@@ -314,17 +314,13 @@ img {
     border-radius: 4px;
     cursor: pointer;
     font-weight: bold;
-    display: none;
+    display: inline-block; /* Changed from 'none' to always display */
     transition: background-color 0.2s ease;
     margin-left: 10px;
 }
 
 .refresh-button:hover {
     background-color: var(--mlb-blue-light);
-}
-
-.refresh-button.visible {
-    display: inline-block;
 }
 
 @keyframes pulse {
