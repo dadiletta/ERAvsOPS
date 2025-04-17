@@ -1,10 +1,12 @@
 # MLB ERA vs OPS Visualization
 
-A web application that visualizes MLB team performance by plotting Earned Run Average (ERA) against On-base Plus Slugging (OPS) in an interactive scatter plot.
+An interactive web application that visualizes Major League Baseball team performance by plotting Earned Run Average (ERA) against On-base Plus Slugging (OPS) in a dynamic scatter plot with division filtering.
+
+![MLB ERA vs OPS Screenshot](app/static/preview.png)
 
 ## 📊 Overview
 
-This tool helps baseball analysts and fans visualize team performance by placing teams in quadrants:
+This tool helps baseball analysts and fans visualize team performance by placing teams in quadrants based on their ERA (pitching effectiveness) and OPS (offensive production):
 
 - **Good Pitching, Good Hitting**: Teams excelling in both areas (low ERA, high OPS)
 - **Good Pitching, Bad Hitting**: Teams with strong pitching but weaker offense
@@ -13,11 +15,42 @@ This tool helps baseball analysts and fans visualize team performance by placing
 
 ## 🚀 Features
 
-- Interactive scatter plot with team logos
-- Quadrant analysis with color-coded backgrounds
-- Automatic data updates (configurable cache timeouts)
-- Responsive design that works on desktop and mobile
-- Hover tooltips with detailed team statistics
+- **Interactive Scatter Plot**: Teams displayed with official team logos
+- **Division Filtering**: Toggle visibility of specific MLB divisions (AL East, NL West, etc.)
+- **Quadrant Analysis**: Color-coded backgrounds for different performance zones
+- **Hover Details**: View team name, ERA, OPS, and division information
+- **Automatic Data Updates**: Configurable cache timeouts
+- **Team History**: View historical performance trends when hovering over teams
+- **Responsive Design**: Works on desktop and mobile devices
+
+## 📈 Understanding the Metrics
+
+### ERA (Earned Run Average)
+
+ERA measures a pitcher's effectiveness by calculating how many earned runs they allow per nine innings pitched. Only runs scored without the benefit of defensive errors count as "earned." Lower ERA values indicate better pitching performance.
+
+- **Excellent**: ≤ 3.00
+- **Good**: 3.00-4.00
+- **Average**: 4.00-5.00
+- **Poor**: 5.00+
+
+### OPS (On-base Plus Slugging)
+
+OPS combines on-base percentage (how often a batter reaches base) and slugging percentage (total bases divided by at-bats) to provide a comprehensive view of offensive performance. Higher OPS values indicate better hitting.
+
+- **Excellent**: .900+
+- **Good**: .800-.899
+- **Average**: .700-.799
+- **Poor**: ≤.699
+
+## 🏗️ Technical Architecture
+
+- **Backend**: Python Flask web application
+- **Database**: SQLite (development) / PostgreSQL (production)
+- **Frontend**: JavaScript with Chart.js for visualization
+- **Data Source**: MLB Stats API via MLB-StatsAPI package
+- **Caching**: Database snapshots with configurable timeouts
+- **Deployment**: Docker support, Render configuration included
 
 ## 🛠️ Installation
 
@@ -50,29 +83,25 @@ This tool helps baseball analysts and fans visualize team performance by placing
    python main.py
    ```
 
-## 🔄 Data Source
+6. Open your browser and navigate to http://localhost:5000
 
-This application uses baseball-data-scraper to fetch team statistics. Data is cached to minimize API requests and improve performance.
+## 🐳 Docker Deployment
 
-## 🖼️ Team Logos
+You can also run the application using Docker:
 
-Team logos should be placed in the `app/static/logos/` directory with filenames matching the team abbreviation in lowercase (e.g., `nyy.png` for the Yankees).
+```bash
+docker-compose up
+```
 
-## 📱 Deployment
+This will start both the web application and a PostgreSQL database container.
 
-The application is configured for deployment on Render:
+## 📱 Customization
 
-1. Connect your GitHub repository to Render
-2. Create a new Web Service using the Python runtime
-3. The included `render.yaml` will handle the configuration
-
-## 📝 Configuration
-
-Key configuration options in `config.py`:
-
-- `CACHE_TIMEOUT`: How long to keep data before refreshing (in seconds)
-- `CACHE_FILE`: Location of the data cache file
-- `SECRET_KEY`: Flask session security key
+- **Division Filtering**: Toggle divisions by clicking on the division buttons at the top of the chart
+- **Logo Size**: Adjust the `--logo-width` variable in CSS
+- **Quadrant Colors**: Modify the `quadrantColors` object in `chart.js`
+- **Chart Dimensions**: Change scales in the Chart.js configuration
+- **Boundary Lines**: Adjust the `axisLines` values in `chart.js`
 
 ## 📂 Project Structure
 
@@ -87,30 +116,25 @@ eravsops/
 ├── .env.example                # Example environment variables
 ├── app/
 │   ├── __init__.py             # App initialization
-│   ├── models/                 # For any data models
+│   ├── models/                 # For data models
 │   ├── routes/                 # Route definitions
-│   │   ├── __init__.py
-│   │   └── main_routes.py      # Main route handlers
 │   ├── services/               # Business logic and data fetching
-│   │   ├── __init__.py
-│   │   └── mlb_data.py         # MLB data handling
 │   ├── static/                 # Static assets
 │   │   ├── css/
-│   │   │   └── styles.css
 │   │   ├── js/
-│   │   │   └── chart.js
 │   │   └── logos/              # Team logos directory
 │   └── templates/              # Jinja2 templates
-│       └── index.html
 └── data_cache.json             # Cache file for API responses
 ```
 
-## 📊 Customization
+## 📊 Division Filtering
 
-- **Logo Size**: Adjust the `--logo-width` variable in CSS
-- **Quadrant Colors**: Modify the `quadrantColors` object in `chart.js`
-- **Chart Dimensions**: Change scales in the Chart.js configuration
-- **Boundary Lines**: Adjust the `axisLines` values in `chart.js`
+The application includes a division filtering feature that allows you to:
+
+- Toggle visibility of specific MLB divisions (AL East, AL Central, AL West, NL East, NL Central, NL West)
+- Visually compare teams within the same division
+- Focus analysis on specific leagues or regions
+- See division-specific trends in pitching and hitting performance
 
 ## 📄 License
 
@@ -120,4 +144,5 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - [Chart.js](https://www.chartjs.org/) for the visualization library
 - [Flask](https://flask.palletsprojects.com/) for the web framework
+- [MLB-StatsAPI](https://github.com/toddrob99/MLB-StatsAPI) for MLB data
 - MLB for team information and statistics
