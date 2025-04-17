@@ -185,7 +185,9 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
             fullName: team.full_name || team.name,
             abbreviation: team.abbreviation,
             logo: team.logo,
-            id: team.id  // Important: Include team ID for history tracking
+            id: team.id,  // Important: Include team ID for history tracking
+            division: team.division || 'Unknown',
+            league: team.league || 'Unknown'
         }));
         
         // Preload all team logos before chart creation
@@ -345,9 +347,11 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
                                 
                                 // Only show stats for the first occurrence of this point
                                 if (tooltipItem.dataIndex === firstIndex) {
+                                    // Display just the division name without the "Division: " prefix
                                     return [
                                         `ERA: ${point.y.toFixed(2)}`,
-                                        `OPS: ${point.x.toFixed(3)}`
+                                        `OPS: ${point.x.toFixed(3)}`,
+                                        `${point.division}`
                                     ];
                                 }
                                 return [];
@@ -422,6 +426,68 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
     }
     
     /**
+     * Get division information for a team
+     * @param {number} teamId - Team ID
+     * @returns {Object|null} Division information or null if team not found
+     */
+    function getTeamDivision(teamId) {
+        // Check if MLBDivisionUtils is available
+        if (window.MLBDivisionUtils) {
+            // Find the team data point
+            const dataPoint = findTeamById(teamId);
+            if (dataPoint) {
+                return MLBDivisionUtils.getDivisionInfo(dataPoint);
+            }
+        }
+        
+        // Fallback to simple lookup
+        if (mlbChart && mlbChart.data && mlbChart.data.datasets && mlbChart.data.datasets[0]) {
+            const points = mlbChart.data.datasets[0].data;
+            const team = points.find(p => p.id == teamId);
+            
+            if (team) {
+                return {
+                    teamId: team.id,
+                    teamName: team.fullName,
+                    abbreviation: team.abbreviation,
+                    division: team.division || 'Unknown',
+                    league: team.league || 'Unknown'
+                };
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Find team data point by ID
+     * @param {number} teamId - Team ID to find
+     * @returns {Object|null} Team data point or null if not found
+     */
+    function findTeamById(teamId) {
+        if (!mlbChart || !mlbChart.data || !mlbChart.data.datasets || !mlbChart.data.datasets[0]) {
+            return null;
+        }
+        
+        const points = mlbChart.data.datasets[0].data;
+        return points.find(p => p.id == teamId) || null;
+    }
+    
+    /**
+     * Get all teams in a division
+     * @param {string} division - Division name (e.g., "AL East")
+     * @returns {Array} Array of team data points in the division
+     */
+    function getTeamsInDivision(division) {
+        if (!mlbChart || !mlbChart.data || !mlbChart.data.datasets || !mlbChart.data.datasets[0]) {
+            return [];
+        }
+        
+        const points = mlbChart.data.datasets[0].data;
+        return points.filter(p => p.division === division);
+    }
+    
+    /**
      * Function to position quadrant labels
      */
     function positionQuadrantLabels() {
@@ -489,7 +555,9 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
             fullName: team.full_name || team.name,
             abbreviation: team.abbreviation,
             logo: team.logo,
-            id: team.id  // Important: Include team ID for history tracking
+            id: team.id,  // Important: Include team ID for history tracking
+            division: team.division || 'Unknown',
+            league: team.league || 'Unknown'
         }));
         
         // Update chart data with animation for smoother transition
@@ -536,6 +604,10 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
                 mlbChart.update();
                 logger.log("Manual chart update triggered");
             }
-        }
+        },
+        // Division-related functions
+        getTeamDivision: getTeamDivision,
+        findTeamById: findTeamById,
+        getTeamsInDivision: getTeamsInDivision
     };
 })(window, document, MLBConfig, MLBHistory);

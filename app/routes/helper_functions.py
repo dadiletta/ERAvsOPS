@@ -23,6 +23,74 @@ update_status = {
     "collected_data": [],  # New: Store collected team data during batch updates
 }
 
+def ensure_division_info(teams):
+    """
+    Ensure all teams have division and league information
+    
+    Args:
+        teams: List of team data dictionaries
+    
+    Returns:
+        List of team data with division info
+    """
+    # Division mapping reference
+    division_map = {
+        # AL East
+        110: {'division': 'AL East', 'league': 'American League'},  # Orioles
+        111: {'division': 'AL East', 'league': 'American League'},  # Red Sox
+        147: {'division': 'AL East', 'league': 'American League'},  # Yankees
+        139: {'division': 'AL East', 'league': 'American League'},  # Rays
+        141: {'division': 'AL East', 'league': 'American League'},  # Blue Jays
+        
+        # AL Central
+        145: {'division': 'AL Central', 'league': 'American League'},  # White Sox
+        114: {'division': 'AL Central', 'league': 'American League'},  # Guardians
+        116: {'division': 'AL Central', 'league': 'American League'},  # Tigers
+        118: {'division': 'AL Central', 'league': 'American League'},  # Royals
+        142: {'division': 'AL Central', 'league': 'American League'},  # Twins
+        
+        # AL West
+        108: {'division': 'AL West', 'league': 'American League'},  # Angels
+        117: {'division': 'AL West', 'league': 'American League'},  # Astros
+        133: {'division': 'AL West', 'league': 'American League'},  # Athletics
+        136: {'division': 'AL West', 'league': 'American League'},  # Mariners
+        140: {'division': 'AL West', 'league': 'American League'},  # Rangers
+        
+        # NL East
+        144: {'division': 'NL East', 'league': 'National League'},  # Braves
+        146: {'division': 'NL East', 'league': 'National League'},  # Marlins
+        121: {'division': 'NL East', 'league': 'National League'},  # Mets
+        143: {'division': 'NL East', 'league': 'National League'},  # Phillies
+        120: {'division': 'NL East', 'league': 'National League'},  # Nationals
+        
+        # NL Central
+        112: {'division': 'NL Central', 'league': 'National League'},  # Cubs
+        113: {'division': 'NL Central', 'league': 'National League'},  # Reds
+        158: {'division': 'NL Central', 'league': 'National League'},  # Brewers
+        134: {'division': 'NL Central', 'league': 'National League'},  # Pirates
+        138: {'division': 'NL Central', 'league': 'National League'},  # Cardinals
+        
+        # NL West
+        109: {'division': 'NL West', 'league': 'National League'},  # Diamondbacks
+        115: {'division': 'NL West', 'league': 'National League'},  # Rockies
+        119: {'division': 'NL West', 'league': 'National League'},  # Dodgers
+        135: {'division': 'NL West', 'league': 'National League'},  # Padres
+        137: {'division': 'NL West', 'league': 'National League'},  # Giants
+    }
+    
+    # Add division info to any teams that are missing it
+    for team in teams:
+        team_id = team.get('id')
+        
+        # If division info is missing but we have the team ID
+        if (('division' not in team or 'league' not in team) and 
+            team_id and team_id in division_map):
+            # Add division info
+            team['division'] = division_map[team_id]['division']
+            team['league'] = division_map[team_id]['league']
+    
+    return teams
+
 def get_latest_data(must_exist=False):
     """Get the latest team data from the database with validation"""
     logger.info("Retrieving latest data from database")
@@ -50,6 +118,9 @@ def get_latest_data(must_exist=False):
             # Validate teams on retrieval
             teams = validate_mlb_data(teams)
             
+            # Ensure all teams have division info
+            teams = ensure_division_info(teams)
+            
             logger.info(f"Latest snapshot found from {timestamp}. Fresh: {is_fresh}, Age: {cache_age.total_seconds()} seconds, Valid teams: {len(teams)}")
             return teams, True, is_fresh, timestamp.strftime("%Y-%m-%d %H:%M:%S")
     
@@ -69,6 +140,9 @@ def get_latest_data(must_exist=False):
                 
             # Validate teams from cache
             teams = validate_mlb_data(teams)
+            
+            # Ensure all teams have division info
+            teams = ensure_division_info(teams)
             
             if teams:
                 logger.info(f"Loaded {len(teams)} teams from cache file")

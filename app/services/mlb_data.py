@@ -33,42 +33,41 @@ class MLBDataFetcher:
         
         self.current_year = datetime.now(timezone.utc).year
         
-        # Hardcoded list of MLB team IDs with names (based on MLB API data)
-        # This replaces the broken lookup_team() function
+        # Hardcoded list of MLB team IDs with names and division information
         self._mlb_teams = [
-            {'id': 108, 'name': 'Angels', 'full_name': 'Los Angeles Angels', 'abbreviation': 'LAA'},
-            {'id': 109, 'name': 'Diamondbacks', 'full_name': 'Arizona Diamondbacks', 'abbreviation': 'ARI'},
-            {'id': 110, 'name': 'Orioles', 'full_name': 'Baltimore Orioles', 'abbreviation': 'BAL'},
-            {'id': 111, 'name': 'Red Sox', 'full_name': 'Boston Red Sox', 'abbreviation': 'BOS'},
-            {'id': 112, 'name': 'Cubs', 'full_name': 'Chicago Cubs', 'abbreviation': 'CHC'},
-            {'id': 113, 'name': 'Reds', 'full_name': 'Cincinnati Reds', 'abbreviation': 'CIN'},
-            {'id': 114, 'name': 'Guardians', 'full_name': 'Cleveland Guardians', 'abbreviation': 'CLE'},
-            {'id': 115, 'name': 'Rockies', 'full_name': 'Colorado Rockies', 'abbreviation': 'COL'},
-            {'id': 116, 'name': 'Tigers', 'full_name': 'Detroit Tigers', 'abbreviation': 'DET'},
-            {'id': 117, 'name': 'Astros', 'full_name': 'Houston Astros', 'abbreviation': 'HOU'},
-            {'id': 118, 'name': 'Royals', 'full_name': 'Kansas City Royals', 'abbreviation': 'KC'},
-            {'id': 119, 'name': 'Dodgers', 'full_name': 'Los Angeles Dodgers', 'abbreviation': 'LAD'},
-            {'id': 120, 'name': 'Nationals', 'full_name': 'Washington Nationals', 'abbreviation': 'WSH'},
-            {'id': 121, 'name': 'Mets', 'full_name': 'New York Mets', 'abbreviation': 'NYM'},
-            {'id': 133, 'name': 'Athletics', 'full_name': 'Oakland Athletics', 'abbreviation': 'OAK'},
-            {'id': 134, 'name': 'Pirates', 'full_name': 'Pittsburgh Pirates', 'abbreviation': 'PIT'},
-            {'id': 135, 'name': 'Padres', 'full_name': 'San Diego Padres', 'abbreviation': 'SD'},
-            {'id': 136, 'name': 'Mariners', 'full_name': 'Seattle Mariners', 'abbreviation': 'SEA'},
-            {'id': 137, 'name': 'Giants', 'full_name': 'San Francisco Giants', 'abbreviation': 'SF'},
-            {'id': 138, 'name': 'Cardinals', 'full_name': 'St. Louis Cardinals', 'abbreviation': 'STL'},
-            {'id': 139, 'name': 'Rays', 'full_name': 'Tampa Bay Rays', 'abbreviation': 'TB'},
-            {'id': 140, 'name': 'Rangers', 'full_name': 'Texas Rangers', 'abbreviation': 'TEX'},
-            {'id': 141, 'name': 'Blue Jays', 'full_name': 'Toronto Blue Jays', 'abbreviation': 'TOR'},
-            {'id': 142, 'name': 'Twins', 'full_name': 'Minnesota Twins', 'abbreviation': 'MIN'},
-            {'id': 143, 'name': 'Phillies', 'full_name': 'Philadelphia Phillies', 'abbreviation': 'PHI'},
-            {'id': 144, 'name': 'Braves', 'full_name': 'Atlanta Braves', 'abbreviation': 'ATL'},
-            {'id': 145, 'name': 'White Sox', 'full_name': 'Chicago White Sox', 'abbreviation': 'CWS'},
-            {'id': 146, 'name': 'Marlins', 'full_name': 'Miami Marlins', 'abbreviation': 'MIA'},
-            {'id': 147, 'name': 'Yankees', 'full_name': 'New York Yankees', 'abbreviation': 'NYY'},
-            {'id': 158, 'name': 'Brewers', 'full_name': 'Milwaukee Brewers', 'abbreviation': 'MIL'}
+            {'id': 108, 'name': 'Angels', 'full_name': 'Los Angeles Angels', 'abbreviation': 'LAA', 'division': 'AL West', 'league': 'American League'},
+            {'id': 109, 'name': 'Diamondbacks', 'full_name': 'Arizona Diamondbacks', 'abbreviation': 'ARI', 'division': 'NL West', 'league': 'National League'},
+            {'id': 110, 'name': 'Orioles', 'full_name': 'Baltimore Orioles', 'abbreviation': 'BAL', 'division': 'AL East', 'league': 'American League'},
+            {'id': 111, 'name': 'Red Sox', 'full_name': 'Boston Red Sox', 'abbreviation': 'BOS', 'division': 'AL East', 'league': 'American League'},
+            {'id': 112, 'name': 'Cubs', 'full_name': 'Chicago Cubs', 'abbreviation': 'CHC', 'division': 'NL Central', 'league': 'National League'},
+            {'id': 113, 'name': 'Reds', 'full_name': 'Cincinnati Reds', 'abbreviation': 'CIN', 'division': 'NL Central', 'league': 'National League'},
+            {'id': 114, 'name': 'Guardians', 'full_name': 'Cleveland Guardians', 'abbreviation': 'CLE', 'division': 'AL Central', 'league': 'American League'},
+            {'id': 115, 'name': 'Rockies', 'full_name': 'Colorado Rockies', 'abbreviation': 'COL', 'division': 'NL West', 'league': 'National League'},
+            {'id': 116, 'name': 'Tigers', 'full_name': 'Detroit Tigers', 'abbreviation': 'DET', 'division': 'AL Central', 'league': 'American League'},
+            {'id': 117, 'name': 'Astros', 'full_name': 'Houston Astros', 'abbreviation': 'HOU', 'division': 'AL West', 'league': 'American League'},
+            {'id': 118, 'name': 'Royals', 'full_name': 'Kansas City Royals', 'abbreviation': 'KC', 'division': 'AL Central', 'league': 'American League'},
+            {'id': 119, 'name': 'Dodgers', 'full_name': 'Los Angeles Dodgers', 'abbreviation': 'LAD', 'division': 'NL West', 'league': 'National League'},
+            {'id': 120, 'name': 'Nationals', 'full_name': 'Washington Nationals', 'abbreviation': 'WSH', 'division': 'NL East', 'league': 'National League'},
+            {'id': 121, 'name': 'Mets', 'full_name': 'New York Mets', 'abbreviation': 'NYM', 'division': 'NL East', 'league': 'National League'},
+            {'id': 133, 'name': 'Athletics', 'full_name': 'Oakland Athletics', 'abbreviation': 'OAK', 'division': 'AL West', 'league': 'American League'},
+            {'id': 134, 'name': 'Pirates', 'full_name': 'Pittsburgh Pirates', 'abbreviation': 'PIT', 'division': 'NL Central', 'league': 'National League'},
+            {'id': 135, 'name': 'Padres', 'full_name': 'San Diego Padres', 'abbreviation': 'SD', 'division': 'NL West', 'league': 'National League'},
+            {'id': 136, 'name': 'Mariners', 'full_name': 'Seattle Mariners', 'abbreviation': 'SEA', 'division': 'AL West', 'league': 'American League'},
+            {'id': 137, 'name': 'Giants', 'full_name': 'San Francisco Giants', 'abbreviation': 'SF', 'division': 'NL West', 'league': 'National League'},
+            {'id': 138, 'name': 'Cardinals', 'full_name': 'St. Louis Cardinals', 'abbreviation': 'STL', 'division': 'NL Central', 'league': 'National League'},
+            {'id': 139, 'name': 'Rays', 'full_name': 'Tampa Bay Rays', 'abbreviation': 'TB', 'division': 'AL East', 'league': 'American League'},
+            {'id': 140, 'name': 'Rangers', 'full_name': 'Texas Rangers', 'abbreviation': 'TEX', 'division': 'AL West', 'league': 'American League'},
+            {'id': 141, 'name': 'Blue Jays', 'full_name': 'Toronto Blue Jays', 'abbreviation': 'TOR', 'division': 'AL East', 'league': 'American League'},
+            {'id': 142, 'name': 'Twins', 'full_name': 'Minnesota Twins', 'abbreviation': 'MIN', 'division': 'AL Central', 'league': 'American League'},
+            {'id': 143, 'name': 'Phillies', 'full_name': 'Philadelphia Phillies', 'abbreviation': 'PHI', 'division': 'NL East', 'league': 'National League'},
+            {'id': 144, 'name': 'Braves', 'full_name': 'Atlanta Braves', 'abbreviation': 'ATL', 'division': 'NL East', 'league': 'National League'},
+            {'id': 145, 'name': 'White Sox', 'full_name': 'Chicago White Sox', 'abbreviation': 'CWS', 'division': 'AL Central', 'league': 'American League'},
+            {'id': 146, 'name': 'Marlins', 'full_name': 'Miami Marlins', 'abbreviation': 'MIA', 'division': 'NL East', 'league': 'National League'},
+            {'id': 147, 'name': 'Yankees', 'full_name': 'New York Yankees', 'abbreviation': 'NYY', 'division': 'AL East', 'league': 'American League'},
+            {'id': 158, 'name': 'Brewers', 'full_name': 'Milwaukee Brewers', 'abbreviation': 'MIL', 'division': 'NL Central', 'league': 'National League'}
         ]
         
-        logger.info(f"Initialized with {len(self._mlb_teams)} hardcoded MLB teams")
+        logger.info(f"Initialized with {len(self._mlb_teams)} hardcoded MLB teams including division information")
         
         # Rate limiting settings
         self.last_request_time = 0
@@ -81,10 +80,38 @@ class MLBDataFetcher:
             self.min_request_interval = 0.5
             
         logger.info(f"Using API rate limit of {self.min_request_interval} seconds between requests")
-        
+    
     def get_mlb_teams(self):
         """Get all MLB teams"""
         return self._mlb_teams
+    
+    def get_division_info(self, team_id):
+        """
+        Helper function to get division information for a specific team
+        
+        Args:
+            team_id: MLB team ID
+            
+        Returns:
+            Dictionary with division information or None if team not found
+        """
+        # Convert team_id to integer for comparison
+        try:
+            team_id = int(team_id)
+        except ValueError:
+            logger.error(f"Invalid team ID format: {team_id}")
+            return None
+        
+        # Find the team in the hardcoded list
+        for team in self._mlb_teams:
+            if team['id'] == team_id:
+                return {
+                    'division': team.get('division', 'Unknown'),
+                    'league': team.get('league', 'Unknown')
+                }
+        
+        logger.warning(f"Team with ID {team_id} not found")
+        return None
     
     def _rate_limit_request(self):
         """Apply rate limiting to API requests with reduced delay"""
@@ -211,7 +238,7 @@ class MLBDataFetcher:
         return team_stats
     
     def _fetch_team_stats(self, team, season):
-        """Fetch stats for a specific team with improved validation
+        """Fetch stats for a specific team with improved validation and division information
         
         Args:
             team: Team dict with id, name, etc.
@@ -220,6 +247,8 @@ class MLBDataFetcher:
         team_id = team['id']
         team_name = team['name']
         team_abbrev = team['abbreviation']
+        team_division = team.get('division', 'Unknown')
+        team_league = team.get('league', 'Unknown')
         
         try:
             logger.info(f"Fetching stats for {team_name} (ID: {team_id})")
@@ -261,6 +290,8 @@ class MLBDataFetcher:
                     "name": team_name,
                     "full_name": team['full_name'],
                     "abbreviation": team_abbrev,
+                    "division": team_division,
+                    "league": team_league,
                     "era": round(random.uniform(3.0, 5.0), 2),  # Random ERA between 3.0 and 5.0
                     "ops": round(random.uniform(0.65, 0.85), 3),  # Random OPS between 0.65 and 0.85
                     "logo": f"/static/logos/{team_name.lower()}.png"
@@ -332,6 +363,8 @@ class MLBDataFetcher:
                 "name": team_name,
                 "full_name": team['full_name'],
                 "abbreviation": team_abbrev,
+                "division": team_division,
+                "league": team_league,
                 "era": era,
                 "ops": ops,
                 "logo": f"/static/logos/{logo_name}.png"
@@ -391,6 +424,13 @@ class MLBDataFetcher:
                             logger.warning(f"Skipping team with non-numeric OPS {team.get('ops')}: {team.get('name', 'Unknown')}")
                             continue
                         
+                        # Add division info to fallback data if not present
+                        if 'division' not in team or 'league' not in team:
+                            division_info = self.get_division_info(team.get('id'))
+                            if division_info:
+                                team['division'] = division_info.get('division', 'Unknown')
+                                team['league'] = division_info.get('league', 'Unknown')
+                        
                         # Add valid team to result
                         valid_data.append(team)
                     
@@ -408,13 +448,13 @@ class MLBDataFetcher:
             current_app.logger.warning("Using hardcoded fallback data")
             
         fallback_data = [
-            {"id": 121, "name": "Mets", "full_name": "New York Mets", "abbreviation": "NYM", "era": 2.00, "ops": 0.700, "logo": "/static/logos/mets.png"},
-            {"id": 137, "name": "Giants", "full_name": "San Francisco Giants", "abbreviation": "SF", "era": 2.55, "ops": 0.650, "logo": "/static/logos/giants.png"},
-            {"id": 113, "name": "Reds", "full_name": "Cincinnati Reds", "abbreviation": "CIN", "era": 2.90, "ops": 0.610, "logo": "/static/logos/reds.png"},
-            {"id": 118, "name": "Royals", "full_name": "Kansas City Royals", "abbreviation": "KC", "era": 3.00, "ops": 0.650, "logo": "/static/logos/royals.png"},
-            {"id": 139, "name": "Rays", "full_name": "Tampa Bay Rays", "abbreviation": "TB", "era": 3.10, "ops": 0.700, "logo": "/static/logos/rays.png"},
-            {"id": 119, "name": "Dodgers", "full_name": "Los Angeles Dodgers", "abbreviation": "LAD", "era": 3.10, "ops": 0.740, "logo": "/static/logos/dodgers.png"},
-            {"id": 147, "name": "Yankees", "full_name": "New York Yankees", "abbreviation": "NYY", "era": 4.60, "ops": 0.850, "logo": "/static/logos/yankees.png"}
+            {"id": 121, "name": "Mets", "full_name": "New York Mets", "abbreviation": "NYM", "division": "NL East", "league": "National League", "era": 2.00, "ops": 0.700, "logo": "/static/logos/mets.png"},
+            {"id": 137, "name": "Giants", "full_name": "San Francisco Giants", "abbreviation": "SF", "division": "NL West", "league": "National League", "era": 2.55, "ops": 0.650, "logo": "/static/logos/giants.png"},
+            {"id": 113, "name": "Reds", "full_name": "Cincinnati Reds", "abbreviation": "CIN", "division": "NL Central", "league": "National League", "era": 2.90, "ops": 0.610, "logo": "/static/logos/reds.png"},
+            {"id": 118, "name": "Royals", "full_name": "Kansas City Royals", "abbreviation": "KC", "division": "AL Central", "league": "American League", "era": 3.00, "ops": 0.650, "logo": "/static/logos/royals.png"},
+            {"id": 139, "name": "Rays", "full_name": "Tampa Bay Rays", "abbreviation": "TB", "division": "AL East", "league": "American League", "era": 3.10, "ops": 0.700, "logo": "/static/logos/rays.png"},
+            {"id": 119, "name": "Dodgers", "full_name": "Los Angeles Dodgers", "abbreviation": "LAD", "division": "NL West", "league": "National League", "era": 3.10, "ops": 0.740, "logo": "/static/logos/dodgers.png"},
+            {"id": 147, "name": "Yankees", "full_name": "New York Yankees", "abbreviation": "NYY", "division": "AL East", "league": "American League", "era": 4.60, "ops": 0.850, "logo": "/static/logos/yankees.png"}
         ]
         
         return fallback_data
