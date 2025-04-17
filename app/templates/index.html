@@ -149,6 +149,64 @@
                 </div>
             </div>
         </div>
+        <section class="division-insights">
+            <h2>Division & League Insights</h2>
+            <div class="insights-grid">
+                <div class="insights-card al">
+                    <h3>American League</h3>
+                    <div class="insights-content">
+                        <div class="insight-stat">
+                            <span class="stat-label">Avg ERA</span>
+                            <span class="stat-value" id="al-avg-era">-</span>
+                        </div>
+                        <div class="insight-stat">
+                            <span class="stat-label">Avg OPS</span>
+                            <span class="stat-value" id="al-avg-ops">-</span>
+                        </div>
+                        <div class="insight-stat">
+                            <span class="stat-label">Most Well-Rounded</span>
+                            <span class="stat-value" id="al-best-team">-</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="insights-card nl">
+                    <h3>National League</h3>
+                    <div class="insights-content">
+                        <div class="insight-stat">
+                            <span class="stat-label">Avg ERA</span>
+                            <span class="stat-value" id="nl-avg-era">-</span>
+                        </div>
+                        <div class="insight-stat">
+                            <span class="stat-label">Avg OPS</span>
+                            <span class="stat-value" id="nl-avg-ops">-</span>
+                        </div>
+                        <div class="insight-stat">
+                            <span class="stat-label">Most Well-Rounded</span>
+                            <span class="stat-value" id="nl-best-team">-</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="insights-card performance">
+                    <h3>Performance Trends</h3>
+                    <div class="trends-content">
+                        <div class="trend-stat">
+                            <span class="trend-label">Best Pitching Division</span>
+                            <span class="trend-value" id="best-pitching-division">-</span>
+                        </div>
+                        <div class="trend-stat">
+                            <span class="trend-label">Best Hitting Division</span>
+                            <span class="trend-value" id="best-hitting-division">-</span>
+                        </div>
+                        <div class="trend-stat">
+                            <span class="trend-label">Most Balanced Division</span>
+                            <span class="trend-value" id="most-balanced-division">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
         
         <section class="metrics-explanation">
             <h2>Understanding ERA vs OPS</h2>
@@ -223,6 +281,8 @@
                 </div>
             </div>
         </section>
+        
+
     </main>
     
     <!-- Add a footer with API credits and GitHub repo link -->
@@ -251,6 +311,7 @@
     <script src="{{ url_for('static', filename='js/mlb-filter-utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/mlb-stats-analyzer.js') }}"></script>
     <script src="{{ url_for('static', filename='js/division-filter.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/insights.js') }}"></script>
     <script src="{{ url_for('static', filename='js/index.js') }}"></script>
     
 </body>

@@ -340,3 +340,189 @@
 .division-toggle[data-division^="NL"].active {
     background-color: var(--mlb-red);
 }
+
+/* Division & League Insights */
+.division-insights {
+    margin: 3rem 0;
+}
+
+.division-insights h2 {
+    color: var(--mlb-blue);
+    margin-bottom: 2rem;
+    text-align: center;
+    font-size: 1.8rem;
+}
+
+.insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-top: 1.5rem;
+}
+
+.insights-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: var(--card-shadow);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.insights-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+}
+
+.insights-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.insights-card h3 {
+    color: var(--mlb-blue);
+    margin-bottom: 1.5rem;
+    font-size: 1.4rem;
+    position: relative;
+    padding-bottom: 0.5rem;
+}
+
+.insights-card h3::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 40px;
+    height: 3px;
+    background: var(--mlb-blue);
+}
+
+.insights-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.insight-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--background-light);
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.insight-stat:hover {
+    background: rgba(0, 45, 114, 0.05);
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.stat-value {
+    font-weight: 700;
+    color: var(--mlb-blue);
+    font-size: 1.1rem;
+}
+
+.division-leaders {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.division-leader {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--background-light);
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.division-leader:hover {
+    background: rgba(0, 45, 114, 0.05);
+}
+
+.division-leader h4 {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin: 0;
+    font-weight: 500;
+}
+
+.leader-team {
+    font-weight: 700;
+    color: var(--mlb-blue);
+    font-size: 1.1rem;
+}
+
+.trends-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.trend-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--background-light);
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.trend-stat:hover {
+    background: rgba(0, 45, 114, 0.05);
+}
+
+.trend-label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.trend-value {
+    font-weight: 700;
+    color: var(--mlb-blue);
+    font-size: 1.1rem;
+}
+
+/* League-specific card colors */
+.insights-card.al::before {
+    background: #002D72; /* AL Blue */
+}
+
+.insights-card.nl::before {
+    background: #D50032; /* NL Red */
+}
+
+.insights-card.division::before {
+    background: #FFB81C; /* MLB Gold */
+}
+
+.insights-card.performance::before {
+    background: #00A9E0; /* MLB Light Blue */
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .insights-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .division-leaders {
+        grid-template-columns: 1fr;
+    }
+}
