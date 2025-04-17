@@ -535,6 +535,8 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
             const label = document.getElementById(id);
             if (label) {
                 const pos = positions[id];
+                // Simply set the position without any offset adjustments
+                // The transform: translate(-50%, -50%) in CSS will handle centering
                 label.style.left = (chartWidth * pos.x) + 'px';
                 label.style.top = (chartHeight * pos.y) + 'px';
             }

@@ -108,13 +108,14 @@
     color: white;
 }
 
-/* Update progress */
+/* Update progress - improved compact design */
 .update-progress {
     display: none;
-    margin: 1rem 0;
-    padding: 1rem;
+    margin: 0.5rem 0;
+    padding: 0.5rem 0.75rem;
     background-color: rgba(0, 45, 114, 0.05);
-    border-radius: 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 45, 114, 0.1);
 }
 
 .update-progress.visible {
@@ -123,34 +124,50 @@
 
 .progress-bar-container {
     width: 100%;
-    height: 20px;
+    height: 10px; /* Reduced from 20px */
     background-color: #f0f0f0;
-    border-radius: 10px;
+    border-radius: 5px;
     overflow: hidden;
-    margin: 0.5rem 0;
+    margin: 0.3rem 0; /* Reduced from 0.5rem */
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .progress-bar {
     height: 100%;
     background-color: var(--mlb-blue);
+    background-image: linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.15) 25%,
+        transparent 25%,
+        transparent 50%,
+        rgba(255, 255, 255, 0.15) 50%,
+        rgba(255, 255, 255, 0.15) 75%,
+        transparent 75%,
+        transparent
+    );
+    background-size: 20px 20px;
     transition: width 0.3s ease;
 }
 
 #progress-text {
     text-align: center;
     color: var(--text-light);
-    font-size: 0.9rem;
+    font-size: 0.8rem; /* Reduced from 0.9rem */
+    margin-top: 0.1rem;
 }
 
-/* Refresh button */
+/* Refresh button - improved spacing and styling */
 .refresh-button {
     background-color: var(--mlb-blue);
     color: white;
     border: none;
-    padding: 0.5rem 1rem;
+    padding: 0.4rem 0.8rem;
     border-radius: 4px;
     cursor: pointer;
     transition: background-color 0.2s ease;
+    margin-left: 12px; /* Added margin to create space */
+    font-size: 0.85rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .refresh-button:hover {
@@ -322,4 +339,4 @@
 
 .division-toggle[data-division^="NL"].active {
     background-color: var(--mlb-red);
-} 
+}

@@ -86,13 +86,16 @@ p {
     font-weight: bold;
 }
 
+/* Status indicator - improved spacing */
 .status-indicator-title {
     display: inline-block;
     margin-left: 8px;
-    width: 10px;
-    height: 10px;
+    margin-right: 12px; /* Added margin to create space from refresh button */
+    width: 8px; /* Reduced from 10px for a more refined look */
+    height: 8px; /* Reduced from 10px */
     border-radius: 50%;
     background-color: #ccc;
+    vertical-align: middle; /* Added to align with text */
 }
 
 .status-indicator-title.active {
@@ -104,4 +107,4 @@ p {
     0% { opacity: 1; }
     50% { opacity: 0.5; }
     100% { opacity: 1; }
-} 
+}

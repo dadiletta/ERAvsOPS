@@ -41,39 +41,74 @@ img {
     opacity: 1 !important;
 }
 
-/* Quadrant labels */
+/* Quadrant labels - more transparent and behind team logos */
 .quadrant-label {
     position: absolute;
-    font-size: 0.7rem;
-    font-weight: bold;
-    color: rgba(0, 45, 114, 0.7);
-    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
-    z-index: 10;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgba(0, 45, 114, 0.85);
+    z-index: 5; /* Reduced from 10 to place behind logos (which are 15) */
     pointer-events: none;
-    background-color: rgba(255, 255, 255, 0.7);
-    padding: 2px 6px;
-    border-radius: 3px;
-    white-space: nowrap;
+    background-color: rgba(255, 255, 255, 0.6); /* More transparent background */
+    padding: 8px 12px;
+    border-radius: 8px;
+    white-space: normal;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 45, 114, 0.1);
+    transform: translate(-50%, -50%); /* Center the label at its position */
+    min-width: 100px;
+    min-height: 45px;
+    height: auto;
+    width: auto;
+    max-width: 140px;
+    line-height: 1.2;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
 }
 
+/* Position default quadrant labels - these will be overridden by JS */
 #top-left {
-    top: 5%;
-    left: 5%;
+    top: 15%;
+    left: 15%;
 }
 
 #top-right {
-    top: 5%;
-    right: 5%;
+    top: 15%;
+    right: 15%;
 }
 
 #bottom-left {
-    bottom: 5%;
-    left: 5%;
+    bottom: 15%;
+    left: 15%;
 }
 
 #bottom-right {
-    bottom: 5%;
-    right: 5%;
+    bottom: 15%;
+    right: 15%;
+}
+
+/* Keep quadrant labels small at smaller screen sizes */
+@media (max-width: 768px) {
+    .quadrant-label {
+        font-size: 0.65rem;
+        padding: 6px 10px;
+        min-width: 80px;
+        min-height: 40px;
+        max-width: 110px;
+    }
+}
+
+@media (max-width: 480px) {
+    .quadrant-label {
+        font-size: 0.6rem;
+        padding: 5px 8px;
+        min-width: 70px;
+        min-height: 35px;
+        max-width: 90px;
+    }
 }
 
 /* Division toggles */
@@ -171,4 +206,4 @@ img {
 
 .division-toggle[data-division^="NL"].active {
     background-color: var(--mlb-red);
-} 
+}

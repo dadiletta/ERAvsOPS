@@ -43,7 +43,7 @@
     }
     
     .quadrant-label {
-        font-size: 1rem;
+        font-size: 0.65rem;
     }
     
     .update-progress {
@@ -74,7 +74,7 @@
     }
     
     .quadrant-label {
-        font-size: 0.9rem;
+        font-size: 0.6rem;
     }
     
     .spacer {
@@ -96,4 +96,11 @@
         flex-wrap: wrap;
         justify-content: center;
     }
-} 
+    
+    .quadrant-label {
+        font-size: 0.55rem;
+        min-width: 70px;
+        max-width: 90px;
+        padding: 4px 6px;
+    }
+}
