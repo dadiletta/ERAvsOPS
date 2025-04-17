@@ -1,0 +1,28 @@
+/* MLB theme colors */
+:root {
+    --mlb-blue: #002D72;
+    --mlb-red: #E31937;
+    --mlb-blue-light: #004db4;
+    --mlb-red-light: #ff4d6d;
+    --logo-width: 34px; /* Increased logo size */
+    --logo-height: 34px; /* Keep logos square for consistency */
+    
+    /* Additional colors */
+    --background-light: #f8f9fa;
+    --text-dark: #333;
+    --text-light: #666;
+    --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --gradient-blue: linear-gradient(135deg, var(--mlb-blue), var(--mlb-blue-light));
+    --gradient-red: linear-gradient(135deg, var(--mlb-red), var(--mlb-red-light));
+    
+    /* Scale colors */
+    --excellent: #4caf50;
+    --good: #8bc34a;
+    --average: #ffc107;
+    --poor: #f44336;
+    
+    /* Status colors */
+    --status-fresh: #4CAF50;
+    --status-stale: #FFC107;
+    --status-error: #F44336;
+} 

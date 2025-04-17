@@ -1,0 +1,325 @@
+/* Metrics explanation */
+.metrics-explanation {
+    margin-top: 3rem;
+}
+
+.metric-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.metric-card {
+    padding: 1.5rem;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: var(--card-shadow);
+    transition: transform 0.2s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-5px);
+}
+
+.metric-value {
+    font-size: 1.2rem;
+    color: var(--mlb-blue);
+    margin-bottom: 1rem;
+    font-weight: bold;
+}
+
+.metric-details {
+    margin-top: 1rem;
+}
+
+.calculation {
+    font-family: 'Courier New', Courier, monospace;
+    background-color: var(--background-light);
+    padding: 0.5rem;
+    border-radius: 4px;
+    margin: 0.5rem 0;
+}
+
+.calculation-details {
+    list-style: none;
+    padding-left: 1.5rem;
+}
+
+.calculation-details li {
+    position: relative;
+    margin-bottom: 0.5rem;
+    padding-left: 1rem;
+}
+
+.calculation-details li::before {
+    content: '•';
+    position: absolute;
+    left: -1rem;
+    color: var(--mlb-blue);
+}
+
+.metric-history {
+    font-style: italic;
+    color: var(--text-light);
+    margin-top: 1rem;
+    line-height: 1.6;
+}
+
+/* Scale */
+.scale {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 1rem;
+}
+
+.scale-item {
+    flex: 1;
+    text-align: center;
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.scale-item span {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: normal;
+    margin-top: 0.25rem;
+}
+
+.scale-item.excellent {
+    background-color: var(--excellent);
+    color: white;
+}
+
+.scale-item.good {
+    background-color: var(--good);
+    color: white;
+}
+
+.scale-item.average {
+    background-color: var(--average);
+    color: var(--text-dark);
+}
+
+.scale-item.poor {
+    background-color: var(--poor);
+    color: white;
+}
+
+/* Update progress */
+.update-progress {
+    display: none;
+    margin: 1rem 0;
+    padding: 1rem;
+    background-color: rgba(0, 45, 114, 0.05);
+    border-radius: 8px;
+}
+
+.update-progress.visible {
+    display: block;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 20px;
+    background-color: #f0f0f0;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 0.5rem 0;
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: var(--mlb-blue);
+    transition: width 0.3s ease;
+}
+
+#progress-text {
+    text-align: center;
+    color: var(--text-light);
+    font-size: 0.9rem;
+}
+
+/* Refresh button */
+.refresh-button {
+    background-color: var(--mlb-blue);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.refresh-button:hover {
+    background-color: var(--mlb-blue-light);
+}
+
+/* Division toggles */
+.division-toggles {
+    margin-bottom: 0;
+    text-align: center;
+    position: relative;
+    z-index: 20;
+}
+
+.toggle-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.toggle-header h4 {
+    margin: 0;
+    color: var(--mlb-blue);
+    font-size: 0.7rem;
+}
+
+.toggle-actions {
+    display: flex;
+    gap: 2px;
+}
+
+.toggle-action-btn {
+    background: none;
+    border: 1px solid var(--mlb-blue);
+    color: var(--mlb-blue);
+    padding: 0 4px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.6rem;
+    transition: all 0.2s ease;
+}
+
+.toggle-action-btn:hover {
+    background-color: var(--mlb-blue);
+    color: white;
+}
+
+.toggle-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px;
+}
+
+.league-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.league-label {
+    font-weight: bold;
+    color: var(--mlb-blue);
+    text-align: center;
+    padding: 0 4px;
+    background-color: rgba(0, 45, 114, 0.1);
+    border-radius: 10px;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.league-group:nth-child(2) .league-label {
+    color: var(--mlb-red);
+    background-color: rgba(227, 25, 55, 0.1);
+}
+
+.division-btn-group {
+    display: flex;
+    gap: 2px;
+}
+
+.division-toggle {
+    padding: 0 4px;
+    border-radius: 10px;
+    border: 1px solid var(--mlb-blue);
+    background-color: #e0e0e0;
+    color: var(--mlb-blue);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.55rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    height: 14px;
+    line-height: 12px;
+    min-width: 40px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.division-toggle:hover {
+    background-color: rgba(0, 45, 114, 0.2);
+}
+
+.division-toggle.active {
+    background-color: var(--mlb-blue);
+    color: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.division-toggle[data-division^="AL"] {
+    border-color: var(--mlb-blue);
+    color: var(--mlb-blue);
+}
+
+.division-toggle[data-division^="AL"]:hover {
+    background-color: rgba(0, 45, 114, 0.2);
+}
+
+.division-toggle[data-division^="AL"].active {
+    background-color: var(--mlb-blue);
+    color: white;
+}
+
+.division-toggle[data-division^="NL"] {
+    border-color: var(--mlb-red);
+    color: var(--mlb-red);
+}
+
+.division-toggle[data-division^="NL"]:hover {
+    background-color: rgba(227, 25, 55, 0.2);
+}
+
+.division-toggle[data-division^="NL"].active {
+    background-color: var(--mlb-red);
+    color: white;
+}
+
+/* Hidden state overrides all other states */
+.division-toggle.hidden {
+    background-color: #e0e0e0 !important;
+    border-color: #b0b0b0 !important;
+    color: #808080 !important;
+    cursor: not-allowed;
+    box-shadow: none !important;
+}
+
+.division-toggle.hidden:hover {
+    background-color: #e0e0e0 !important;
+}
+
+/* Override the default background for both AL and NL buttons */
+.division-toggle[data-division^="AL"],
+.division-toggle[data-division^="NL"] {
+    background-color: #e0e0e0;
+}
+
+/* Active states override the gray background */
+.division-toggle[data-division^="AL"].active,
+.division-toggle[data-division^="NL"].active {
+    background-color: var(--mlb-blue);
+}
+
+.division-toggle[data-division^="NL"].active {
+    background-color: var(--mlb-red);
+} 
