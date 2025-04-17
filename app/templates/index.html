@@ -87,6 +87,28 @@
     <!-- Full-screen hero section with chart -->
     <header class="hero">
         <div class="hero-content">
+            <div class="division-toggles">
+                <div class="toggle-buttons">
+                    <!-- American League -->
+                    <div class="league-group">
+                        <div class="league-label">AL</div>
+                        <div class="division-btn-group">
+                            <button class="division-toggle active" data-division="AL East">East</button>
+                            <button class="division-toggle active" data-division="AL Central">Central</button>
+                            <button class="division-toggle active" data-division="AL West">West</button>
+                        </div>
+                    </div>
+                    <!-- National League -->
+                    <div class="league-group">
+                        <div class="league-label">NL</div>
+                        <div class="division-btn-group">
+                            <button class="division-toggle active" data-division="NL East">East</button>
+                            <button class="division-toggle active" data-division="NL Central">Central</button>
+                            <button class="division-toggle active" data-division="NL West">West</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="chart-container">
                 <canvas id="mlbChart"></canvas>
                 
@@ -219,10 +241,11 @@
     <script src="{{ url_for('static', filename='js/api.js') }}"></script>
     <script src="{{ url_for('static', filename='js/history.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/index.js') }}"></script>
     <script src="{{ url_for('static', filename='js/mlb-division-utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/mlb-filter-utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/mlb-stats-analyzer.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/division-filter.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/index.js') }}"></script>
     
 </body>
 </html>

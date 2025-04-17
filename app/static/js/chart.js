@@ -166,7 +166,7 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
     };
     
     /**
-     * Initialize chart when DOM is fully loaded
+     * Initialize chart when DOM is fully loaded with division filter support
      */
     function initializeChart() {
         // Get team data passed from Flask
@@ -179,8 +179,8 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
         
         // Create datasets for team positioning
         const teamPoints = teamData.map(team => ({
-            x: team.ops,
-            y: team.era,
+            x: parseFloat(team.ops),
+            y: parseFloat(team.era),
             team: team.name,
             fullName: team.full_name || team.name,
             abbreviation: team.abbreviation,
@@ -204,6 +204,7 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
             type: 'scatter',
             data: {
                 datasets: [{
+                    label: 'MLB Teams',
                     data: teamPoints,
                     pointStyle: function(context) {
                         const index = context.dataIndex;
@@ -222,7 +223,6 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
                     },
                     // Match pointRadius to half the logo size for proper scaling
                     pointRadius: CONFIG.logoSize / 2,
-                    z: 20,
                     backgroundColor: 'rgba(0, 0, 0, 0)'
                 }]
             },
@@ -411,6 +411,15 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
         // Set up history tracking
         MLBHistory.setupHistoryTracking(mlbChart);
         
+        // Apply division filtering if initialized
+        if (typeof MLBDivisionFilter !== 'undefined' && 
+            typeof MLBDivisionFilter.isInitialized === 'function' && 
+            MLBDivisionFilter.isInitialized()) {
+            setTimeout(() => {
+                MLBDivisionFilter.applyDivisionFilter();
+            }, 500);
+        }
+        
         // Force a redraw after a slight delay to ensure logos appear
         setTimeout(() => {
             if (mlbChart) {
@@ -424,7 +433,6 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
         
         logger.info("Chart initialization completed");
     }
-    
     /**
      * Get division information for a team
      * @param {number} teamId - Team ID
@@ -534,7 +542,7 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
     }
     
     /**
-     * Function to update chart data with animation
+     * Function to update chart data with fixed animation
      */
     function updateChartData(newData) {
         if (!mlbChart) {
@@ -544,56 +552,63 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
         
         logger.info("Updating chart with new data...");
         
-        // Preload new team logos
-        preloadTeamLogos(newData);
+        // Make sure we have non-empty data
+        if (!newData || newData.length === 0) {
+            logger.error("No data provided to update chart");
+            return false;
+        }
         
         // Format data for chart
         const formattedData = newData.map(team => ({
-            x: team.ops,
-            y: team.era,
+            x: parseFloat(team.ops),
+            y: parseFloat(team.era),
             team: team.name,
             fullName: team.full_name || team.name,
             abbreviation: team.abbreviation,
             logo: team.logo,
-            id: team.id,  // Important: Include team ID for history tracking
+            id: team.id,
             division: team.division || 'Unknown',
             league: team.league || 'Unknown'
         }));
         
-        // Update chart data with animation for smoother transition
-        const chart = mlbChart;
+        // Preload team logos
+        preloadTeamLogos(newData);
         
-        // First update the data
+        // Update chart data preserving team identity
+        const chart = mlbChart;
         chart.data.datasets[0].data = formattedData;
         
-        // Then apply a longer animation duration for this update
+        // Update with minimal animation
         chart.options.animation = {
-            duration: 1200,
+            duration: 300,
             easing: 'easeOutQuad'
         };
         
-        // Update and animate
-        chart.update();
+        chart.update('none');
         
-        // Return to normal animation duration after this update
-        setTimeout(() => {
-            chart.options.animation = {
-                duration: CONFIG.animation.duration,
-                easing: CONFIG.animation.easing
-            };
-            
-            // Force another update to ensure all logos are visible
-            chart.update();
-        }, 1500);
+        // Reset animation settings
+        chart.options.animation = {
+            duration: CONFIG.animation.duration,
+            easing: CONFIG.animation.easing
+        };
+        
+        // Apply division filtering if initialized
+        if (typeof MLBDivisionFilter !== 'undefined' && 
+            typeof MLBDivisionFilter.isInitialized === 'function' && 
+            MLBDivisionFilter.isInitialized()) {
+            setTimeout(() => {
+                MLBDivisionFilter.applyDivisionFilter();
+            }, 100);
+        }
         
         // Reposition quadrant labels
-        setTimeout(positionQuadrantLabels, 1600);
+        setTimeout(positionQuadrantLabels, 500);
         
-        logger.info("Chart data updated with animation");
+        logger.info("Chart data updated with minimal animation");
         
         return true;
     }
-    
+     
     // Public API
     return {
         initialize: initializeChart,

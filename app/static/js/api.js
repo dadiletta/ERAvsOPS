@@ -222,7 +222,8 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
                 logger.log(`Received fresh data with ${data.length} teams`);
                 showToast("Data update complete!", "success");
                 
-                // Update chart with animation
+                // Update chart with all data
+                // Division filter will be applied automatically by the chart
                 if (typeof MLBChart.updateChartData === 'function') {
                     const updated = MLBChart.updateChartData(data);
                     if (updated) {
@@ -244,6 +245,25 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
             }
         });
     }
+    /**
+     * Helper function to update the chart
+     * @param {Array} data - Team data to update the chart with
+     */
+    function updateChart(data) {
+        if (typeof MLBChart.updateChartData === 'function') {
+            const updated = MLBChart.updateChartData(data);
+            if (updated) {
+                logger.log("Chart updated successfully");
+            } else {
+                logger.log("Chart update failed");
+                showToast("Chart update failed", "warning");
+            }
+        } else {
+            console.error("updateChartData function not available");
+            logger.log("updateChartData function not found");
+            showToast("Could not update visualization", "error");
+        }
+    }
     
     /**
      * Initialize data from the server
@@ -264,12 +284,43 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
         }
     }
     
+    /**
+     * Fetch division information for a specific team
+     * @param {number} teamId - The team ID
+     * @returns {Promise} Promise that resolves with division data
+     */
+    function fetchTeamDivision(teamId) {
+        logger.log(`Fetching division info for team ID: ${teamId}`);
+        
+        return $.ajax({
+            url: `/api/team-division/${teamId}`,
+            method: 'GET',
+            dataType: 'json',
+            cache: true,  // Enable caching for this request
+            success: function(data) {
+                logger.log(`Received division info for ${data.team_name}`, data);
+                // Add to local cache
+                if (!window.divisionCache) {
+                    window.divisionCache = {};
+                }
+                window.divisionCache[teamId] = data;
+                return data;
+            },
+            error: function(xhr, status, error) {
+                console.error(`Error fetching division info for team ${teamId}:`, error);
+                logger.error("AJAX error details:", {xhr: xhr, status: status, error: error});
+                return null;
+            }
+        });
+    }
+    
     // Public API
     return {
         initialize: initializeData,
         startUpdate: startUpdate,
         checkUpdateStatus: checkUpdateStatus,
         fetchFreshData: fetchFreshData,
-        isUpdating: function() { return state.isUpdating; }
+        isUpdating: function() { return state.isUpdating; },
+        fetchTeamDivision: fetchTeamDivision
     };
 })(window, document, jQuery, MLBConfig);

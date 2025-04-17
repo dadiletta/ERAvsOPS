@@ -21,6 +21,9 @@
         // Then initialize chart
         MLBChart.initialize();
         
+        // Initialize division filter
+        MLBDivisionFilter.initialize();
+        
         // Finally initialize data and API
         MLBAPI.initialize();
         
@@ -36,7 +39,8 @@
         checkStatus: MLBAPI.checkUpdateStatus,
         refresh: MLBAPI.fetchFreshData,
         reloadChart: MLBChart.forceUpdate,
-        repositionLabels: MLBChart.positionQuadrantLabels
+        repositionLabels: MLBChart.positionQuadrantLabels,
+        resetDivisionFilters: MLBDivisionFilter.resetFilters
     };
     
 })(window, document, jQuery);
