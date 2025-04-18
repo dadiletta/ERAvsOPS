@@ -90,12 +90,32 @@ const MLBDivisionFilter = (function(window, document, $, MLBConfig) {
             
             // Set hidden property based on division
             const visible = state.activeDivisions.has(team.division);
-            chart.getDatasetMeta(0).data[i].hidden = !visible;
+            const chartPoint = chart.getDatasetMeta(0).data[i];
+            chartPoint.hidden = !visible;
+            
+            // ADDITIONAL CODE: Apply custom attribute to help with CSS targeting
+            if (chartPoint._view && chartPoint._view.controlPoint) {
+                chartPoint._view.controlPoint.skip = !visible;
+            }
+            
+            // Set custom attribute that can be used by event handlers
+            chartPoint.options = chartPoint.options || {};
+            chartPoint.options.hoverEnabled = visible;
+            chartPoint.options.events = visible ? ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove'] : [];
         }
         
-        // Update the chart with no animation
+        // Force an update with specific options to avoid flickering
         const originalDuration = chart.options.animation.duration;
         chart.options.animation.duration = 0;
+        
+        // Add a custom hidden class to all hidden points for CSS targeting
+        const canvas = chart.canvas;
+        canvas.setAttribute('data-has-hidden', 'true');
+        
+        // Clear any existing hover states to prevent stuck tooltips
+        chart.tooltip._active = [];
+        
+        // Update the chart
         chart.update();
         chart.options.animation.duration = originalDuration;
         

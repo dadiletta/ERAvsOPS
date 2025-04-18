@@ -91,6 +91,14 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
                 if (points.length > 0) {
                     const firstPoint = points[0];
                     const { datasetIndex, index } = firstPoint;
+                    
+                    // CHECK IF POINT IS HIDDEN - Don't show history for hidden teams
+                    if (chart.getDatasetMeta(datasetIndex).data[index].hidden) {
+                        // Reset active team if it was a hidden point
+                        activeTeamId = null;
+                        return;
+                    }
+                    
                     const dataPoint = chart.data.datasets[datasetIndex].data[index];
                     
                     // Get the team ID from the data point
@@ -150,6 +158,12 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
         // Get the hovered point
         const activePoint = tooltip._active[0];
         const { datasetIndex, index } = activePoint;
+        
+        // CHECK IF POINT IS HIDDEN - Don't draw history for hidden teams
+        if (chart.getDatasetMeta(datasetIndex).data[index].hidden) {
+            return;
+        }
+        
         const dataPoint = chart.data.datasets[datasetIndex].data[index];
         
         // Skip if no team ID

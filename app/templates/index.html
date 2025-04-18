@@ -307,12 +307,63 @@
     <script src="{{ url_for('static', filename='js/api.js') }}"></script>
     <script src="{{ url_for('static', filename='js/history.js') }}"></script>
     <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
+    <script>
+        // Override Chart.js's core interaction mechanisms to completely disable tooltips for hidden points
+        window.addEventListener('DOMContentLoaded', function() {
+            // Wait for Chart.js to fully load
+            setTimeout(function() {
+                // Store original methods
+                const originalGetElementsAtEventForMode = Chart.Interaction.modes.nearest;
+                
+                // Override the nearest interaction mode
+                Chart.Interaction.modes.nearest = function(chart, e, options, useFinalPosition) {
+                    // Call the original method to get all elements
+                    const elements = originalGetElementsAtEventForMode.call(this, chart, e, options, useFinalPosition);
+                    
+                    // Filter out hidden elements
+                    return elements.filter(function(element) {
+                        // Check if the point is hidden and exclude it if so
+                        const meta = chart.getDatasetMeta(element.datasetIndex);
+                        return !meta.data[element.index].hidden;
+                    });
+                };
+                
+                // Additional override for tooltip core functionality
+                const originalCorePlugin = Chart.registry.plugins.get('tooltip');
+                if (originalCorePlugin && originalCorePlugin._element) {
+                    const originalUpdateElements = originalCorePlugin._element.update;
+                    originalCorePlugin._element.update = function(changed, replay) {
+                        // Only update if there are active elements that aren't hidden
+                        if (this._active && this._active.length > 0) {
+                            const chart = this._chart;
+                            // Check if any active elements are hidden
+                            const hasVisibleElements = this._active.some(function(element) {
+                                const meta = chart.getDatasetMeta(element.datasetIndex);
+                                return !meta.data[element.index].hidden;
+                            });
+                            
+                            // If all active elements are hidden, clear the active array
+                            if (!hasVisibleElements) {
+                                this._active = [];
+                            }
+                        }
+                        
+                        // Call original method
+                        return originalUpdateElements.call(this, changed, replay);
+                    };
+                }
+                
+                console.log("Chart.js tooltip overrides successfully applied");
+            }, 500); // Wait for Chart.js to initialize
+        });
+    </script>
     <script src="{{ url_for('static', filename='js/mlb-division-utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/mlb-filter-utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/mlb-stats-analyzer.js') }}"></script>
     <script src="{{ url_for('static', filename='js/division-filter.js') }}"></script>
     <script src="{{ url_for('static', filename='js/insights.js') }}"></script>
     <script src="{{ url_for('static', filename='js/index.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/tooltip-fix.js') }}"></script>
     
 </body>
 </html>

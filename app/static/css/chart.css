@@ -207,3 +207,18 @@ img {
 .division-toggle[data-division^="NL"].active {
     background-color: var(--mlb-red);
 }
+
+/* Completely disable pointer events on hidden data points */
+.chartjs-render-monitor [hidden="true"],
+.chartjs-render-monitor [aria-hidden="true"],
+.chartjs-render-monitor .hidden {
+    pointer-events: none !important;
+    cursor: default !important;
+}
+
+/* Make sure all hidden elements in Chart.js don't respond to mouse events */
+.chartjs-tooltip[opacity="0"],
+.chartjs-tooltip[style*="opacity: 0"],
+canvas[data-hidden="true"] {
+    pointer-events: none !important;
+}

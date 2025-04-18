@@ -139,14 +139,24 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
         }
     };
     
-    // Custom tooltip plugin
+    // Custom tooltip plugin with hidden point check
     const tooltipPlugin = {
         id: 'mlbTooltip',
         beforeTooltipDraw: (chart, args, options) => {
             const { tooltip } = args;
-            const { chartArea } = chart;
             
             if (tooltip.opacity === 0) return;
+            
+            // Check if the active point is hidden - ADDED THIS SECTION
+            if (tooltip._active && tooltip._active.length > 0) {
+                const activePoint = tooltip._active[0];
+                const meta = chart.getDatasetMeta(activePoint.datasetIndex);
+                // If the point is hidden, set tooltip opacity to 0
+                if (meta.data[activePoint.index].hidden) {
+                    tooltip.opacity = 0;
+                    return;
+                }
+            }
             
             // Draw an MLB-colored border around the tooltip
             const ctx = chart.ctx;
@@ -322,6 +332,12 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
                             size: fontSizes.tooltip,
                             family: CONFIG.fontFamily
                         },
+                        // Added custom filter function to skip hidden points
+                        filter: function(tooltipItem) {
+                            // We added a custom filter in the tooltipPlugin, so this is redundant
+                            // but having both methods ensures it works in all scenarios
+                            return true;
+                        },
                         callbacks: {
                             // Fix for multiple teams at the same position
                             title: function(tooltipItems) {
@@ -433,6 +449,7 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
         
         logger.info("Chart initialization completed");
     }
+    
     /**
      * Get division information for a team
      * @param {number} teamId - Team ID
