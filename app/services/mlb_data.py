@@ -280,6 +280,32 @@ class MLBDataFetcher:
                     "team_stats",
                     {"teamId": team_id, "group": "hitting", "stats": "season", "season": season}
                 )
+                
+                # Apply rate limiting again before third request
+                self._rate_limit_request()
+                
+                # Get team record (wins/losses)
+                logger.info(f"Fetching team record for {team_name}")
+                
+                # Get standings data which includes win/loss records
+                try:
+                    standings_data = statsapi.standings_data(season=season)
+                    team_record = {"wins": 0, "losses": 0}
+                    
+                    # Find the team in the standings data
+                    for division_data in standings_data.values():
+                        for team_data in division_data['teams']:
+                            if team_data['team_id'] == team_id:
+                                team_record = {
+                                    "wins": team_data.get('w', 0),
+                                    "losses": team_data.get('l', 0)
+                                }
+                                break
+                except Exception as e:
+                    logger.error(f"Error fetching team record for {team_name}: {str(e)}")
+                    # Fallback values
+                    team_record = {"wins": 0, "losses": 0}
+                
             except Exception as api_error:
                 # If the API call fails, log the error and return dummy data for testing
                 logger.error(f"MLB Stats API call failed: {str(api_error)}")
@@ -294,6 +320,8 @@ class MLBDataFetcher:
                     "league": team_league,
                     "era": round(random.uniform(3.0, 5.0), 2),  # Random ERA between 3.0 and 5.0
                     "ops": round(random.uniform(0.65, 0.85), 3),  # Random OPS between 0.65 and 0.85
+                    "wins": random.randint(5, 20),  # Random wins between 5 and 20
+                    "losses": random.randint(5, 20),  # Random losses between 5 and 20
                     "logo": f"/static/logos/{team_name.lower()}.png"
                 }
             
@@ -367,6 +395,8 @@ class MLBDataFetcher:
                 "league": team_league,
                 "era": era,
                 "ops": ops,
+                "wins": team_record.get("wins", 0),
+                "losses": team_record.get("losses", 0),
                 "logo": f"/static/logos/{logo_name}.png"
             }
             logger.info(f"Successfully processed {team_name}")
@@ -431,6 +461,12 @@ class MLBDataFetcher:
                                 team['division'] = division_info.get('division', 'Unknown')
                                 team['league'] = division_info.get('league', 'Unknown')
                         
+                        # Add wins/losses if not present with default values
+                        if 'wins' not in team:
+                            team['wins'] = random.randint(5, 20)
+                        if 'losses' not in team:
+                            team['losses'] = random.randint(5, 20)
+                        
                         # Add valid team to result
                         valid_data.append(team)
                     
@@ -448,13 +484,13 @@ class MLBDataFetcher:
             current_app.logger.warning("Using hardcoded fallback data")
             
         fallback_data = [
-            {"id": 121, "name": "Mets", "full_name": "New York Mets", "abbreviation": "NYM", "division": "NL East", "league": "National League", "era": 2.00, "ops": 0.700, "logo": "/static/logos/mets.png"},
-            {"id": 137, "name": "Giants", "full_name": "San Francisco Giants", "abbreviation": "SF", "division": "NL West", "league": "National League", "era": 2.55, "ops": 0.650, "logo": "/static/logos/giants.png"},
-            {"id": 113, "name": "Reds", "full_name": "Cincinnati Reds", "abbreviation": "CIN", "division": "NL Central", "league": "National League", "era": 2.90, "ops": 0.610, "logo": "/static/logos/reds.png"},
-            {"id": 118, "name": "Royals", "full_name": "Kansas City Royals", "abbreviation": "KC", "division": "AL Central", "league": "American League", "era": 3.00, "ops": 0.650, "logo": "/static/logos/royals.png"},
-            {"id": 139, "name": "Rays", "full_name": "Tampa Bay Rays", "abbreviation": "TB", "division": "AL East", "league": "American League", "era": 3.10, "ops": 0.700, "logo": "/static/logos/rays.png"},
-            {"id": 119, "name": "Dodgers", "full_name": "Los Angeles Dodgers", "abbreviation": "LAD", "division": "NL West", "league": "National League", "era": 3.10, "ops": 0.740, "logo": "/static/logos/dodgers.png"},
-            {"id": 147, "name": "Yankees", "full_name": "New York Yankees", "abbreviation": "NYY", "division": "AL East", "league": "American League", "era": 4.60, "ops": 0.850, "logo": "/static/logos/yankees.png"}
+            {"id": 121, "name": "Mets", "full_name": "New York Mets", "abbreviation": "NYM", "division": "NL East", "league": "National League", "era": 2.00, "ops": 0.700, "wins": 12, "losses": 8, "logo": "/static/logos/mets.png"},
+            {"id": 137, "name": "Giants", "full_name": "San Francisco Giants", "abbreviation": "SF", "division": "NL West", "league": "National League", "era": 2.55, "ops": 0.650, "wins": 14, "losses": 6, "logo": "/static/logos/giants.png"},
+            {"id": 113, "name": "Reds", "full_name": "Cincinnati Reds", "abbreviation": "CIN", "division": "NL Central", "league": "National League", "era": 2.90, "ops": 0.610, "wins": 10, "losses": 10, "logo": "/static/logos/reds.png"},
+            {"id": 118, "name": "Royals", "full_name": "Kansas City Royals", "abbreviation": "KC", "division": "AL Central", "league": "American League", "era": 3.00, "ops": 0.650, "wins": 9, "losses": 11, "logo": "/static/logos/royals.png"},
+            {"id": 139, "name": "Rays", "full_name": "Tampa Bay Rays", "abbreviation": "TB", "division": "AL East", "league": "American League", "era": 3.10, "ops": 0.700, "wins": 15, "losses": 5, "logo": "/static/logos/rays.png"},
+            {"id": 119, "name": "Dodgers", "full_name": "Los Angeles Dodgers", "abbreviation": "LAD", "division": "NL West", "league": "National League", "era": 3.10, "ops": 0.740, "wins": 16, "losses": 4, "logo": "/static/logos/dodgers.png"},
+            {"id": 147, "name": "Yankees", "full_name": "New York Yankees", "abbreviation": "NYY", "division": "AL East", "league": "American League", "era": 4.60, "ops": 0.850, "wins": 13, "losses": 7, "logo": "/static/logos/yankees.png"}
         ]
         
         return fallback_data

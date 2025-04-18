@@ -3,6 +3,7 @@
 from flask import Blueprint, render_template, current_app
 import logging
 from app.routes.helper_functions import get_latest_data, update_status
+from app.services.division_standings import get_division_cards_data
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -26,5 +27,8 @@ def index():
         "snapshot_count": update_status["snapshot_count"]
     }
     
-    # Render the template with team data and status
-    return render_template('index.html', teams=teams, status=status)
+    # Get division standings data
+    division_cards = get_division_cards_data(teams)
+    
+    # Render the template with team data, status, and standings
+    return render_template('index.html', teams=teams, status=status, division_cards=division_cards)

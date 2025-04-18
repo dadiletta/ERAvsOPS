@@ -56,6 +56,23 @@ def validate_mlb_data(data):
             if app:
                 app.logger.warning(f"Skipping team with non-numeric OPS {team.get('ops')}: {team.get('name', 'Unknown')}")
             continue
+        
+        # Ensure wins and losses are valid integers (but don't reject if missing)
+        try:
+            if 'wins' in team:
+                team['wins'] = int(team['wins'])
+            else:
+                team['wins'] = 0
+                
+            if 'losses' in team:
+                team['losses'] = int(team['losses'])
+            else:
+                team['losses'] = 0
+        except (ValueError, TypeError):
+            if app:
+                app.logger.warning(f"Converting invalid wins/losses to zero for {team.get('name', 'Unknown')}")
+            team['wins'] = 0
+            team['losses'] = 0
             
         # Check for duplicate teams (by ID)
         team_id = team.get('id')

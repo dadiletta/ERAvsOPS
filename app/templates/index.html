@@ -149,6 +149,88 @@
                 </div>
             </div>
         </div>
+        <section class="standings-section">
+            <h2>Standings</h2>
+            <div class="standings-container">
+                <!-- American League -->
+                <div class="league-standings">
+                    <h3 class="league-header al-header">American League</h3>
+                    <div class="divisions-row">
+                        {% for card in division_cards %}
+                            {% if card.league_abbr == 'AL' %}
+                                <div class="division-card">
+                                    <div class="division-header">
+                                        <h4>{{ card.division }}</h4>
+                                    </div>
+                                    <div class="standings-table">
+                                        <div class="standings-header">
+                                            <span class="team-col">Team</span>
+                                            <span class="record-col">W</span>
+                                            <span class="record-col">L</span>
+                                            <span class="record-col">PCT</span>
+                                            <span class="record-col">GB</span>
+                                        </div>
+                                        <div class="standings-body">
+                                            {% for team in card.teams %}
+                                                <div class="team-row">
+                                                    <span class="team-col">
+                                                        <img src="{{ team.logo }}" alt="{{ team.name }}" class="standings-logo">
+                                                        <span class="team-name">{{ team.abbreviation }}</span>
+                                                    </span>
+                                                    <span class="record-col">{{ team.wins }}</span>
+                                                    <span class="record-col">{{ team.losses }}</span>
+                                                    <span class="record-col">{{ "%.3f"|format(team.pct) }}</span>
+                                                    <span class="record-col">{{ team.gb }}</span>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- National League -->
+                <div class="league-standings">
+                    <h3 class="league-header nl-header">National League</h3>
+                    <div class="divisions-row">
+                        {% for card in division_cards %}
+                            {% if card.league_abbr == 'NL' %}
+                                <div class="division-card">
+                                    <div class="division-header">
+                                        <h4>{{ card.division }}</h4>
+                                    </div>
+                                    <div class="standings-table">
+                                        <div class="standings-header">
+                                            <span class="team-col">Team</span>
+                                            <span class="record-col">W</span>
+                                            <span class="record-col">L</span>
+                                            <span class="record-col">PCT</span>
+                                            <span class="record-col">GB</span>
+                                        </div>
+                                        <div class="standings-body">
+                                            {% for team in card.teams %}
+                                                <div class="team-row">
+                                                    <span class="team-col">
+                                                        <img src="{{ team.logo }}" alt="{{ team.name }}" class="standings-logo">
+                                                        <span class="team-name">{{ team.abbreviation }}</span>
+                                                    </span>
+                                                    <span class="record-col">{{ team.wins }}</span>
+                                                    <span class="record-col">{{ team.losses }}</span>
+                                                    <span class="record-col">{{ "%.3f"|format(team.pct) }}</span>
+                                                    <span class="record-col">{{ team.gb }}</span>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </section>
         <section class="division-insights">
             <h2>Division & League Insights</h2>
             <div class="insights-grid">

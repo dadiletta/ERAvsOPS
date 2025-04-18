@@ -33,6 +33,48 @@ const MLBDivisionFilter = (function(window, document, $, MLBConfig) {
     }
     
     /**
+     * Toggle all divisions in a league
+     * @param {string} league - League identifier ('AL' or 'NL')
+     */
+    function toggleLeagueDivisions(league) {
+        // Find all division toggle buttons for this league
+        const divisionButtons = $(`.division-toggle[data-division^="${league}"]`);
+        
+        // Check if all division toggles in this league are currently active
+        const allActive = divisionButtons.length === divisionButtons.filter('.active').length;
+        
+        // Check if there are any active divisions in the other league
+        const otherLeaguePrefix = league === 'AL' ? 'NL' : 'AL';
+        const otherLeagueButtons = $(`.division-toggle[data-division^="${otherLeaguePrefix}"]`);
+        const otherLeagueActive = otherLeagueButtons.filter('.active').length > 0;
+        
+        if (allActive && otherLeagueActive) {
+            // All divisions in this league are active, and there are active divisions in the other league
+            // Deactivate all divisions in this league
+            divisionButtons.each(function() {
+                $(this).removeClass('active');
+                const division = $(this).data('division');
+                state.activeDivisions.delete(division);
+                logger.log(`Removed division: ${division}`);
+            });
+        } else {
+            // Either not all divisions in this league are active, or there are no active divisions in the other league
+            // Activate all divisions in this league
+            divisionButtons.each(function() {
+                $(this).addClass('active');
+                const division = $(this).data('division');
+                state.activeDivisions.add(division);
+                logger.log(`Added division: ${division}`);
+            });
+        }
+        
+        // Apply filter once after all toggles
+        applyDivisionFilter();
+        
+        logger.log(`Toggled all ${league} divisions`);
+    }
+    
+    /**
      * Set up event listeners for toggle buttons
      */
     function setupEventListeners() {
@@ -62,6 +104,12 @@ const MLBDivisionFilter = (function(window, document, $, MLBConfig) {
             
             // Apply filter
             applyDivisionFilter();
+        });
+        
+        // League label click event (new)
+        $('.league-label').on('click', function() {
+            const league = $(this).text().trim();
+            toggleLeagueDivisions(league);
         });
     }
     

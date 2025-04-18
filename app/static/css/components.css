@@ -526,3 +526,160 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Standings Section Styles */
+.standings-section {
+    margin: 3rem 0;
+}
+
+.standings-section h2 {
+    color: var(--mlb-blue);
+    margin-bottom: 2rem;
+    text-align: center;
+    font-size: 1.8rem;
+}
+
+.standings-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.league-standings {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.league-header {
+    font-size: 1.4rem;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    margin-bottom: 0.5rem;
+    color: white;
+    text-align: center;
+}
+
+.al-header {
+    background-color: var(--mlb-blue);
+}
+
+.nl-header {
+    background-color: var(--mlb-red);
+}
+
+.divisions-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+.division-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: var(--card-shadow);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.division-header {
+    background-color: rgba(0, 45, 114, 0.1);
+    padding: 0.75rem;
+    text-align: center;
+}
+
+.division-header h4 {
+    margin: 0;
+    color: var(--mlb-blue);
+    font-size: 1.2rem;
+}
+
+.division-card:nth-of-type(n+4) .division-header {
+    background-color: rgba(227, 25, 55, 0.1);
+}
+
+.division-card:nth-of-type(n+4) .division-header h4 {
+    color: var(--mlb-red);
+}
+
+.standings-table {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.standings-header {
+    display: flex;
+    background-color: #f5f5f5;
+    padding: 0.5rem 0;
+    font-weight: bold;
+    font-size: 0.85rem;
+    color: var(--text-dark);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.standings-body {
+    display: flex;
+    flex-direction: column;
+}
+
+.team-row {
+    display: flex;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    font-size: 0.9rem;
+    transition: background-color 0.2s ease;
+}
+
+.team-row:hover {
+    background-color: rgba(0, 45, 114, 0.05);
+}
+
+.team-col {
+    flex: 2;
+    display: flex;
+    align-items: center;
+    padding-left: 0.75rem;
+}
+
+.record-col {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.standings-logo {
+    width: 24px;
+    height: 24px;
+    margin-right: 0.5rem;
+    object-fit: contain;
+}
+
+.team-name {
+    font-weight: 500;
+    color: var(--text-dark);
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+    .divisions-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .divisions-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .standings-logo {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .team-row {
+        font-size: 0.8rem;
+    }
+}

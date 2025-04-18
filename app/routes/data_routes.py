@@ -7,6 +7,8 @@ from app.routes.helper_functions import (
     get_latest_data, update_mlb_data, update_status
 )
 from app.models.mlb_snapshot import MLBSnapshot
+from app.services.division_standings import get_division_cards_data
+
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -19,6 +21,16 @@ def get_team_data():
     """API endpoint to get the latest team data."""
     teams, _, _, _ = get_latest_data(must_exist=True)
     return jsonify(teams)
+
+@data_bp.route('/division-standings')
+def get_division_standings():
+    """API endpoint to get division standings."""
+    teams, _, _, _ = get_latest_data(must_exist=True)
+    
+    # Get division cards data
+    cards_data = get_division_cards_data(teams)
+    
+    return jsonify(cards_data)
 
 @data_bp.route('/update-status')
 def get_update_status():
