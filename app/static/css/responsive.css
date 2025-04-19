@@ -54,6 +54,33 @@
         grid-template-columns: 1fr;
     }
     
+    /* NEW: Fix for metric cards on mobile */
+    .metric-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    /* NEW: Keep league filters side-by-side but with better spacing on mobile */
+    .toggle-buttons {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .league-group {
+        flex: 1;
+        max-width: 49%;
+    }
+    
+    .division-btn-group {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .division-toggle {
+        flex: 1;
+        min-width: 0;
+        padding: 0 2px;
+    }
+    
     :root {
         --logo-width: 30px;
         --logo-height: 30px;
