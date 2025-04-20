@@ -19,8 +19,35 @@ data_bp = Blueprint('data', __name__, url_prefix='/api')
 @data_bp.route('/team-data')
 def get_team_data():
     """API endpoint to get the latest team data."""
-    teams, _, _, _ = get_latest_data(must_exist=True)
-    return jsonify(teams)
+    try:
+        teams, db_exists, is_fresh, last_updated = get_latest_data(must_exist=True)
+        
+        # If data is not fresh, trigger an async update
+        if not is_fresh:
+            logger.info("Data is not fresh, triggering async update")
+            from app.services.mlb_data import MLBDataFetcher
+            fetcher = MLBDataFetcher()
+            if fetcher.api_available:
+                # Start update in background
+                update_mlb_data(step=1)
+        
+        response = {
+            "teams": teams,
+            "fresh": is_fresh,
+            "last_updated": last_updated,
+            "source": "database" if db_exists else "cache"
+        }
+        
+        return jsonify(response)
+    except Exception as e:
+        logger.error(f"Error getting team data: {str(e)}")
+        return jsonify({
+            "error": str(e),
+            "teams": [],
+            "fresh": False,
+            "last_updated": None,
+            "source": "error"
+        }), 500
 
 @data_bp.route('/division-standings')
 def get_division_standings():

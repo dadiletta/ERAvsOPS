@@ -121,6 +121,16 @@ def get_latest_data(must_exist=False):
             # Ensure all teams have division info
             teams = ensure_division_info(teams)
             
+            # If data is valid and fresh, update the cache file
+            if teams and is_fresh:
+                cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data_cache.json')
+                try:
+                    with open(cache_file, 'w') as f:
+                        json.dump(teams, f)
+                    logger.info("Updated cache file with fresh data")
+                except Exception as e:
+                    logger.error(f"Failed to update cache file: {str(e)}")
+            
             logger.info(f"Latest snapshot found from {timestamp}. Fresh: {is_fresh}, Age: {cache_age.total_seconds()} seconds, Valid teams: {len(teams)}")
             return teams, True, is_fresh, timestamp.strftime("%Y-%m-%d %H:%M:%S")
     
@@ -145,8 +155,13 @@ def get_latest_data(must_exist=False):
             teams = ensure_division_info(teams)
             
             if teams:
-                logger.info(f"Loaded {len(teams)} teams from cache file")
-                return teams, False, False, "Cache file (date unknown)"
+                # Check cache file age
+                cache_mtime = datetime.fromtimestamp(os.path.getmtime(cache_file), timezone.utc)
+                cache_age = datetime.now(timezone.utc) - cache_mtime
+                is_fresh = cache_age.total_seconds() < current_app.config['CACHE_TIMEOUT']
+                
+                logger.info(f"Loaded {len(teams)} teams from cache file. Cache age: {cache_age.total_seconds()} seconds")
+                return teams, False, is_fresh, cache_mtime.strftime("%Y-%m-%d %H:%M:%S")
         except Exception as e:
             error_msg = f"Error reading cache file: {str(e)}"
             logger.error(error_msg)
