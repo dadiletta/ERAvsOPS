@@ -22,7 +22,7 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
      * @param {number} days - Number of days of history to fetch
      * @returns {Promise} Promise that resolves with history data
      */
-    function fetchTeamHistory(teamId, days = 30) {
+    function fetchTeamHistory(teamId, days = 90) {
         // If already in cache, return promise of cached data
         if (historyCache[teamId]) {
             return Promise.resolve(historyCache[teamId]);
