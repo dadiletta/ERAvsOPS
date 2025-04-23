@@ -1,55 +1,12 @@
-/* CRITICAL FIX: Force image visibility in all contexts */
-/* This ensures images are always visible, not just on hover */
-.chartjs-render-monitor [style*="cursor: default;"] > img,
-.chartjs-render-monitor [style*="cursor: pointer;"] > img,
-canvas.chartjs-render-monitor img,
-.chartjs-size-monitor img,
-.chart-container img,
-[role="img"] img {
-    visibility: visible !important;
-    opacity: 1 !important;
-    display: block !important;
-    max-width: var(--logo-width) !important;
-    max-height: var(--logo-height) !important;
-    width: var(--logo-width) !important;
-    height: var(--logo-height) !important;
-    object-fit: contain !important;
-    z-index: 15 !important;
-}
-
-/* Extra rules to force image sizing in Chart.js */
-[class*="chartjs"] img {
-    max-width: var(--logo-width) !important;
-    max-height: var(--logo-height) !important;
-    width: var(--logo-width) !important;
-    height: var(--logo-height) !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    z-index: 15 !important;
-}
-
-/* Override any Chart.js inline styling */
-img {
-    max-width: var(--logo-width) !important;
-    max-height: var(--logo-height) !important;
-}
-
-/* Make sure images in all contexts remain visible */
-.chartjs-tooltip img,
-.chartjs-tooltip-body img {
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
 /* Quadrant labels - more transparent and behind team logos */
 .quadrant-label {
     position: absolute;
     font-size: 0.75rem;
     font-weight: 600;
-    color: rgba(0, 45, 114, 0.85);
+    color: var(--text-dark);
     z-index: 5; /* Reduced from 10 to place behind logos (which are 15) */
     pointer-events: none;
-    background-color: rgba(255, 255, 255, 0.6); /* More transparent background */
+    background-color: var(--quadrant-label-bg);
     padding: 8px 12px;
     border-radius: 8px;
     white-space: normal;
@@ -67,48 +24,7 @@ img {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-}
-
-/* Position default quadrant labels - these will be overridden by JS */
-#top-left {
-    top: 15%;
-    left: 15%;
-}
-
-#top-right {
-    top: 15%;
-    right: 15%;
-}
-
-#bottom-left {
-    bottom: 15%;
-    left: 15%;
-}
-
-#bottom-right {
-    bottom: 15%;
-    right: 15%;
-}
-
-/* Keep quadrant labels small at smaller screen sizes */
-@media (max-width: 768px) {
-    .quadrant-label {
-        font-size: 0.65rem;
-        padding: 6px 10px;
-        min-width: 80px;
-        min-height: 40px;
-        max-width: 110px;
-    }
-}
-
-@media (max-width: 480px) {
-    .quadrant-label {
-        font-size: 0.6rem;
-        padding: 5px 8px;
-        min-width: 70px;
-        min-height: 35px;
-        max-width: 90px;
-    }
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Division toggles */
@@ -146,7 +62,7 @@ img {
 
 .toggle-action-btn:hover {
     background-color: var(--mlb-blue);
-    color: white;
+    color: var(--card-bg);
 }
 
 .toggle-buttons {
@@ -185,8 +101,8 @@ img {
     padding: 8px 12px;
     border-radius: 4px;
     border: 1px solid var(--mlb-blue);
-    background-color: var(--mlb-blue);
-    color: white;
+    background-color: var(--division-toggle-bg);
+    color: var(--text-dark);
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -197,7 +113,7 @@ img {
 
 .division-toggle.active {
     background-color: var(--mlb-blue);
-    color: white;
+    color: var(--card-bg);
 }
 
 .division-toggle[data-division^="AL"].active {
@@ -206,19 +122,4 @@ img {
 
 .division-toggle[data-division^="NL"].active {
     background-color: var(--mlb-red);
-}
-
-/* Completely disable pointer events on hidden data points */
-.chartjs-render-monitor [hidden="true"],
-.chartjs-render-monitor [aria-hidden="true"],
-.chartjs-render-monitor .hidden {
-    pointer-events: none !important;
-    cursor: default !important;
-}
-
-/* Make sure all hidden elements in Chart.js don't respond to mouse events */
-.chartjs-tooltip[opacity="0"],
-.chartjs-tooltip[style*="opacity: 0"],
-canvas[data-hidden="true"] {
-    pointer-events: none !important;
 }

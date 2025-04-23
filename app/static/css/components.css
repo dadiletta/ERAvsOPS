@@ -24,9 +24,10 @@
 
 .metric-value {
     font-size: 1.2rem;
-    color: var(--mlb-blue);
+    color: var(--metric-value-color);
     margin-bottom: 1rem;
     font-weight: bold;
+    transition: color 0.3s ease;
 }
 
 .metric-details {
@@ -575,12 +576,13 @@
 }
 
 .division-card {
-    background: white;
+    background: var(--division-card-bg);
     border-radius: 8px;
     box-shadow: var(--card-shadow);
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .division-header {
@@ -682,4 +684,370 @@
     .team-row {
         font-size: 0.8rem;
     }
+}
+
+/* Data status bar */
+.data-status-bar {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin: 0.5rem auto 1.5rem;
+    padding: 8px 16px;
+    background-color: var(--card-bg-alt);
+    border-radius: 8px;
+    max-width: fit-content;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.status-label {
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    margin-right: 16px;
+    color: var(--text-dark);
+}
+
+.last-updated {
+    font-size: 0.9rem;
+    color: var(--text-light);
+    margin-top: 4px;
+}
+
+#status-text-title {
+    color: var(--status-fresh);
+    font-weight: bold;
+}
+
+/* Status indicator */
+.status-indicator-title {
+    display: inline-block;
+    margin-left: 8px;
+    margin-right: 12px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #ccc;
+    vertical-align: middle;
+}
+
+.status-indicator-title.active {
+    background-color: var(--status-fresh);
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Refresh button */
+.refresh-button {
+    background-color: var(--mlb-blue);
+    color: white;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    margin-left: 12px;
+    font-size: 0.85rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.refresh-button:hover {
+    background-color: var(--mlb-blue-light);
+}
+
+body.dark-mode .refresh-button {
+    background-color: var(--mlb-blue-light);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .refresh-button:hover {
+    background-color: var(--mlb-blue);
+}
+
+/* Update progress */
+.update-progress {
+    display: none;
+    margin: 0.5rem 0;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--card-bg-alt);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.update-progress.visible {
+    display: block;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 10px;
+    background-color: var(--progress-bg);
+    border-radius: 5px;
+    overflow: hidden;
+    margin: 0.3rem 0;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: var(--progress-fill);
+    background-image: linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.15) 25%,
+        transparent 25%,
+        transparent 50%,
+        rgba(255, 255, 255, 0.15) 50%,
+        rgba(255, 255, 255, 0.15) 75%,
+        transparent 75%,
+        transparent
+    );
+    background-size: 20px 20px;
+    transition: width 0.3s ease;
+}
+
+#progress-text {
+    text-align: center;
+    color: var(--text-light);
+    font-size: 0.8rem;
+    margin-top: 0.1rem;
+}
+
+/* Division toggles */
+.division-toggles {
+    margin-bottom: 0;
+    text-align: center;
+    position: relative;
+    z-index: 20;
+}
+
+.toggle-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.toggle-header h4 {
+    margin: 0;
+    color: var(--text-dark);
+    font-size: 0.7rem;
+}
+
+.toggle-actions {
+    display: flex;
+    gap: 2px;
+}
+
+.toggle-action-btn {
+    background: none;
+    border: 1px solid var(--mlb-blue);
+    color: var(--mlb-blue);
+    padding: 0 4px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.6rem;
+    transition: all 0.2s ease;
+}
+
+.toggle-action-btn:hover {
+    background-color: var(--mlb-blue);
+    color: var(--card-bg);
+}
+
+.toggle-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px;
+}
+
+.league-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.league-label {
+    font-weight: bold;
+    color: var(--mlb-blue);
+    text-align: center;
+    padding: 0 4px;
+    background-color: rgba(0, 45, 114, 0.1);
+    border-radius: 10px;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.league-group:nth-child(2) .league-label {
+    color: var(--mlb-red);
+    background-color: rgba(227, 25, 55, 0.1);
+}
+
+.division-btn-group {
+    display: flex;
+    gap: 2px;
+}
+
+.division-toggle {
+    padding: 0 4px;
+    border-radius: 10px;
+    border: 1px solid var(--mlb-blue);
+    background-color: var(--division-toggle-bg);
+    color: var(--text-dark);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.55rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    height: 14px;
+    line-height: 12px;
+    min-width: 40px;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.division-toggle:hover {
+    background-color: rgba(0, 45, 114, 0.2);
+}
+
+.division-toggle.active {
+    background-color: var(--mlb-blue);
+    color: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.division-toggle[data-division^="AL"] {
+    border-color: var(--mlb-blue);
+    color: var(--mlb-blue);
+}
+
+.division-toggle[data-division^="AL"]:hover {
+    background-color: rgba(0, 45, 114, 0.2);
+}
+
+.division-toggle[data-division^="AL"].active {
+    background-color: var(--mlb-blue);
+    color: white;
+}
+
+.division-toggle[data-division^="NL"] {
+    border-color: var(--mlb-red);
+    color: var(--mlb-red);
+}
+
+.division-toggle[data-division^="NL"]:hover {
+    background-color: rgba(227, 25, 55, 0.2);
+}
+
+.division-toggle[data-division^="NL"].active {
+    background-color: var(--mlb-red);
+    color: white;
+}
+
+/* Insights cards */
+.insights-card {
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: var(--card-shadow);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.insights-card h3 {
+    color: var(--text-dark);
+    transition: color 0.3s ease;
+}
+
+.insight-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--background-light);
+    border-radius: 6px;
+    transition: background-color 0.3s ease;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    transition: color 0.3s ease;
+}
+
+.stat-value {
+    font-weight: 700;
+    color: var(--mlb-blue);
+    transition: color 0.3s ease;
+}
+
+body.dark-mode .stat-value {
+    color: var(--mlb-blue-light);
+}
+
+/* Metrics explanation */
+.metric-card {
+    background-color: var(--card-bg);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.calculation {
+    font-family: 'Courier New', Courier, monospace;
+    background-color: var(--background-light);
+    padding: 0.5rem;
+    border-radius: 4px;
+    margin: 0.5rem 0;
+    transition: background-color 0.3s ease;
+}
+
+/* Tables */
+.standings-table {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.standings-header {
+    display: flex;
+    background-color: var(--background-light);
+    padding: 0.5rem 0;
+    font-weight: bold;
+    font-size: 0.85rem;
+    color: var(--text-dark);
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.team-row {
+    display: flex;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    transition: background-color 0.2s ease, border-color 0.3s ease;
+}
+
+.team-row:hover {
+    background-color: var(--card-bg-alt);
+}
+
+/* Quadrant label */
+.quadrant-label {
+    background-color: var(--quadrant-label-bg);
+    color: var(--text-dark);
+    border: 1px solid var(--border-color);
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }

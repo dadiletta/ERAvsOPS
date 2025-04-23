@@ -12,6 +12,7 @@ body {
     background-color: var(--background-light);
     color: var(--text-dark);
     line-height: 1.6;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Main content container */
@@ -19,9 +20,90 @@ body {
     max-width: 1200px;
     margin: 0 auto;
     padding: 2rem 2rem 3rem;
-    background-color: white;
+    background-color: var(--card-bg);
     border-radius: 12px;
     box-shadow: var(--card-shadow);
     position: relative;
     z-index: 2;
-} 
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Dark mode toggle - improved version */
+.theme-toggle {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    z-index: 100;
+}
+
+.theme-checkbox {
+opacity: 0;
+position: absolute;
+}
+
+.theme-checkbox-label {
+background-color: #111;
+width: 50px;
+height: 26px;
+border-radius: 50px;
+position: relative;
+padding: 5px;
+cursor: pointer;
+display: flex;
+justify-content: space-between;
+align-items: center;
+transition: background-color 0.3s ease;
+box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.theme-checkbox-label .fa-moon {
+color: #f1c40f;
+margin-left: 4px;
+font-size: 14px;
+}
+
+.theme-checkbox-label .fa-sun {
+color: #f39c12;
+margin-right: 4px;
+font-size: 14px;
+}
+
+.theme-checkbox-label .toggle-ball {
+background-color: #fff;
+width: 22px;
+height: 22px;
+position: absolute;
+left: 2px;
+top: 2px;
+border-radius: 50%;
+transition: transform 0.2s cubic-bezier(0.45, 1.8, 0.5, 0.75);
+box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Default checked state for dark mode */
+.theme-checkbox:checked + .theme-checkbox-label .toggle-ball {
+transform: translateX(24px);
+}
+
+/* Adjust background color when in light mode */
+.theme-checkbox:not(:checked) + .theme-checkbox-label {
+background-color: #3498db;
+}
+
+/* Focus styles for accessibility */
+.theme-checkbox:focus + .theme-checkbox-label {
+box-shadow: 0 0 0 2px rgba(50, 115, 220, 0.5);
+}
+
+/* Hover effect */
+.theme-checkbox-label:hover {
+opacity: 0.9;
+}
+
+/* Hide original toggle elements */
+.theme-toggle-track,
+.theme-toggle-thumb,
+.sun-icon,
+.moon-icon {
+display: none;
+}

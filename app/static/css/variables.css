@@ -1,28 +1,91 @@
 /* MLB theme colors */
 :root {
+    /* Core brand colors - unchanged in dark mode */
     --mlb-blue: #002D72;
     --mlb-red: #E31937;
     --mlb-blue-light: #004db4;
     --mlb-red-light: #ff4d6d;
-    --logo-width: 34px; /* Increased logo size */
-    --logo-height: 34px; /* Keep logos square for consistency */
+    --logo-width: 34px;
+    --logo-height: 34px;
     
-    /* Additional colors */
+    /* Light theme colors (default) */
     --background-light: #f8f9fa;
+    --background-main: #ffffff;
     --text-dark: #333;
     --text-light: #666;
+    --text-secondary: #777;
     --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     --gradient-blue: linear-gradient(135deg, var(--mlb-blue), var(--mlb-blue-light));
     --gradient-red: linear-gradient(135deg, var(--mlb-red), var(--mlb-red-light));
+    --card-bg: white;
+    --card-bg-alt: rgba(0, 45, 114, 0.05);
+    --header-bg: white;
+    --division-toggle-bg: #e0e0e0;
+    --footer-bg: linear-gradient(to bottom, rgba(0, 45, 114, 0.1), rgba(0, 45, 114, 0.2));
+    --footer-border: rgba(0, 45, 114, 0.1);
+    --tooltip-bg: rgba(255, 255, 255, 0.95);
+    --tooltip-border: var(--mlb-blue);
+    --quadrant-label-bg: rgba(255, 255, 255, 0.6);
+    --chart-grid-color: rgba(0, 0, 0, 0.05);
+    --hero-gradient: linear-gradient(to bottom, #fff, var(--background-light));
+    --border-color: rgba(0, 0, 0, 0.1);
+    --progress-bg: #f0f0f0;
+    --progress-fill: var(--mlb-blue);
+    --division-card-bg: white;
     
-    /* Scale colors */
+    /* Values for specific element colors */
+    --metric-value-color: var(--mlb-blue);
+    --quadrant-heading-color: var(--mlb-blue);
+    
+    /* Quadrant colors - light theme */
+    --quadrant-top-left: rgba(255, 248, 225, 0.5);
+    --quadrant-top-right: rgba(232, 245, 233, 0.5);
+    --quadrant-bottom-left: rgba(255, 235, 238, 0.5);
+    --quadrant-bottom-right: rgba(255, 255, 224, 0.5);
+    
+    /* Scale colors - unchanged in dark mode */
     --excellent: #4caf50;
     --good: #8bc34a;
     --average: #ffc107;
     --poor: #f44336;
     
-    /* Status colors */
+    /* Status colors - unchanged in dark mode */
     --status-fresh: #4CAF50;
     --status-stale: #FFC107;
     --status-error: #F44336;
-} 
+}
+
+/* Dark theme colors */
+body.dark-mode {
+    --background-light: #1c1c1c;
+    --background-main: #121212;
+    --text-dark: #f0f0f0;
+    --text-light: #bdbdbd;
+    --text-secondary: #a0a0a0;
+    --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --card-bg: #2d2d2d;
+    --card-bg-alt: rgba(0, 45, 114, 0.2);
+    --header-bg: #121212;
+    --division-toggle-bg: #3d3d3d;
+    --footer-bg: linear-gradient(to bottom, rgba(0, 45, 114, 0.2), rgba(0, 45, 114, 0.3));
+    --footer-border: rgba(0, 45, 114, 0.3);
+    --tooltip-bg: rgba(45, 45, 45, 0.95);
+    --tooltip-border: var(--mlb-blue-light);
+    --quadrant-label-bg: rgba(45, 45, 45, 0.6);
+    --chart-grid-color: rgba(255, 255, 255, 0.1);
+    --hero-gradient: linear-gradient(to bottom, #212121, var(--background-light));
+    --border-color: rgba(255, 255, 255, 0.1);
+    --progress-bg: #3d3d3d;
+    --progress-fill: var(--mlb-blue-light);
+    --division-card-bg: #2d2d2d;
+    
+    /* Improved contrast for specific elements in dark mode */
+    --metric-value-color: #66B2FF; /* Lighter blue for better contrast */
+    --quadrant-heading-color: #7FBAFF; /* Lighter blue for better contrast */
+    
+    /* Quadrant colors - dark theme */
+    --quadrant-top-left: rgba(102, 99, 90, 0.3);
+    --quadrant-top-right: rgba(93, 109, 94, 0.3);
+    --quadrant-bottom-left: rgba(102, 94, 95, 0.3);
+    --quadrant-bottom-right: rgba(102, 102, 90, 0.3);
+}
