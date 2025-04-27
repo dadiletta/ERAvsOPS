@@ -16,7 +16,7 @@ services:
       - key: SNAPSHOT_INTERVAL
         value: 86400  # Snapshot interval in seconds (24 hours)
       - key: HISTORY_LIMIT
-        value: 30  # Maximum number of historical snapshots to keep
+        value: 3000  # Maximum number of historical snapshots to keep
       - key: API_RATE_LIMIT
         value: 2.0  # Minimum seconds between API requests
       - key: DATABASE_URL

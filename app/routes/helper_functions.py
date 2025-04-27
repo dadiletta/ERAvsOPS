@@ -104,13 +104,10 @@ def get_latest_data(must_exist=False):
         snapshot = MLBSnapshot.get_latest()
         
         if snapshot:
-            # Check if data is fresh
-            # Use timezone-aware comparison
+            # Check if data is fresh using intelligent rules
+            timestamp = snapshot.timestamp_aware
             now = datetime.now(timezone.utc)
-            timestamp = snapshot.timestamp_aware  # Use the property
-            
-            cache_age = now - timestamp
-            is_fresh = cache_age.total_seconds() < current_app.config['CACHE_TIMEOUT']
+            is_fresh = determine_data_freshness(timestamp, now)
             
             # Get teams and validate
             teams = snapshot.teams
@@ -131,9 +128,16 @@ def get_latest_data(must_exist=False):
                 except Exception as e:
                     logger.error(f"Failed to update cache file: {str(e)}")
             
-            logger.info(f"Latest snapshot found from {timestamp}. Fresh: {is_fresh}, Age: {cache_age.total_seconds()} seconds, Valid teams: {len(teams)}")
+            # Add context about why data is considered fresh
+            context = ""
+            if is_fresh and not (cache_age.total_seconds() < current_app.config['CACHE_TIMEOUT']):
+                if not is_mlb_season_active(now):
+                    context = " (offseason)"
+                elif not are_games_likely_being_played(now):
+                    context = " (no games in progress)"
+            
+            logger.info(f"Latest snapshot found from {timestamp}. Fresh: {is_fresh}{context}, Age: {cache_age.total_seconds()} seconds, Valid teams: {len(teams)}")
             return teams, True, is_fresh, timestamp.strftime("%Y-%m-%d %H:%M:%S")
-    
     except Exception as e:
         error_msg = f"Error reading from database: {str(e)}"
         logger.error(error_msg)
@@ -325,3 +329,85 @@ def update_mlb_data(step=1, total_steps=30):
         logger.error(traceback.format_exc())
         update_status["error"] = error_msg
         return False
+
+def is_mlb_season_active(date=None):
+    """
+    Determine if the date falls within the active MLB season
+    
+    Args:
+        date: Optional date to check (defaults to current date)
+    
+    Returns:
+        Boolean indicating if MLB season is active
+    """
+    if date is None:
+        date = datetime.now(timezone.utc)
+    
+    # MLB season typically runs from early April to early October
+    # These dates can be adjusted each year
+    year = date.year
+    season_start = datetime(year, 4, 1, tzinfo=timezone.utc)  # April 1st
+    season_end = datetime(year, 10, 15, tzinfo=timezone.utc)  # October 15th
+    
+    return season_start <= date <= season_end
+
+def are_games_likely_being_played(date=None):
+    """
+    Determine if MLB games are likely being played at this time
+    
+    Args:
+        date: Optional datetime to check (defaults to current datetime)
+    
+    Returns:
+        Boolean indicating if games are likely being played
+    """
+    if date is None:
+        date = datetime.now(timezone.utc)
+    
+    # Check if we're in season first
+    if not is_mlb_season_active(date):
+        return False
+    
+    # Convert to US Eastern time (where most MLB decisions are based)
+    # This is a simplified approach - for proper timezone conversion you'd use pytz
+    # Assuming date is in UTC, ET is UTC-4 during daylight saving time
+    et_hour = (date.hour - 4) % 24
+    
+    # Most MLB games occur between 1pm and 11pm ET
+    # Also, fewer games on Monday than other days
+    if date.weekday() == 0:  # Monday
+        # Fewer games on Mondays, often evening only
+        return 18 <= et_hour <= 23  # 6pm to 11pm ET
+    else:
+        # Other days have afternoon and evening games
+        return 13 <= et_hour <= 23  # 1pm to 11pm ET
+
+def determine_data_freshness(timestamp, now=None):
+    """
+    Determine if data is fresh based on intelligent rules
+    
+    Args:
+        timestamp: The timestamp of the data
+        now: Optional current datetime (defaults to current time)
+    
+    Returns:
+        Boolean indicating if data is fresh
+    """
+    if now is None:
+        now = datetime.now(timezone.utc)
+    
+    cache_age = now - timestamp
+    cache_age_seconds = cache_age.total_seconds()
+    
+    # Regular cache timeout (1 hour by default)
+    regular_timeout = current_app.config['CACHE_TIMEOUT']
+    
+    # Longer timeout for off-hours/season (24 hours)
+    extended_timeout = 86400  # 24 hours in seconds
+    
+    # Use regular timeout during active game times
+    if is_mlb_season_active(now) and are_games_likely_being_played(now):
+        return cache_age_seconds < regular_timeout
+    
+    # Use extended timeout for off-hours/season
+    return cache_age_seconds < extended_timeout
