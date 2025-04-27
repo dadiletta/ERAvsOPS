@@ -37,7 +37,7 @@ class MLBSnapshot(db.Model):
         return self.timestamp
     
     @staticmethod
-    def get_team_history(team_id, limit=10):
+    def get_team_history(team_id, limit=90):
         """Get historical positions for a specific team"""
         # Convert team_id to integer for comparison
         team_id = int(team_id)

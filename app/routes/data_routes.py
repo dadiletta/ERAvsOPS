@@ -183,7 +183,7 @@ def get_snapshot(snapshot_id):
 @data_bp.route('/team-history/<team_id>')
 def get_team_history(team_id):
     """API endpoint to get historical data for a specific team."""
-    days = request.args.get('days', 30, type=int)
+    days = request.args.get('days', 90, type=int)
     history = MLBSnapshot.get_team_history(team_id, limit=days)
     return jsonify(history)
 

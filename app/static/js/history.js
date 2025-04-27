@@ -22,7 +22,7 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
      * @param {number} days - Number of days of history to fetch
      * @returns {Promise} Promise that resolves with history data
      */
-    function fetchTeamHistory(teamId, days = 90) {
+    function fetchTeamHistory(teamId, days = 30) {
         // If already in cache, return promise of cached data
         if (historyCache[teamId]) {
             return Promise.resolve(historyCache[teamId]);
@@ -50,6 +50,10 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
                 })
                 .then(history => {
                     logger.log(`Received ${history.length} historical points for team ${teamId}`);
+                    if (history.length > 0) {
+                        logger.log(`First point: era=${history[0].era}, ops=${history[0].ops}`);
+                        logger.log(`Last point: era=${history[history.length-1].era}, ops=${history[history.length-1].ops}`);
+                    }
                     // Store in cache
                     historyCache[teamId] = history;
                     return resolve(history);
@@ -195,7 +199,6 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
             const ctx = chart.ctx;
             ctx.save();
             
-            // IMPORTANT FIX: Always draw all points when animation is complete or nearly complete
             // This ensures all data points are eventually shown
             const pointsToDraw = progress > 0.95 ? 
                 history.length : // Show all points when animation is nearly complete
@@ -296,47 +299,6 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
         }
     }
     
-    // Update fetchTeamHistory to match the server-side limit parameter
-    function fetchTeamHistory(teamId, days = 90) {
-        // If already in cache, return promise of cached data
-        if (historyCache[teamId]) {
-            return Promise.resolve(historyCache[teamId]);
-        }
-        
-        logger.log(`Fetching history for team ID: ${teamId}`);
-        
-        // Add a cache timestamp to avoid browser caching
-        const cacheParam = new Date().getTime();
-        
-        // Otherwise fetch from API with a timeout
-        return new Promise((resolve, reject) => {
-            // Create a timeout for the fetch
-            const timeoutId = setTimeout(() => {
-                logger.error(`History fetch timeout for team ${teamId}`);
-                // Resolve with empty array to avoid blocking UI
-                resolve([]);
-            }, 5000); // 5 second timeout
-            
-            // Execute the fetch
-            fetch(`/api/team-history/${teamId}?days=${days}&_=${cacheParam}`)
-                .then(response => {
-                    clearTimeout(timeoutId);
-                    return response.json();
-                })
-                .then(history => {
-                    logger.log(`Received ${history.length} historical points for team ${teamId}`);
-                    // Store in cache
-                    historyCache[teamId] = history;
-                    return resolve(history);
-                })
-                .catch(err => {
-                    clearTimeout(timeoutId);
-                    logger.error('Error fetching team history:', err);
-                    // Resolve with empty array to avoid blocking UI
-                    resolve([]);
-                });
-        });
-    }
     /**
      * Create a plugin to draw historical lines on hover
      */
