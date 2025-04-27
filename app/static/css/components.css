@@ -496,7 +496,7 @@
 
 .trend-value {
     font-weight: 700;
-    color: var(--mlb-blue);
+    color: var(--status-fresh);
     font-size: 1.1rem;
 }
 
@@ -996,7 +996,7 @@ body.dark-mode .refresh-button:hover {
 }
 
 body.dark-mode .stat-value {
-    color: var(--mlb-blue-light);
+    color: var(--status-fresh);
 }
 
 /* Metrics explanation */

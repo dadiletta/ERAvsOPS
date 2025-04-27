@@ -181,7 +181,7 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
             
             // Get animation progress (0.0 to 1.0)
             const timestamp = Date.now();
-            const animDuration = 1500; // 1.5 seconds for full animation
+            const animDuration = 1000; // Reduced from 1500ms to 1000ms for quicker animation
             
             // Only use stored animation start time if this is the active team
             // This prevents flashing the full line and restarting animation
@@ -195,8 +195,12 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
             const ctx = chart.ctx;
             ctx.save();
             
-            // Calculate how many points to draw based on animation progress
-            const pointsToDraw = Math.max(2, Math.ceil(history.length * progress));
+            // IMPORTANT FIX: Always draw all points when animation is complete or nearly complete
+            // This ensures all data points are eventually shown
+            const pointsToDraw = progress > 0.95 ? 
+                history.length : // Show all points when animation is nearly complete
+                Math.max(2, Math.ceil(history.length * progress));
+                
             const animatedHistory = history.slice(0, pointsToDraw);
             
             // First draw the line
@@ -206,10 +210,13 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
             let first = true;
             animatedHistory.forEach(point => {
                 // Skip points with invalid data
-                if (point.era === undefined || point.ops === undefined) return;
+                if (point.era === undefined || point.ops === undefined || 
+                    isNaN(parseFloat(point.era)) || isNaN(parseFloat(point.ops))) {
+                    return;
+                }
                 
-                const x = chart.scales.x.getPixelForValue(point.ops);
-                const y = chart.scales.y.getPixelForValue(point.era);
+                const x = chart.scales.x.getPixelForValue(parseFloat(point.ops));
+                const y = chart.scales.y.getPixelForValue(parseFloat(point.era));
                 
                 if (first) {
                     ctx.moveTo(x, y);
@@ -227,10 +234,13 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
             // Now add dots at each point
             animatedHistory.forEach((point, i) => {
                 // Skip points with invalid data
-                if (point.era === undefined || point.ops === undefined) return;
+                if (point.era === undefined || point.ops === undefined || 
+                    isNaN(parseFloat(point.era)) || isNaN(parseFloat(point.ops))) {
+                    return;
+                }
                 
-                const x = chart.scales.x.getPixelForValue(point.ops);
-                const y = chart.scales.y.getPixelForValue(point.era);
+                const x = chart.scales.x.getPixelForValue(parseFloat(point.ops));
+                const y = chart.scales.y.getPixelForValue(parseFloat(point.era));
                 
                 // Highlight the most recent point
                 const isLatest = i === animatedHistory.length - 1;
@@ -286,6 +296,47 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
         }
     }
     
+    // Update fetchTeamHistory to match the server-side limit parameter
+    function fetchTeamHistory(teamId, days = 90) {
+        // If already in cache, return promise of cached data
+        if (historyCache[teamId]) {
+            return Promise.resolve(historyCache[teamId]);
+        }
+        
+        logger.log(`Fetching history for team ID: ${teamId}`);
+        
+        // Add a cache timestamp to avoid browser caching
+        const cacheParam = new Date().getTime();
+        
+        // Otherwise fetch from API with a timeout
+        return new Promise((resolve, reject) => {
+            // Create a timeout for the fetch
+            const timeoutId = setTimeout(() => {
+                logger.error(`History fetch timeout for team ${teamId}`);
+                // Resolve with empty array to avoid blocking UI
+                resolve([]);
+            }, 5000); // 5 second timeout
+            
+            // Execute the fetch
+            fetch(`/api/team-history/${teamId}?days=${days}&_=${cacheParam}`)
+                .then(response => {
+                    clearTimeout(timeoutId);
+                    return response.json();
+                })
+                .then(history => {
+                    logger.log(`Received ${history.length} historical points for team ${teamId}`);
+                    // Store in cache
+                    historyCache[teamId] = history;
+                    return resolve(history);
+                })
+                .catch(err => {
+                    clearTimeout(timeoutId);
+                    logger.error('Error fetching team history:', err);
+                    // Resolve with empty array to avoid blocking UI
+                    resolve([]);
+                });
+        });
+    }
     /**
      * Create a plugin to draw historical lines on hover
      */

@@ -53,6 +53,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/chart.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/loading-overlay.css') }}">
+
 
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
@@ -79,6 +81,13 @@
 </script>
 
 <body>
+    <div id="loading-overlay">
+        <div class="loading-content">
+            <img src="{{ url_for('static', filename='favicon.png') }}" alt="MLB ERA vs OPS" class="loading-logo">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Loading MLB Data...</div>
+        </div>
+    </div>
     <!-- Full-screen hero section with chart -->
     <header class="hero">
         <div class="hero-content">
@@ -476,6 +485,8 @@
     <script src="{{ url_for('static', filename='js/index.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme-toggler.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tooltip-fix.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/loading-overlay.js') }}"></script>
+
     
 </body>
 </html>
