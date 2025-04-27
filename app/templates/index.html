@@ -285,6 +285,48 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="insights-card movement">
+                    <h3>Team Movement Trends</h3>
+                    <div class="insights-content">
+                        <div class="insight-stat">
+                            <span class="stat-label">Most Movement</span>
+                            <span class="stat-value" id="most-movement-team">-</span>
+                            <span class="stat-subvalue" id="most-movement-value">-</span>
+                        </div>
+                    </div>
+                    <div class="insights-details" id="movement-card-content">
+                        <div class="loading-indicator">Loading data...</div>
+                    </div>
+                </div>
+                
+                <div class="insights-card consistency">
+                    <h3>Consistency Leaders</h3>
+                    <div class="insights-content">
+                        <div class="insight-stat">
+                            <span class="stat-label">Most Consistent</span>
+                            <span class="stat-value" id="least-movement-team">-</span>
+                            <span class="stat-subvalue" id="least-movement-value">-</span>
+                        </div>
+                    </div>
+                    <div class="insights-details" id="consistency-card-content">
+                        <div class="loading-indicator">Loading data...</div>
+                    </div>
+                </div>
+                
+                <div class="insights-card performance-gap">
+                    <h3>Performance Gap Analysis</h3>
+                    <div class="insights-content">
+                        <div class="insight-stat">
+                            <span class="stat-label">Biggest Discrepancy</span>
+                            <span class="stat-value" id="biggest-discrepancy-team">-</span>
+                            <span class="stat-subvalue" id="biggest-discrepancy-value">-</span>
+                        </div>
+                    </div>
+                    <div class="insights-details" id="discrepancy-card-content">
+                        <div class="loading-indicator">Loading data...</div>
+                    </div>
+                </div>
             </div>
         </section>
         
@@ -486,6 +528,7 @@
     <script src="{{ url_for('static', filename='js/theme-toggler.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tooltip-fix.js') }}"></script>
     <script src="{{ url_for('static', filename='js/loading-overlay.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/advanced-insights.js') }}"></script>
 
     
 </body>

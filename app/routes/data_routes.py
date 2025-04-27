@@ -209,3 +209,97 @@ def reset_update():
         "message": "Update status has been reset",
         "current_status": update_status
     })
+    
+@data_bp.route('/team-movement')
+def get_team_movement():
+    """API endpoint to get team movement data for advanced insights."""
+    try:
+        # Get all snapshots ordered by date
+        snapshots = MLBSnapshot.query.order_by(MLBSnapshot.timestamp.asc()).all()
+        
+        if len(snapshots) < 2:
+            return jsonify({
+                "error": "Not enough historical data available",
+                "teams": []
+            })
+        
+        # Get the oldest and newest snapshots
+        oldest_snapshot = snapshots[0]
+        newest_snapshot = snapshots[-1]
+        
+        # Calculate movement for each team
+        movement_data = []
+        
+        for team in newest_snapshot.teams:
+            team_id = team.get('id')
+            
+            # Find the same team in the oldest snapshot
+            old_team = next((t for t in oldest_snapshot.teams if t.get('id') == team_id), None)
+            
+            if old_team:
+                # Calculate movement vectors
+                era_change = float(team.get('era', 0)) - float(old_team.get('era', 0))
+                ops_change = float(team.get('ops', 0)) - float(old_team.get('ops', 0))
+                
+                # Calculate movement magnitude (distance formula)
+                import math
+                movement_magnitude = math.sqrt(era_change**2 + ops_change**2)
+                
+                # Get win-loss record and calculate win percentage
+                wins = team.get('wins', 0)
+                losses = team.get('losses', 0)
+                win_pct = wins / (wins + losses) if (wins + losses) > 0 else 0
+                
+                # Calculate expected win percentage based on position
+                # Lower ERA and higher OPS should correlate with higher win percentage
+                normalized_era = 1 - ((float(team.get('era', 4.0)) - 2.0) / 4.0)  # Normalize ERA between 2-6
+                normalized_ops = (float(team.get('ops', 0.7)) - 0.6) / 0.3  # Normalize OPS between 0.6-0.9
+                
+                # Simple model: 50% weight on pitching, 50% on hitting
+                expected_win_pct = (normalized_era + normalized_ops) / 2
+                
+                # Calculate discrepancy
+                win_pct_discrepancy = win_pct - expected_win_pct
+                
+                movement_data.append({
+                    'id': team_id,
+                    'name': team.get('name', 'Unknown'),
+                    'full_name': team.get('full_name', team.get('name', 'Unknown')),
+                    'era_change': era_change,
+                    'ops_change': ops_change,
+                    'movement_magnitude': movement_magnitude,
+                    'current_era': team.get('era', 0),
+                    'current_ops': team.get('ops', 0),
+                    'old_era': old_team.get('era', 0),
+                    'old_ops': old_team.get('ops', 0),
+                    'win_pct': win_pct,
+                    'expected_win_pct': expected_win_pct,
+                    'win_pct_discrepancy': win_pct_discrepancy,
+                    'division': team.get('division', 'Unknown'),
+                    'league': team.get('league', 'Unknown')
+                })
+        
+        # Sort data for different insights
+        least_movement = sorted(movement_data, key=lambda x: x['movement_magnitude'])[:3]
+        most_movement = sorted(movement_data, key=lambda x: x['movement_magnitude'], reverse=True)[:3]
+        biggest_discrepancy = sorted(movement_data, key=lambda x: abs(x['win_pct_discrepancy']), reverse=True)[:3]
+        
+        return jsonify({
+            "movement_data": movement_data,
+            "least_movement": least_movement,
+            "most_movement": most_movement,
+            "biggest_discrepancy": biggest_discrepancy,
+            "oldest_date": oldest_snapshot.timestamp_aware.isoformat(),
+            "newest_date": newest_snapshot.timestamp_aware.isoformat()
+        })
+        
+    except Exception as e:
+        import logging
+        logging.getLogger('data_routes').error(f"Error getting team movement data: {str(e)}")
+        import traceback
+        logging.getLogger('data_routes').error(traceback.format_exc())
+        
+        return jsonify({
+            "error": str(e),
+            "movement_data": []
+        }), 500

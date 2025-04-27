@@ -53,6 +53,7 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
                     if (history.length > 0) {
                         logger.log(`First point: era=${history[0].era}, ops=${history[0].ops}`);
                         logger.log(`Last point: era=${history[history.length-1].era}, ops=${history[history.length-1].ops}`);
+                        console.log(`Team ${teamId} history contains ${history.length} points`);
                     }
                     // Store in cache
                     historyCache[teamId] = history;
@@ -228,6 +229,7 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
                 } else {
                     ctx.lineTo(x, y);
                 }
+
             });
             
             // Style the line with opacity based on progress

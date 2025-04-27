@@ -1051,3 +1051,121 @@ body.dark-mode .stat-value {
     border: 1px solid var(--border-color);
     transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
+
+/* Advanced insights styling - removed hover effects */
+.insights-details {
+    margin-top: 0.75rem;
+}
+
+.loading-indicator {
+    font-style: italic;
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 0.5rem 0;
+}
+
+.stat-subvalue {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+}
+
+/* Movement items - condensed layout */
+.movement-item,
+.consistency-item,
+.discrepancy-item {
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    border-radius: 4px;
+    background: var(--background-light);
+    transition: background-color 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.movement-team,
+.consistency-team,
+.discrepancy-team {
+    font-weight: 600;
+    color: var(--mlb-blue);
+    font-size: 0.85rem;
+}
+
+.movement-details,
+.consistency-details,
+.discrepancy-details {
+    font-size: 0.8rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    margin-top: 0.25rem;
+}
+
+.movement-stat,
+.consistency-stat,
+.discrepancy-stat {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-right: 0.75rem;
+}
+
+.movement-label,
+.consistency-label,
+.discrepancy-label {
+    color: var(--text-secondary);
+}
+
+.movement-value,
+.consistency-value,
+.discrepancy-value {
+    font-weight: 500;
+}
+
+.movement-value.positive {
+    color: var(--excellent);
+}
+
+.movement-value.negative {
+    color: var(--poor);
+}
+
+/* Specific movement classes */
+.movement-improved {
+    border-left: 3px solid var(--excellent);
+}
+
+.movement-worse {
+    border-left: 3px solid var(--poor);
+}
+
+.movement-mixed {
+    border-left: 3px solid var(--average);
+}
+
+/* Card specific styles */
+.insights-card.movement::before {
+    background: #38b6ff; /* Light blue */
+}
+
+.insights-card.consistency::before {
+    background: #5271ff; /* Medium blue */
+}
+
+.insights-card.performance-gap::before {
+    background: #8c52ff; /* Purple */
+}
+
+/* Dark mode adjustments */
+body.dark-mode .movement-item,
+body.dark-mode .consistency-item,
+body.dark-mode .discrepancy-item {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+body.dark-mode .movement-team,
+body.dark-mode .consistency-team,
+body.dark-mode .discrepancy-team {
+    color: var(--metric-value-color);
+}
