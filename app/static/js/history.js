@@ -22,7 +22,7 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
      * @param {number} days - Number of days of history to fetch
      * @returns {Promise} Promise that resolves with history data
      */
-    function fetchTeamHistory(teamId, days = 30) {
+    function fetchTeamHistory(teamId, days = 90) {
         // If already in cache, return promise of cached data
         if (historyCache[teamId]) {
             return Promise.resolve(historyCache[teamId]);
@@ -185,7 +185,7 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
             
             // Get animation progress (0.0 to 1.0)
             const timestamp = Date.now();
-            const animDuration = 1000; // Reduced from 1500ms to 1000ms for quicker animation
+            const animDuration = 800; // Reduced animation duration for faster completion
             
             // Only use stored animation start time if this is the active team
             // This prevents flashing the full line and restarting animation
@@ -199,10 +199,11 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
             const ctx = chart.ctx;
             ctx.save();
             
-            // This ensures all data points are eventually shown
-            const pointsToDraw = progress > 0.95 ? 
-                history.length : // Show all points when animation is nearly complete
-                Math.max(2, Math.ceil(history.length * progress));
+            // Modified logic to show all points faster while keeping animation
+            // Show all points after 70% progress (easier to see full history)
+            const pointsToDraw = progress > 0.4 ? 
+                history.length : // Show all points sooner in the animation
+                Math.max(2, Math.ceil(history.length * (progress * 2.5))); // Speed up initial point display
                 
             const animatedHistory = history.slice(0, pointsToDraw);
             
@@ -229,8 +230,9 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
                 }
             });
             
-            // Style the line
-            ctx.strokeStyle = 'rgba(0, 45, 114, 0.7)';  // MLB blue with opacity
+            // Style the line with opacity based on progress
+            const opacity = Math.min(0.7, progress + 0.2); // Start at 0.2 opacity and increase to 0.7
+            ctx.strokeStyle = `rgba(0, 45, 114, ${opacity})`;
             ctx.lineWidth = 2;
             ctx.stroke();
             
@@ -251,8 +253,8 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
                 ctx.beginPath();
                 ctx.arc(x, y, isLatest ? 5 : 3, 0, Math.PI * 2);
                 ctx.fillStyle = isLatest ? 
-                    'rgba(227, 25, 55, 0.9)' :  // MLB red with higher opacity for latest
-                    'rgba(227, 25, 55, 0.7)';   // MLB red with lower opacity for others
+                    `rgba(227, 25, 55, ${opacity + 0.2})` :  // MLB red with higher opacity for latest
+                    `rgba(227, 25, 55, ${opacity})`;   // MLB red with lower opacity for others
                 ctx.fill();
                 
                 // Add date tooltip on hover for each point
@@ -262,7 +264,7 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
                         if (!isNaN(date.getTime())) {
                             const dateStr = date.toLocaleDateString();
                             
-                            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                            ctx.fillStyle = `rgba(0, 0, 0, ${opacity + 0.3})`;
                             ctx.font = '10px Roboto';
                             ctx.textAlign = 'center';
                             ctx.textBaseline = 'middle';
