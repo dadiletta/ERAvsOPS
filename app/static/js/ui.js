@@ -100,6 +100,7 @@ const MLBUI = (function(window, document, $, MLBConfig) {
             
             // Hide refresh button during update
             elements.refreshButton.removeClass('visible');
+            elements.refreshButton.prop('disabled', true); // Add explicit disable
         } else {
             elements.statusIndicatorTitle.removeClass('active');
             elements.updateProgress.removeClass('visible');
@@ -116,8 +117,10 @@ const MLBUI = (function(window, document, $, MLBConfig) {
                 elements.statusTextTitle.text('Fresh');
             }
             
-            // Always show refresh button (key change)
+            // CRITICAL FIX: Always show refresh button regardless of freshness
             elements.refreshButton.addClass('visible');
+            elements.refreshButton.prop('disabled', false); // Explicitly enable
+            elements.refreshButton.css('opacity', '1'); // Ensure it's fully visible
             
             // If there was an error, show it
             if (status.error) {
@@ -129,6 +132,12 @@ const MLBUI = (function(window, document, $, MLBConfig) {
             if (status.snapshot_count) {
                 state.snapshotCount = status.snapshot_count;
                 elements.snapshotCountElem.text(state.snapshotCount);
+                
+                // If snapshot count changes from 0 to non-zero, force a UI refresh
+                if (state.snapshotCount > 0 && elements.snapshotCountElem.text() === '0') {
+                    elements.snapshotCountElem.text(state.snapshotCount);
+                    logger.log("Forced snapshot count update from 0 to " + state.snapshotCount);
+                }
             }
         }
     }
@@ -147,6 +156,24 @@ const MLBUI = (function(window, document, $, MLBConfig) {
         
         // Always show refresh button on initialization (key change)
         elements.refreshButton.addClass('visible');
+        elements.refreshButton.prop('disabled', false); // Ensure it's enabled
+        elements.refreshButton.css('opacity', '1'); // Ensure it's visible
+        
+        // Check snapshot count after a short delay
+        setTimeout(function() {
+            // If snapshot count is still 0, try to fetch it
+            if (elements.snapshotCountElem.text() === '0') {
+                fetch('/api/update-status')
+                    .then(response => response.json())
+                    .then(status => {
+                        if (status.snapshot_count > 0) {
+                            elements.snapshotCountElem.text(status.snapshot_count);
+                            logger.log("Updated snapshot count to " + status.snapshot_count);
+                        }
+                    })
+                    .catch(error => logger.error("Error fetching snapshot count:", error));
+            }
+        }, 2000);
         
         logger.log("UI initialization completed");
     }

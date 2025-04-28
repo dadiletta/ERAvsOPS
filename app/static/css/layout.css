@@ -125,6 +125,39 @@
     font-size: 0.9rem;
 }
 
+.refresh-button {
+    display: inline-block !important; /* Force display */
+    opacity: 1 !important;  /* Force opacity */
+    visibility: visible !important; /* Force visibility */
+    background-color: var(--mlb-blue);
+    color: white;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    margin-left: 12px;
+    font-size: 0.85rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Add hover effect for better user experience */
+.refresh-button:hover {
+    background-color: var(--mlb-blue-light);
+    transform: translateY(-1px);
+}
+
+.refresh-button:active {
+    transform: translateY(1px);
+}
+
+/* Ensure disabled state is visually distinct but still visible */
+.refresh-button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
 /* Dark mode adjustments for components */
 body.dark-mode h1,
 body.dark-mode h2,

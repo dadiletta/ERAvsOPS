@@ -9,8 +9,11 @@
     const state = {
         dataLoaded: false,
         chartLoaded: false,
+        snapshotCountLoaded: false,
         imagesLoaded: 0,
-        totalImages: 0
+        totalImages: 0,
+        fetchAttempts: 0,
+        maxFetchAttempts: 3
     };
     
     // Function to hide the loading overlay
@@ -32,7 +35,7 @@
     
     // Function to check if everything is loaded
     function checkIfLoaded() {
-        if (state.dataLoaded && state.chartLoaded && 
+        if (state.dataLoaded && state.chartLoaded && state.snapshotCountLoaded &&
             (state.imagesLoaded >= state.totalImages || state.totalImages === 0)) {
             
             // Add a slight delay for smoother transition
@@ -41,9 +44,62 @@
         }
     }
     
+    // Function to fetch snapshot count
+    function fetchSnapshotCount() {
+        if (state.snapshotCountLoaded || state.fetchAttempts >= state.maxFetchAttempts) {
+            return;
+        }
+        
+        state.fetchAttempts++;
+        console.log(`Fetching snapshot count (attempt ${state.fetchAttempts}/${state.maxFetchAttempts})...`);
+        
+        // Make API call to get update status, which includes snapshot count
+        fetch('/api/update-status')
+            .then(response => response.json())
+            .then(status => {
+                if (status && typeof status.snapshot_count !== 'undefined') {
+                    // Update the snapshot count in the DOM
+                    const snapshotCountElem = document.getElementById('snapshot-count');
+                    if (snapshotCountElem) {
+                        snapshotCountElem.textContent = status.snapshot_count;
+                    }
+                    
+                    // Mark as loaded if we have a valid count
+                    if (status.snapshot_count > 0) {
+                        state.snapshotCountLoaded = true;
+                        console.log(`Snapshot count loaded: ${status.snapshot_count}`);
+                        checkIfLoaded();
+                    } else if (state.fetchAttempts < state.maxFetchAttempts) {
+                        // Try again after a delay if count is 0
+                        setTimeout(fetchSnapshotCount, 1000);
+                    } else {
+                        // Max attempts reached, consider it loaded anyway
+                        state.snapshotCountLoaded = true;
+                        console.log("Max snapshot count fetch attempts reached");
+                        checkIfLoaded();
+                    }
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching snapshot count:", error);
+                if (state.fetchAttempts < state.maxFetchAttempts) {
+                    // Try again after a delay
+                    setTimeout(fetchSnapshotCount, 1000);
+                } else {
+                    // Max attempts reached, consider it loaded anyway
+                    state.snapshotCountLoaded = true;
+                    console.log("Max snapshot count fetch attempts reached");
+                    checkIfLoaded();
+                }
+            });
+    }
+    
     // Initialize loading detection
     function initialize() {
         console.log("Initializing loading overlay");
+        
+        // Start fetching snapshot count immediately
+        fetchSnapshotCount();
         
         // Count team logos to load
         if (window.teamData) {
@@ -99,13 +155,13 @@
             }, 100);
         }
         
-        // Failsafe: Hide loading overlay after 10 seconds even if not everything is loaded
+        // Failsafe: Hide loading overlay after 15 seconds even if not everything is loaded
         setTimeout(() => {
             if (!loadingOverlay.classList.contains('hidden')) {
                 console.log("Failsafe: Hiding loading overlay after timeout");
                 hideLoadingOverlay();
             }
-        }, 10000);
+        }, 15000); // Increased from 10 to 15 seconds
     }
     
     // Initialize when document is ready
