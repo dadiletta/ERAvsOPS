@@ -24,7 +24,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     CACHE_TIMEOUT = int(os.getenv('CACHE_TIMEOUT', 3600))  # 1 hour in seconds
     SNAPSHOT_INTERVAL = int(os.getenv('SNAPSHOT_INTERVAL', 86400))  # 24 hours in seconds
-    HISTORY_LIMIT = int(os.getenv('HISTORY_LIMIT', 30))  # Max number of historical data points to keep
+    HISTORY_LIMIT = int(os.getenv('HISTORY_LIMIT', 3000))  # Max number of historical data points to keep
     
     # Rate limiting settings - reduced from 2.0 to 0.5
     API_RATE_LIMIT = float(os.getenv('API_RATE_LIMIT', 0.5))  # Minimum seconds between API requests
