@@ -9,26 +9,6 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
     let isDataLoading = false;
     let dataLoadTime = null;
     
-    // DOM elements
-    const elements = {
-        // Card containers
-        movementCard: $('#movement-card'),
-        consistencyCard: $('#consistency-card'),
-        improvementCard: $('#improvement-card'),
-        
-        // Movement leaders
-        movementLeader: $('#movement-leader'),
-        movementValue: $('#movement-value'),
-        
-        // Consistency leaders
-        consistencyLeader: $('#consistency-leader'),
-        consistencyValue: $('#consistency-value'),
-        
-        // Most improved leaders
-        improvementLeader: $('#improvement-leader'),
-        improvementValue: $('#improvement-value')
-    };
-    
     /**
      * Fetch team movement data with caching
      */
@@ -44,13 +24,11 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
         logger.log("Fetching team movement analysis data");
         
         // Set loading state for all cards
-        $('.advanced-leaders').addClass('loading');
+        $('.loading-indicator').show();
         
         // BUGFIX: Only remove team rows within advanced content containers
         // Instead of removing all '.team-row' elements which affects standings
         $('#movement-content .team-row, #consistency-content .team-row, #improvement-content .team-row').remove();
-        
-        $('.loading-indicator').show();
         
         // Fetch the data
         fetch('/api/team-movement')
@@ -67,7 +45,6 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
                 
                 // Hide loading indicators
                 $('.loading-indicator').hide();
-                $('.advanced-leaders').removeClass('loading');
                 
                 // Update all cards with the data
                 updateAllCards(data);
@@ -84,7 +61,6 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
      */
     function showErrorMessage(message) {
         $('.loading-indicator').hide();
-        $('.advanced-leaders').removeClass('loading');
         $('.error-message').text(message).show();
     }
     
@@ -115,13 +91,6 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
     function updateMovementCard(data) {
         if (!data.most_movement || data.most_movement.length === 0) return;
         
-        // Get leader team
-        const leader = data.most_movement[0];
-        
-        // Update leader stats
-        elements.movementLeader.text(leader.full_name);
-        elements.movementValue.text(formatNumber(leader.total_path_length));
-        
         // Container for team rows
         const container = $('#movement-content');
         container.find('.team-row').remove(); // This is safe because it's scoped to this container
@@ -145,7 +114,7 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
                     <div class="team-name">${team.full_name}</div>
                     <div class="team-metrics">
                         <div class="metric">
-                            <div class="metric-label">Total Movement:</div>
+                            <div class="metric-label">Total Distance Traveled:</div>
                             <div class="metric-value">${formatNumber(team.total_path_length)}</div>
                         </div>
                         <div class="metric">
@@ -180,20 +149,6 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
         
         if (teams.length === 0) return;
         
-        // Get leader team
-        const leader = teams[0];
-        
-        // Update leader stats
-        elements.consistencyLeader.text(leader.full_name);
-        
-        // Use path efficiency if available, otherwise movement magnitude
-        const hasPathEfficiency = typeof leader.path_efficiency !== 'undefined';
-        if (hasPathEfficiency) {
-            elements.consistencyValue.text(`${(leader.path_efficiency * 100).toFixed(0)}%`);
-        } else {
-            elements.consistencyValue.text(formatNumber(leader.movement_magnitude));
-        }
-        
         // Container for team rows
         const container = $('#consistency-content');
         container.find('.team-row').remove(); // This is safe because it's scoped to this container
@@ -205,31 +160,38 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
             // Create metrics HTML based on available data
             let metricsHtml;
             if (hasEnhancedData) {
-                // Calculate movement type based on actual movement patterns
-                const movementType = team.path_efficiency > 0.7 ? 'Direct' : 
-                                    team.path_efficiency > 0.4 ? 'Mixed' : 'Erratic';
+                // Calculate consistency score (as a percentage)
+                const consistencyScore = (team.path_efficiency * 100).toFixed(0);
                 
-                // Calculate ERA trend direction
-                const eraTrend = team.era_net_change < 0 ? 'Improving' : 'Declining';
-                
+                // Create clear, separate metrics for consistency and trend information
                 metricsHtml = `
                 <div class="metric">
-                    <div class="metric-label">Movement Pattern:</div>
-                    <div class="metric-value">${movementType}</div>
+                    <div class="metric-label">Consistency Score:</div>
+                    <div class="metric-value">${consistencyScore}%</div>
                 </div>
                 <div class="metric">
-                    <div class="metric-label">ERA Trend:</div>
-                    <div class="metric-value ${team.era_net_change < 0 ? 'improving' : 'declining'}">${eraTrend}</div>
+                    <div class="metric-label">Performance Trends:</div>
+                    <div class="direction-details">
+                        <div class="direction-component ${team.era_net_change < 0 ? 'improving' : 'declining'}">
+                            Pitching (${formatChange(team.era_net_change)})
+                        </div>
+                        <div class="direction-component ${team.ops_net_change > 0 ? 'improving' : 'declining'}">
+                            Hitting (${formatChange(team.ops_net_change)})
+                        </div>
+                    </div>
                 </div>`;
             } else {
                 metricsHtml = `
                 <div class="metric">
-                    <div class="metric-label">Movement:</div>
-                    <div class="metric-value">${formatNumber(team.movement_magnitude)}</div>
+                    <div class="metric-label">Consistency Rating:</div>
+                    <div class="metric-value">High</div>
                 </div>
                 <div class="metric">
-                    <div class="metric-label">Current ERA:</div>
-                    <div class="metric-value">${formatNumber(team.current_era)}</div>
+                    <div class="metric-label">Current Stats:</div>
+                    <div class="metric-details">
+                        ERA: ${formatNumber(team.current_era)}, 
+                        OPS: ${formatNumber(team.current_ops)}
+                    </div>
                 </div>`;
             }
             
@@ -278,23 +240,16 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
             
             if (alternateTeams.length === 0) return;
             
-            // Get leader team
-            const leader = alternateTeams[0];
-            
-            // Update leader stats
-            elements.improvementLeader.text(leader.full_name);
-            
-            // Show the combined improvement score
-            const improvementScore = Math.abs(leader.era_net_change < 0 ? leader.era_net_change : 0) + 
-                                    (leader.ops_net_change > 0 ? leader.ops_net_change : 0);
-            elements.improvementValue.text(formatNumber(improvementScore));
-            
             // Container for team rows
             const container = $('#improvement-content');
             container.find('.team-row').remove(); // This is safe because it's scoped to this container
             
             // Only show top 3 teams
             alternateTeams.slice(0, 3).forEach((team, index) => {
+                // Calculate overall improvement score
+                const improvementScore = Math.abs(team.era_net_change < 0 ? team.era_net_change : 0) + 
+                                        (team.ops_net_change > 0 ? team.ops_net_change : 0);
+                
                 const teamRow = $(`
                 <div class="team-row">
                     <div class="rank-container">
@@ -304,12 +259,19 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
                         <div class="team-name">${team.full_name}</div>
                         <div class="team-metrics">
                             <div class="metric">
-                                <div class="metric-label">ERA Change:</div>
-                                <div class="metric-value era-change ${team.era_net_change < 0 ? 'improving' : 'declining'}">${formatChange(team.era_net_change)}</div>
+                                <div class="metric-label">Improvement Score:</div>
+                                <div class="metric-value">${formatNumber(improvementScore)}</div>
                             </div>
                             <div class="metric">
-                                <div class="metric-label">OPS Change:</div>
-                                <div class="metric-value ops-change ${team.ops_net_change > 0 ? 'improving' : 'declining'}">${formatChange(team.ops_net_change)}</div>
+                                <div class="metric-label">Key Changes:</div>
+                                <div class="direction-details">
+                                    <div class="direction-component ${team.era_net_change < 0 ? 'improving' : 'declining'}">
+                                        ERA: ${formatChange(team.era_net_change)}
+                                    </div>
+                                    <div class="direction-component ${team.ops_net_change > 0 ? 'improving' : 'declining'}">
+                                        OPS: ${formatChange(team.ops_net_change)}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -321,22 +283,15 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
             return;
         }
         
-        // Get leader team
-        const leader = sortedTeams[0];
-        
-        // Update leader stats
-        elements.improvementLeader.text(leader.full_name);
-        
-        // Show the combined improvement score
-        const improvementScore = Math.abs(leader.era_net_change) + leader.ops_net_change;
-        elements.improvementValue.text(formatNumber(improvementScore));
-        
         // Container for team rows
         const container = $('#improvement-content');
         container.find('.team-row').remove(); // This is safe because it's scoped to this container
         
         // Only show top 3 teams
         sortedTeams.slice(0, 3).forEach((team, index) => {
+            // Calculate combined improvement score
+            const improvementScore = Math.abs(team.era_net_change) + team.ops_net_change;
+            
             const teamRow = $(`
             <div class="team-row">
                 <div class="rank-container">
@@ -346,12 +301,19 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
                     <div class="team-name">${team.full_name}</div>
                     <div class="team-metrics">
                         <div class="metric">
-                            <div class="metric-label">ERA Change:</div>
-                            <div class="metric-value era-change improving">${formatChange(team.era_net_change)}</div>
+                            <div class="metric-label">Improvement Score:</div>
+                            <div class="metric-value">${formatNumber(improvementScore)}</div>
                         </div>
                         <div class="metric">
-                            <div class="metric-label">OPS Change:</div>
-                            <div class="metric-value ops-change improving">${formatChange(team.ops_net_change)}</div>
+                            <div class="metric-label">Performance Gains:</div>
+                            <div class="direction-details">
+                                <div class="direction-component improving">
+                                    ERA: ${formatChange(team.era_net_change)}
+                                </div>
+                                <div class="direction-component improving">
+                                    OPS: ${formatChange(team.ops_net_change)}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
