@@ -286,47 +286,6 @@
                     </div>
                 </div>
 
-                <div class="insights-card movement">
-                    <h3>Team Movement Trends</h3>
-                    <div class="insights-content">
-                        <div class="insight-stat">
-                            <span class="stat-label">Most Movement</span>
-                            <span class="stat-value" id="most-movement-team">-</span>
-                            <span class="stat-subvalue" id="most-movement-value">-</span>
-                        </div>
-                    </div>
-                    <div class="insights-details" id="movement-card-content">
-                        <div class="loading-indicator">Loading data...</div>
-                    </div>
-                </div>
-                
-                <div class="insights-card consistency">
-                    <h3>Consistency Leaders</h3>
-                    <div class="insights-content">
-                        <div class="insight-stat">
-                            <span class="stat-label">Most Consistent</span>
-                            <span class="stat-value" id="least-movement-team">-</span>
-                            <span class="stat-subvalue" id="least-movement-value">-</span>
-                        </div>
-                    </div>
-                    <div class="insights-details" id="consistency-card-content">
-                        <div class="loading-indicator">Loading data...</div>
-                    </div>
-                </div>
-                
-                <div class="insights-card performance-gap">
-                    <h3>Performance Gap Analysis</h3>
-                    <div class="insights-content">
-                        <div class="insight-stat">
-                            <span class="stat-label">Biggest Discrepancy</span>
-                            <span class="stat-value" id="biggest-discrepancy-team">-</span>
-                            <span class="stat-subvalue" id="biggest-discrepancy-value">-</span>
-                        </div>
-                    </div>
-                    <div class="insights-details" id="discrepancy-card-content">
-                        <div class="loading-indicator">Loading data...</div>
-                    </div>
-                </div>
             </div>
         </section>
         
@@ -416,6 +375,54 @@
                         <div class="scale-item good">3.0-7.0<span>Contending</span></div>
                         <div class="scale-item average">7.0-12.0<span>Marginal</span></div>
                         <div class="scale-item poor">12.0+<span>Out of Race</span></div>
+                    </div>
+                </div>
+
+                <!-- Card for fWAR -->
+                <div class="metric-card">
+                    <h3>fWAR <span class="small">(FanGraphs Wins Above Replacement)</span></h3>
+                    <p class="metric-value">Higher is better ↑</p>
+                    <div class="metric-details">
+                        <h4>Calculation</h4>
+                        <p class="calculation">fWAR = (Batting Runs + Baserunning Runs + Fielding Runs + Positional Adjustment + League Adjustment + Replacement Runs) / Runs Per Win</p>
+                        <p>fWAR is FanGraphs' implementation of the Wins Above Replacement metric. It combines a player's total offensive and defensive contributions, converting them into a single number that represents their value in team wins compared to a "replacement player" (a minor league call-up or freely available player).</p>
+                        
+                        <h4>Historical Context</h4>
+                        <p class="metric-history">The concept of WAR emerged in the 1970s and 1980s through the work of sabermetricians like Bill James and Pete Palmer, who sought to create all-encompassing player evaluation metrics. FanGraphs developed their specific implementation (fWAR) in the mid-2000s, incorporating more advanced defensive metrics and regularly updating the methodology.</p>
+                        <p class="metric-history">WAR revolutionized player evaluation by providing a framework to compare players across positions and eras with a single number. It has gained mainstream acceptance over the past decade, being regularly cited during MLB broadcasts and in Hall of Fame discussions. Most famously, Mike Trout's historically high WAR totals early in his career helped cement his reputation as one of baseball's greatest players despite playing on less successful Angels teams.</p>
+                    </div>
+                    <div class="scale">
+                        <div class="scale-item excellent">8.0+<span>MVP</span></div>
+                        <div class="scale-item good">5.0-7.9<span>All-Star</span></div>
+                        <div class="scale-item average">2.0-4.9<span>Solid Starter</span></div>
+                        <div class="scale-item poor">0.0-1.9<span>Bench/Replacement</span></div>
+                    </div>
+                </div>
+
+                <!-- Card for wRC+ -->
+                <div class="metric-card">
+                    <h3>wRC+ <span class="small">(Weighted Runs Created Plus)</span></h3>
+                    <p class="metric-value">Higher is better ↑</p>
+                    <div class="metric-details">
+                        <h4>Calculation</h4>
+                        <p class="calculation">wRC+ = ((wRAA/PA + League R/PA) + (League R/PA - Park Factor * League R/PA))/League wRC/PA * 100</p>
+                        <p>wRC+ measures a player's total offensive value by runs, adjusted for ballpark and league context. It's scaled so that 100 is always league average, making it easy to compare players across different parks, leagues, and eras.</p>
+                        
+                        <ul class="calculation-details">
+                            <li>wRAA = Weighted Runs Above Average</li>
+                            <li>PA = Plate Appearances</li>
+                            <li>Park Factor = Adjustment for home ballpark effects</li>
+                        </ul>
+                        
+                        <h4>Historical Context</h4>
+                        <p class="metric-history">wRC+ evolved from Bill James' Runs Created statistic, which he developed in the 1970s. FanGraphs refined this into wRC+ in the 2000s, adding park and league adjustments to create a more contextual offensive metric. The "plus" indicates that it's indexed to league average (100).</p>
+                        <p class="metric-history">wRC+ has become the preferred offensive metric among sabermetricians because it captures a player's complete offensive contribution in one number while accounting for the varying offensive environments across different ballparks and eras. For example, it helps demonstrate that a player hitting .280 in San Francisco's pitcher-friendly Oracle Park might be more impressive than someone hitting .300 in Colorado's hitter-friendly Coors Field.</p>
+                    </div>
+                    <div class="scale">
+                        <div class="scale-item excellent">140+<span>Elite</span></div>
+                        <div class="scale-item good">115-139<span>Great</span></div>
+                        <div class="scale-item average">85-114<span>Average</span></div>
+                        <div class="scale-item poor">≤84<span>Below Average</span></div>
                     </div>
                 </div>
             </div>
