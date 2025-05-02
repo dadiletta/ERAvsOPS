@@ -1,4 +1,5 @@
-// Loading overlay management
+// app/static/js/loading-overlay.js
+
 (function(window, document, $) {
     "use strict";
     
@@ -13,8 +14,20 @@
         imagesLoaded: 0,
         totalImages: 0,
         fetchAttempts: 0,
-        maxFetchAttempts: 3
+        maxFetchAttempts: 3,
+        initialLoadComplete: false // Track if we've completed initial load
     };
+    
+    // Utility function to log loading status
+    function logLoadingStatus() {
+        console.log("Loading status:", {
+            dataLoaded: state.dataLoaded,
+            chartLoaded: state.chartLoaded,
+            snapshotCountLoaded: state.snapshotCountLoaded,
+            imagesLoaded: `${state.imagesLoaded}/${state.totalImages}`,
+            initialLoadComplete: state.initialLoadComplete
+        });
+    }
     
     // Function to hide the loading overlay
     function hideLoadingOverlay() {
@@ -30,11 +43,16 @@
             }, 500); // Match transition duration
             
             console.log("Loading overlay hidden");
+            
+            // Mark initial load as complete
+            state.initialLoadComplete = true;
         }
     }
     
     // Function to check if everything is loaded
     function checkIfLoaded() {
+        logLoadingStatus();
+        
         if (state.dataLoaded && state.chartLoaded && state.snapshotCountLoaded &&
             (state.imagesLoaded >= state.totalImages || state.totalImages === 0)) {
             
@@ -44,7 +62,7 @@
         }
     }
     
-    // Function to fetch snapshot count
+    // Function to fetch snapshot count with improved retry logic
     function fetchSnapshotCount() {
         if (state.snapshotCountLoaded || state.fetchAttempts >= state.maxFetchAttempts) {
             return;
@@ -55,7 +73,12 @@
         
         // Make API call to get update status, which includes snapshot count
         fetch('/api/update-status')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(status => {
                 if (status && typeof status.snapshot_count !== 'undefined') {
                     // Update the snapshot count in the DOM
@@ -83,18 +106,38 @@
             .catch(error => {
                 console.error("Error fetching snapshot count:", error);
                 if (state.fetchAttempts < state.maxFetchAttempts) {
-                    // Try again after a delay
-                    setTimeout(fetchSnapshotCount, 1000);
+                    // Try again after a delay with exponential backoff
+                    setTimeout(fetchSnapshotCount, 1000 * state.fetchAttempts);
                 } else {
                     // Max attempts reached, consider it loaded anyway
                     state.snapshotCountLoaded = true;
-                    console.log("Max snapshot count fetch attempts reached");
+                    console.log("Max snapshot count fetch attempts reached after errors");
                     checkIfLoaded();
                 }
             });
     }
     
-    // Initialize loading detection
+    // Enhanced function to check if chart is properly loaded with data
+    function checkChartLoading() {
+        if (window.mlbChart) {
+            // Verify the chart actually has team data loaded
+            if (window.mlbChart.data && 
+                window.mlbChart.data.datasets && 
+                window.mlbChart.data.datasets[0] &&
+                window.mlbChart.data.datasets[0].data &&
+                window.mlbChart.data.datasets[0].data.length > 0) {
+                
+                state.chartLoaded = true;
+                console.log(`Chart loaded with ${window.mlbChart.data.datasets[0].data.length} teams`);
+                clearInterval(window.chartCheckInterval);
+                checkIfLoaded();
+            } else {
+                console.log("Chart object exists but has no data yet");
+            }
+        }
+    }
+    
+    // Initialize loading detection with improved checks
     function initialize() {
         console.log("Initializing loading overlay");
         
@@ -107,61 +150,79 @@
             state.totalImages = window.teamData.length;
             console.log(`Found ${state.totalImages} team logos to load`);
             
-            // Preload team logos
+            // Mark data as loaded since we have window.teamData
+            state.dataLoaded = true;
+            
+            // Preload team logos with improved counting
             window.teamData.forEach(team => {
                 if (team.logo) {
                     const img = new Image();
                     img.onload = () => {
                         state.imagesLoaded++;
-                        console.log(`Loaded image ${state.imagesLoaded}/${state.totalImages}`);
+                        console.log(`Loaded image ${state.imagesLoaded}/${state.totalImages}: ${team.name}`);
                         checkIfLoaded();
                     };
                     img.onerror = () => {
                         state.imagesLoaded++;
-                        console.log(`Failed to load image ${state.imagesLoaded}/${state.totalImages}`);
+                        console.log(`Failed to load image ${state.imagesLoaded}/${state.totalImages}: ${team.name}`);
                         checkIfLoaded();
                     };
                     img.src = team.logo;
                 }
             });
         } else {
-            // No team data available, just wait for it to be loaded
-            console.log("No team data available yet");
-        }
-        
-        // Wait for chart initialization
-        const checkChartInterval = setInterval(() => {
-            if (window.mlbChart) {
-                state.chartLoaded = true;
-                console.log("Chart loaded");
-                clearInterval(checkChartInterval);
-                checkIfLoaded();
-            }
-        }, 100);
-        
-        // Wait for data to be loaded
-        if (window.teamData && window.teamData.length > 0) {
-            state.dataLoaded = true;
-            console.log("Team data loaded");
-        } else {
-            // Wait for team data to be populated
+            // No team data available, wait for it to be loaded
+            console.log("No team data available yet, waiting...");
+            
+            // Check for team data with exponential backoff
+            let dataAttempts = 0;
+            const maxDataAttempts = 5;
             const checkDataInterval = setInterval(() => {
+                dataAttempts++;
                 if (window.teamData && window.teamData.length > 0) {
                     state.dataLoaded = true;
-                    console.log("Team data loaded");
+                    console.log(`Team data loaded with ${window.teamData.length} teams`);
                     clearInterval(checkDataInterval);
                     checkIfLoaded();
+                    
+                    // Now that we have data, start checking for images
+                    state.totalImages = window.teamData.length;
+                    window.teamData.forEach(team => {
+                        if (team.logo) {
+                            const img = new Image();
+                            img.onload = () => {
+                                state.imagesLoaded++;
+                                checkIfLoaded();
+                            };
+                            img.onerror = () => {
+                                state.imagesLoaded++;
+                                checkIfLoaded();
+                            };
+                            img.src = team.logo;
+                        }
+                    });
+                } else if (dataAttempts >= maxDataAttempts) {
+                    console.log("Max attempts reached waiting for team data");
+                    clearInterval(checkDataInterval);
+                    // Consider data loaded anyway to avoid infinite waiting
+                    state.dataLoaded = true;
+                    state.totalImages = 0; // Avoid waiting for images
+                    checkIfLoaded();
                 }
-            }, 100);
+            }, 1000 * Math.min(dataAttempts + 1, 3)); // Exponential backoff up to 3 seconds
         }
         
-        // Failsafe: Hide loading overlay after 15 seconds even if not everything is loaded
+        // Wait for chart initialization with proper data
+        window.chartCheckInterval = setInterval(checkChartLoading, 100);
+        
+        // Failsafe: Hide loading overlay after 20 seconds even if not everything is loaded
         setTimeout(() => {
-            if (!loadingOverlay.classList.contains('hidden')) {
+            if (loadingOverlay && !loadingOverlay.classList.contains('hidden')) {
                 console.log("Failsafe: Hiding loading overlay after timeout");
+                logLoadingStatus(); // Log final state for debugging
                 hideLoadingOverlay();
             }
-        }, 15000); // Increased from 10 to 15 seconds
+        }, 20000); // Increased to 20 seconds
     }
     
     // Initialize when document is ready

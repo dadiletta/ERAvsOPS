@@ -1,10 +1,5 @@
 // app/static/js/advanced-insights.js
 
-/**
- * MLB ERA vs OPS Visualization - Advanced Insights Module
- * Clean implementation of team movement analysis
- */
-
 const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
     "use strict";
     
@@ -50,7 +45,11 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
         
         // Set loading state for all cards
         $('.advanced-leaders').addClass('loading');
-        $('.team-row').remove(); // Clear existing rows
+        
+        // BUGFIX: Only remove team rows within advanced content containers
+        // Instead of removing all '.team-row' elements which affects standings
+        $('#movement-content .team-row, #consistency-content .team-row, #improvement-content .team-row').remove();
+        
         $('.loading-indicator').show();
         
         // Fetch the data
@@ -125,7 +124,7 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
         
         // Container for team rows
         const container = $('#movement-content');
-        container.find('.team-row').remove();
+        container.find('.team-row').remove(); // This is safe because it's scoped to this container
         
         // Only show top 3 teams
         data.most_movement.slice(0, 3).forEach((team, index) => {
@@ -197,7 +196,7 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
         
         // Container for team rows
         const container = $('#consistency-content');
-        container.find('.team-row').remove();
+        container.find('.team-row').remove(); // This is safe because it's scoped to this container
         
         // Only show top 3 teams
         teams.slice(0, 3).forEach((team, index) => {
@@ -292,7 +291,7 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
             
             // Container for team rows
             const container = $('#improvement-content');
-            container.find('.team-row').remove();
+            container.find('.team-row').remove(); // This is safe because it's scoped to this container
             
             // Only show top 3 teams
             alternateTeams.slice(0, 3).forEach((team, index) => {
@@ -334,7 +333,7 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
         
         // Container for team rows
         const container = $('#improvement-content');
-        container.find('.team-row').remove();
+        container.find('.team-row').remove(); // This is safe because it's scoped to this container
         
         // Only show top 3 teams
         sortedTeams.slice(0, 3).forEach((team, index) => {

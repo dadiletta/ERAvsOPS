@@ -53,6 +53,36 @@
     --status-fresh: #4CAF50;
     --status-stale: #FFC107;
     --status-error: #F44336;
+    
+    /* Unified card styles */
+    --card-padding: 1.5rem;
+    --card-border-radius: 8px;
+    --card-header-padding: 1rem;
+    --card-header-border-width: 2px;
+    --card-header-font-size: 1.2rem;
+    --card-stat-bg: rgba(255, 255, 255, 0.05);
+    --card-stat-padding: 0.75rem;
+    --card-stat-border-radius: 6px;
+    --card-header-margin: 0;
+    
+    /* Insight card accent colors */
+    --insight-al-color: var(--mlb-blue);
+    --insight-nl-color: var(--mlb-red);
+    --insight-performance-color: #00b4d8; /* Teal */
+    
+    /* Advanced insight card accent colors */
+    --insight-movement-color: #ff6b6b; /* Pink */
+    --insight-consistency-color: #999999; /* Grey */
+    --insight-improvement-color: #4caf50; /* Green */
+    
+    /* Value direction indicators */
+    --value-improving: var(--excellent);
+    --value-declining: var(--poor);
+    --value-mixed: var(--average);
+    
+    /* Card stat colors */
+    --stat-label-color: var(--text-secondary);
+    --stat-value-color: var(--metric-value-color);
 }
 
 /* Dark theme colors */
@@ -88,4 +118,9 @@ body.dark-mode {
     --quadrant-top-right: rgba(93, 109, 94, 0.3);
     --quadrant-bottom-left: rgba(102, 94, 95, 0.3);
     --quadrant-bottom-right: rgba(102, 102, 90, 0.3);
+    
+    /* Card stat colors for dark mode */
+    --card-stat-bg: rgba(255, 255, 255, 0.07);
+    --stat-label-color: var(--text-secondary);
+    --stat-value-color: var(--metric-value-color);
 }
