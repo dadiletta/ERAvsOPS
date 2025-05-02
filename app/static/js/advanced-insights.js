@@ -49,7 +49,7 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
         logger.log("Fetching team movement analysis data");
         
         // Set loading state for all cards
-        $('.analysis-leaders').addClass('loading');
+        $('.advanced-leaders').addClass('loading');
         $('.team-row').remove(); // Clear existing rows
         $('.loading-indicator').show();
         
@@ -68,7 +68,7 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
                 
                 // Hide loading indicators
                 $('.loading-indicator').hide();
-                $('.analysis-leaders').removeClass('loading');
+                $('.advanced-leaders').removeClass('loading');
                 
                 // Update all cards with the data
                 updateAllCards(data);
@@ -85,7 +85,7 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
      */
     function showErrorMessage(message) {
         $('.loading-indicator').hide();
-        $('.analysis-leaders').removeClass('loading');
+        $('.advanced-leaders').removeClass('loading');
         $('.error-message').text(message).show();
     }
     
@@ -206,14 +206,21 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
             // Create metrics HTML based on available data
             let metricsHtml;
             if (hasEnhancedData) {
+                // Calculate movement type based on actual movement patterns
+                const movementType = team.path_efficiency > 0.7 ? 'Direct' : 
+                                    team.path_efficiency > 0.4 ? 'Mixed' : 'Erratic';
+                
+                // Calculate ERA trend direction
+                const eraTrend = team.era_net_change < 0 ? 'Improving' : 'Declining';
+                
                 metricsHtml = `
                 <div class="metric">
-                    <div class="metric-label">Efficiency:</div>
-                    <div class="metric-value">${(team.path_efficiency * 100).toFixed(0)}%</div>
+                    <div class="metric-label">Movement Pattern:</div>
+                    <div class="metric-value">${movementType}</div>
                 </div>
                 <div class="metric">
-                    <div class="metric-label">ERA Stability:</div>
-                    <div class="metric-value">${(team.era_consistency * 100).toFixed(0)}%</div>
+                    <div class="metric-label">ERA Trend:</div>
+                    <div class="metric-value ${team.era_net_change < 0 ? 'improving' : 'declining'}">${eraTrend}</div>
                 </div>`;
             } else {
                 metricsHtml = `

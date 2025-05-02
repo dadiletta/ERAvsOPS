@@ -1,0 +1,330 @@
+/* Advanced Insights CSS */
+
+/* Grid Layout */
+.advanced-insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin: 2rem 0;
+}
+
+/* Base Card Styling */
+.advanced-card {
+    background: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: var(--card-shadow);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    height: 100%;
+}
+
+/* Card Headers */
+.advanced-card h3 {
+    margin: 0;
+    padding: 1rem;
+    color: var(--text-dark);
+    font-size: 1.2rem;
+    font-weight: 600;
+    border-bottom: 2px solid; /* Uses border for header underline */
+    width: 100%;
+    transition: color 0.3s ease;
+}
+
+/* Top border colors matching insights-card */
+.advanced-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    z-index: 1;
+}
+
+.advanced-card.movement::before { background-color: #ff6b6b; /* Pink */ }
+.advanced-card.consistency::before { background-color: #999999; /* Grey */ }
+.advanced-card.improvement::before { background-color: #4caf50; /* Green */ }
+
+/* Ensure card has position relative for ::before to work */
+.advanced-card {
+    position: relative;
+}
+
+/* Card-specific header colors */
+.advanced-card.movement h3 { 
+    border-bottom-color: #ff6b6b; /* Pink for Movement Analysis */
+}
+
+.advanced-card.consistency h3 { 
+    border-bottom-color: #999999; /* Grey for Consistency */
+}
+
+.advanced-card.improvement h3 { 
+    border-bottom-color: #4caf50; /* Green for Most Improved */
+}
+
+/* Card Content Container */
+.advanced-content {
+    padding: 0 1rem 1rem;
+}
+
+/* Leader Section Styling */
+.advanced-leaders {
+    margin: 1rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    transition: opacity 0.3s ease;
+}
+
+.advanced-leaders.loading {
+    opacity: 0.6;
+}
+
+.advanced-card .leader-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.advanced-card .leader-value {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Leader Team Names */
+.advanced-card #movement-leader,
+.advanced-card #consistency-leader,
+.advanced-card #improvement-leader {
+    color: var(--metric-value-color);
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+/* Leader Values */
+.advanced-card #movement-value {
+    color: #ff6b6b; /* Pink for Movement */
+    font-weight: 700;
+    font-size: 0.9rem;
+    background: rgba(255, 107, 107, 0.1);
+    padding: 0.1rem 0.5rem;
+    border-radius: 4px;
+}
+
+.advanced-card #consistency-value {
+    color: #999999; /* Grey for Consistency */
+    font-weight: 700;
+    font-size: 0.9rem;
+    background: rgba(153, 153, 153, 0.1);
+    padding: 0.1rem 0.5rem;
+    border-radius: 4px;
+}
+
+.advanced-card #improvement-value {
+    color: #4caf50; /* Green for Improvement */
+    font-weight: 700;
+    font-size: 0.9rem;
+    background: rgba(76, 175, 80, 0.1);
+    padding: 0.1rem 0.5rem;
+    border-radius: 4px;
+}
+
+/* Team Row Styling */
+.advanced-card .team-row {
+    display: flex;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: background-color 0.2s ease;
+    margin-bottom: 0.75rem;
+}
+
+.advanced-card .team-row:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.advanced-card .team-row:last-child {
+    margin-bottom: 0;
+}
+
+/* Rank Styling */
+.advanced-card .rank-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    flex-shrink: 0;
+}
+
+.advanced-card .rank {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-dark);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* Team Details */
+.advanced-card .team-details {
+    flex: 1;
+    padding: 0.75rem 0.75rem 0.75rem 0;
+}
+
+.advanced-card .team-name {
+    color: var(--metric-value-color);
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+/* Metrics Container */
+.advanced-card .team-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+/* Individual Metric */
+.advanced-card .metric {
+    background: rgba(255, 255, 255, 0.07);
+    padding: 0.5rem;
+    border-radius: 6px;
+}
+
+.advanced-card .metric-label {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    margin-bottom: 0.25rem;
+}
+
+.advanced-card .metric-value {
+    color: var(--text-dark);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* Direction Details */
+.advanced-card .direction-details {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.advanced-card .direction-component {
+    flex: 1;
+    padding: 0.35rem 0.5rem;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 4px;
+}
+
+.advanced-card .direction-component.improving {
+    background-color: rgba(76, 175, 80, 0.15);
+    color: #4caf50;
+}
+
+.advanced-card .direction-component.declining {
+    background-color: rgba(255, 107, 107, 0.15);
+    color: #ff6b6b;
+}
+
+/* Direction indicators for metrics */
+.advanced-card .metric-value.improving {
+    color: #4caf50;
+}
+
+.advanced-card .metric-value.declining {
+    color: #ff6b6b;
+}
+
+.advanced-card .metric-value.mixed {
+    color: #ffc107;
+}
+
+/* Era and OPS change specific */
+.advanced-card .era-change.improving {
+    color: #4caf50;
+}
+
+.advanced-card .era-change.declining {
+    color: #ff6b6b;
+}
+
+.advanced-card .ops-change.improving {
+    color: #4caf50;
+}
+
+.advanced-card .ops-change.declining {
+    color: #ff6b6b;
+}
+
+/* Loading and Error States */
+.advanced-card .loading-indicator {
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-style: italic;
+    font-size: 0.9rem;
+    margin: 0.5rem 0;
+}
+
+.advanced-card .error-message {
+    padding: 1rem;
+    text-align: center;
+    color: #ff6b6b;
+    font-style: italic;
+    font-size: 0.9rem;
+    margin: 0.5rem 0;
+    display: none;
+}
+
+/* Dark mode adjustments */
+body.dark-mode .advanced-card {
+    background: var(--card-bg);
+}
+
+body.dark-mode .advanced-card .team-row:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .advanced-card .metric {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .advanced-card .direction-component.improving {
+    background-color: rgba(76, 175, 80, 0.2);
+}
+
+body.dark-mode .advanced-card .direction-component.declining {
+    background-color: rgba(255, 107, 107, 0.2);
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+    .advanced-insights-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .advanced-insights-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .advanced-card .team-metrics {
+        grid-template-columns: 1fr;
+    }
+    
+    .advanced-card .direction-details {
+        flex-direction: column;
+    }
+}
