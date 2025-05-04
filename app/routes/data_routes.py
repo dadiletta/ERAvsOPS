@@ -2,12 +2,13 @@
 
 from flask import Blueprint, jsonify, request, current_app
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from app.routes.helper_functions import (
     get_latest_data, update_mlb_data, update_status
 )
 from app.models.mlb_snapshot import MLBSnapshot
 from app.services.division_standings import get_division_cards_data
+import bisect
 
 
 # Set up logging
@@ -214,8 +215,13 @@ def reset_update():
 def get_team_movement():
     """API endpoint to get comprehensive team movement data for advanced insights."""
     try:
-        # Get all snapshots ordered by date
-        snapshots = MLBSnapshot.query.order_by(MLBSnapshot.timestamp.asc()).all()
+        # Calculate the date 14 days ago
+        two_weeks_ago = datetime.now(timezone.utc) - timedelta(days=14)
+        
+        # Get snapshots from last 14 days
+        snapshots = MLBSnapshot.query.filter(
+            MLBSnapshot.timestamp >= two_weeks_ago
+        ).order_by(MLBSnapshot.timestamp.asc()).all()
         
         if len(snapshots) < 2:
             return jsonify({
@@ -223,14 +229,14 @@ def get_team_movement():
                 "teams": []
             })
         
-        # Get the oldest and newest snapshots
+        # Get the oldest and newest snapshots from this period
         oldest_snapshot = snapshots[0]
         newest_snapshot = snapshots[-1]
         
         # Dictionary to track all teams
         all_teams = {}
         
-        # First pass: collect all teams and their complete movement history
+        # Process only the snapshots from last 2 weeks
         for snapshot in snapshots:
             timestamp = snapshot.timestamp_aware
             
@@ -285,7 +291,7 @@ def get_team_movement():
                 except (ValueError, TypeError):
                     continue  # Skip invalid data points
         
-        # Second pass: calculate movement metrics for each team
+        # Calculate movement metrics for each team
         movement_data = []
         
         import math
@@ -297,80 +303,34 @@ def get_team_movement():
             if len(path) < 2:
                 continue
                 
-            # Calculate net movement (first to last point)
-            first_point = path[0]
-            last_point = path[-1]
-            
-            era_net_change = last_point['era'] - first_point['era']
-            ops_net_change = last_point['ops'] - first_point['ops']
-            
-            # Calculate direct distance between first and last point (net displacement)
-            net_displacement = math.sqrt(era_net_change**2 + ops_net_change**2)
-            
-            # Calculate total path length (sum of all segments)
-            total_path_length = 0
-            total_era_change = 0  # Accumulate absolute ERA changes
-            total_ops_change = 0  # Accumulate absolute OPS changes
-            
-            # Direction consistency counters
-            era_improvements = 0
-            era_declines = 0
-            ops_improvements = 0
-            ops_declines = 0
+            # Calculate total volatility (sum of all day-to-day changes)
+            total_volatility = 0
+            era_changes = []
+            ops_changes = []
             
             for i in range(1, len(path)):
-                segment_era_change = path[i]['era'] - path[i-1]['era']
-                segment_ops_change = path[i]['ops'] - path[i-1]['ops']
+                # Calculate day-to-day changes
+                era_change = abs(path[i]['era'] - path[i-1]['era'])
+                ops_change = abs(path[i]['ops'] - path[i-1]['ops'])
                 
-                # Count direction consistency
-                if segment_era_change < 0:  # ERA decreasing (improving)
-                    era_improvements += 1
-                elif segment_era_change > 0:  # ERA increasing (declining)
-                    era_declines += 1
-                    
-                if segment_ops_change > 0:  # OPS increasing (improving)
-                    ops_improvements += 1
-                elif segment_ops_change < 0:  # OPS decreasing (declining)
-                    ops_declines += 1
+                # Add to collections
+                era_changes.append(era_change)
+                ops_changes.append(ops_change)
                 
-                # Accumulate absolute changes (for volatility)
-                total_era_change += abs(segment_era_change)
-                total_ops_change += abs(segment_ops_change)
-                
-                # Calculate segment length
-                segment_length = math.sqrt(segment_era_change**2 + segment_ops_change**2)
-                total_path_length += segment_length
+                # Calculate combined movement for this step
+                combined_change = math.sqrt(era_change**2 + ops_change**2)
+                total_volatility += combined_change
             
-            # Calculate efficiency (ratio of displacement to path length)
-            # Higher values (closer to 1) mean more direct/consistent movement
-            path_efficiency = net_displacement / total_path_length if total_path_length > 0 else 0
-            
-            # Calculate volatility (average deviation per snapshot)
-            num_segments = len(path) - 1
-            era_volatility = total_era_change / num_segments if num_segments > 0 else 0
-            ops_volatility = total_ops_change / num_segments if num_segments > 0 else 0
-            
-            # Calculate overall volatility
-            combined_volatility = math.sqrt(era_volatility**2 + ops_volatility**2)
+            # Calculate averages
+            num_changes = len(path) - 1
+            avg_era_volatility = sum(era_changes) / num_changes if num_changes > 0 else 0
+            avg_ops_volatility = sum(ops_changes) / num_changes if num_changes > 0 else 0
+            avg_combined_volatility = total_volatility / num_changes if num_changes > 0 else 0
             
             # Calculate win percentage
-            wins = last_point.get('wins', 0)
-            losses = last_point.get('losses', 0)
+            wins = team_data['current_wins']
+            losses = team_data['current_losses']
             win_pct = wins / (wins + losses) if (wins + losses) > 0 else 0
-            
-            # Determine movement direction category
-            if era_net_change < 0 and ops_net_change > 0:
-                direction = "improving"  # Better pitching and hitting
-            elif era_net_change > 0 and ops_net_change < 0:
-                direction = "declining"  # Worse pitching and hitting
-            else:
-                direction = "mixed"      # Mixed results
-                
-            # Calculate path consistency - how consistent the movement direction was
-            total_direction_changes = len(path) - 1
-            
-            era_consistency = max(era_improvements, era_declines) / total_direction_changes if total_direction_changes > 0 else 0
-            ops_consistency = max(ops_improvements, ops_declines) / total_direction_changes if total_direction_changes > 0 else 0
             
             # Final team movement data
             team_movement = {
@@ -381,80 +341,49 @@ def get_team_movement():
                 'league': team_data['league'],
                 'current_era': team_data['current_era'],
                 'current_ops': team_data['current_ops'],
-                'first_era': first_point['era'],
-                'first_ops': first_point['ops'],
-                'era_net_change': era_net_change,
-                'ops_net_change': ops_net_change,
-                'total_era_change': total_era_change,
-                'total_ops_change': total_ops_change,
-                'net_displacement': net_displacement,
-                'total_path_length': total_path_length,
-                'path_efficiency': path_efficiency,
-                'era_volatility': era_volatility,
-                'ops_volatility': ops_volatility,
-                'combined_volatility': combined_volatility,
-                'direction': direction,
-                'era_consistency': era_consistency,
-                'ops_consistency': ops_consistency,
-                'movement_magnitude': net_displacement,  # Legacy: keep original name for compatibility
-                'path_points': len(path),                # Number of data points in team's history
+                'avg_era_volatility': avg_era_volatility,
+                'avg_ops_volatility': avg_ops_volatility,
+                'avg_combined_volatility': avg_combined_volatility,
+                'total_volatility': total_volatility,
+                'path_points': len(path),
                 'win_pct': win_pct
             }
             
             movement_data.append(team_movement)
         
-        # Sort data for different insights
-        # Most dramatic movement (total path length)
-        most_movement = sorted(movement_data, key=lambda x: x['total_path_length'], reverse=True)[:5]
+        # Sort by most volatile teams in the last 2 weeks
+        most_volatile = sorted(movement_data, key=lambda x: x['avg_combined_volatility'], reverse=True)[:3]
         
-        # Most consistent teams (highest path efficiency)
-        most_consistent = sorted(movement_data, key=lambda x: x['path_efficiency'], reverse=True)[:5]
+        # Calculate percentiles for stability analysis
+        all_era_volatilities = [team['avg_era_volatility'] for team in movement_data if team['avg_era_volatility'] > 0]
+        all_ops_volatilities = [team['avg_ops_volatility'] for team in movement_data if team['avg_ops_volatility'] > 0]
         
-        # Most volatile teams (highest combined volatility)
-        most_volatile = sorted(movement_data, key=lambda x: x['combined_volatility'], reverse=True)[:5]
-        
-        # Teams with highest improvement (best in both ERA and OPS)
-        improving_teams = [t for t in movement_data if t['direction'] == 'improving']
-        most_improved = sorted(improving_teams, 
-                              key=lambda x: (abs(x['era_net_change']) + abs(x['ops_net_change'])), 
-                              reverse=True)[:5]
-        
-        # Legacy: Provide previous metrics for backward compatibility
-        least_movement = sorted(movement_data, key=lambda x: x['net_displacement'])[:3]
-        most_movement_original = sorted(movement_data, key=lambda x: x['net_displacement'], reverse=True)[:3]
-        
-        # Calculate team correlations with win percentage
-        win_corr_movement = []
-        for team in movement_data:
-            # Calculate expected win percentage based on position
-            normalized_era = 1 - ((float(team['current_era']) - 2.0) / 4.0)  # Normalize ERA between 2-6
-            normalized_ops = (float(team['current_ops']) - 0.6) / 0.3  # Normalize OPS between 0.6-0.9
+        if all_era_volatilities and all_ops_volatilities:
+            # Sort volatilities
+            all_era_volatilities.sort()
+            all_ops_volatilities.sort()
             
-            # Simple model: 50% weight on pitching, 50% on hitting
-            expected_win_pct = (normalized_era + normalized_ops) / 2
+            # Calculate percentiles for each team (lower percentile = more stable)
+            for team in movement_data:
+                # Find percentile for ERA volatility (lower is better for stability)
+                era_index = bisect.bisect_left(all_era_volatilities, team['avg_era_volatility'])
+                team['pitching_stability_percentile'] = (era_index / len(all_era_volatilities)) * 100
+                
+                # Find percentile for OPS volatility (lower is better for stability) 
+                ops_index = bisect.bisect_left(all_ops_volatilities, team['avg_ops_volatility'])
+                team['hitting_stability_percentile'] = (ops_index / len(all_ops_volatilities)) * 100
             
-            # Calculate discrepancy
-            win_pct_discrepancy = team['win_pct'] - expected_win_pct
-            team['expected_win_pct'] = expected_win_pct
-            team['win_pct_discrepancy'] = win_pct_discrepancy
-            
-            win_corr_movement.append(team)
-        
-        # Teams with largest win percentage discrepancy
-        biggest_discrepancy = sorted(win_corr_movement, key=lambda x: abs(x['win_pct_discrepancy']), reverse=True)[:5]
+            # Find most stable teams (lowest volatility)
+            most_stable = sorted(movement_data, key=lambda x: x['avg_combined_volatility'])[:3]
+        else:
+            most_stable = []
         
         return jsonify({
+            "recent_movers": most_volatile,
+            "most_stable": most_stable,
             "movement_data": movement_data,
-            "most_movement": most_movement,
-            "most_consistent": most_consistent, 
-            "most_volatile": most_volatile,
-            "most_improved": most_improved,
-            "biggest_discrepancy": biggest_discrepancy,
-            # Legacy fields for backward compatibility
-            "least_movement": least_movement,
-            "most_movement_legacy": most_movement_original,
-            "oldest_date": oldest_snapshot.timestamp_aware.isoformat(),
-            "newest_date": newest_snapshot.timestamp_aware.isoformat()
+            "start_date": oldest_snapshot.timestamp_aware.isoformat(),
+            "end_date": newest_snapshot.timestamp_aware.isoformat()
         })
         
     except Exception as e:

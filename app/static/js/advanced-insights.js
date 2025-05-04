@@ -21,13 +21,12 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
         }
         
         isDataLoading = true;
-        logger.log("Fetching team movement analysis data");
+        logger.log("Fetching recent movers data");
         
         // Set loading state for all cards
         $('.loading-indicator').show();
         
-        // BUGFIX: Only remove team rows within advanced content containers
-        // Instead of removing all '.team-row' elements which affects standings
+        // Only remove team rows within advanced content containers
         $('#movement-content .team-row, #consistency-content .team-row, #improvement-content .team-row').remove();
         
         // Fetch the data
@@ -74,8 +73,8 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
             return;
         }
         
-        // Update movement card
-        updateMovementCard(data);
+        // Update recent movers card
+        updateRecentMoversCard(data);
         
         // Update consistency card
         updateConsistencyCard(data);
@@ -85,26 +84,18 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
     }
     
     /**
-     * Update movement analysis card
-     * Shows teams with the most total movement in ERA-OPS space
+     * Update recent movers card
+     * Shows teams with most erratic movement in last 2 weeks
      */
-    function updateMovementCard(data) {
-        if (!data.most_movement || data.most_movement.length === 0) return;
+    function updateRecentMoversCard(data) {
+        if (!data.recent_movers || data.recent_movers.length === 0) return;
         
         // Container for team rows
         const container = $('#movement-content');
-        container.find('.team-row').remove(); // This is safe because it's scoped to this container
+        container.find('.team-row').remove();
         
         // Only show top 3 teams
-        data.most_movement.slice(0, 3).forEach((team, index) => {
-            // Get detailed direction information
-            const eraChange = team.era_net_change;
-            const opsChange = team.ops_net_change;
-            
-            // Determine direction classes for pitching and hitting
-            const pitchingClass = eraChange < 0 ? 'improving' : 'declining';
-            const hittingClass = opsChange > 0 ? 'improving' : 'declining';
-            
+        data.recent_movers.slice(0, 3).forEach((team, index) => {
             const teamRow = $(`
             <div class="team-row">
                 <div class="rank-container">
@@ -114,17 +105,17 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
                     <div class="team-name">${team.full_name}</div>
                     <div class="team-metrics">
                         <div class="metric">
-                            <div class="metric-label">Total Distance Traveled:</div>
-                            <div class="metric-value">${formatNumber(team.total_path_length)}</div>
+                            <div class="metric-label">Volatility Score:</div>
+                            <div class="metric-value">${formatNumber(team.avg_combined_volatility)}</div>
                         </div>
                         <div class="metric">
-                            <div class="metric-label">Direction:</div>
+                            <div class="metric-label">Movement Profile:</div>
                             <div class="direction-details">
-                                <div class="direction-component ${pitchingClass}">
-                                    Pitching (${formatChange(eraChange)})
+                                <div class="direction-component">
+                                    ERA: ±${formatNumber(team.avg_era_volatility)}
                                 </div>
-                                <div class="direction-component ${hittingClass}">
-                                    Hitting (${formatChange(opsChange)})
+                                <div class="direction-component">
+                                    OPS: ±${formatNumber(team.avg_ops_volatility)}
                                 </div>
                             </div>
                         </div>
@@ -138,63 +129,20 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
     
     /**
      * Update consistency card
-     * Shows teams with the most stable, predictable performance
+     * Shows teams with stability percentiles for pitching and hitting
      */
     function updateConsistencyCard(data) {
-        // Prioritize most_consistent if available, fall back to least_movement
-        const teams = data.most_consistent && data.most_consistent.length > 0 ? 
-                     data.most_consistent : 
-                     data.least_movement && data.least_movement.length > 0 ?
-                     data.least_movement : [];
+        const teams = data.most_stable && data.most_stable.length > 0 ? 
+                     data.most_stable : [];
         
         if (teams.length === 0) return;
         
         // Container for team rows
         const container = $('#consistency-content');
-        container.find('.team-row').remove(); // This is safe because it's scoped to this container
+        container.find('.team-row').remove();
         
         // Only show top 3 teams
         teams.slice(0, 3).forEach((team, index) => {
-            const hasEnhancedData = typeof team.path_efficiency !== 'undefined';
-            
-            // Create metrics HTML based on available data
-            let metricsHtml;
-            if (hasEnhancedData) {
-                // Calculate consistency score (as a percentage)
-                const consistencyScore = (team.path_efficiency * 100).toFixed(0);
-                
-                // Create clear, separate metrics for consistency and trend information
-                metricsHtml = `
-                <div class="metric">
-                    <div class="metric-label">Consistency Score:</div>
-                    <div class="metric-value">${consistencyScore}%</div>
-                </div>
-                <div class="metric">
-                    <div class="metric-label">Performance Trends:</div>
-                    <div class="direction-details">
-                        <div class="direction-component ${team.era_net_change < 0 ? 'improving' : 'declining'}">
-                            Pitching (${formatChange(team.era_net_change)})
-                        </div>
-                        <div class="direction-component ${team.ops_net_change > 0 ? 'improving' : 'declining'}">
-                            Hitting (${formatChange(team.ops_net_change)})
-                        </div>
-                    </div>
-                </div>`;
-            } else {
-                metricsHtml = `
-                <div class="metric">
-                    <div class="metric-label">Consistency Rating:</div>
-                    <div class="metric-value">High</div>
-                </div>
-                <div class="metric">
-                    <div class="metric-label">Current Stats:</div>
-                    <div class="metric-details">
-                        ERA: ${formatNumber(team.current_era)}, 
-                        OPS: ${formatNumber(team.current_ops)}
-                    </div>
-                </div>`;
-            }
-            
             const teamRow = $(`
             <div class="team-row">
                 <div class="rank-container">
@@ -203,7 +151,14 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
                 <div class="team-details">
                     <div class="team-name">${team.full_name}</div>
                     <div class="team-metrics">
-                        ${metricsHtml}
+                        <div class="metric">
+                            <div class="metric-label">Pitching Stability:</div>
+                            <div class="metric-value">${formatPercentile(100 - team.pitching_stability_percentile)}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Hitting Stability:</div>
+                            <div class="metric-value">${formatPercentile(100 - team.hitting_stability_percentile)}</div>
+                        </div>
                     </div>
                 </div>
             </div>`);
@@ -217,39 +172,24 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
      * Shows teams with the most positive change in both ERA and OPS
      */
     function updateImprovementCard(data) {
-        // Get teams improving in both ERA and OPS
+        // Get teams with best recent performance trend
         const improvingTeams = data.movement_data.filter(team => 
-            team.era_net_change < 0 && team.ops_net_change > 0
+            team.current_era < (team.avg_era_volatility * 2) &&
+            team.current_ops > (1 - team.avg_ops_volatility)
         );
         
-        // Sort by combined improvement (ERA decrease + OPS increase)
-        const sortedTeams = improvingTeams.sort((a, b) => 
-            (Math.abs(b.era_net_change) + b.ops_net_change) - 
-            (Math.abs(a.era_net_change) + a.ops_net_change)
-        );
-        
-        if (sortedTeams.length === 0) {
-            // Fall back to most improved in at least one stat
-            const alternateTeams = data.movement_data.sort((a, b) => {
-                const scoreA = Math.abs(a.era_net_change < 0 ? a.era_net_change : 0) + 
-                              (a.ops_net_change > 0 ? a.ops_net_change : 0);
-                const scoreB = Math.abs(b.era_net_change < 0 ? b.era_net_change : 0) + 
-                              (b.ops_net_change > 0 ? b.ops_net_change : 0);
-                return scoreB - scoreA;
-            });
+        if (improvingTeams.length === 0) {
+            // Fall back to all teams sorted by win percentage
+            const allTeams = data.movement_data.sort((a, b) => b.win_pct - a.win_pct);
             
-            if (alternateTeams.length === 0) return;
+            if (allTeams.length === 0) return;
             
             // Container for team rows
             const container = $('#improvement-content');
-            container.find('.team-row').remove(); // This is safe because it's scoped to this container
+            container.find('.team-row').remove();
             
             // Only show top 3 teams
-            alternateTeams.slice(0, 3).forEach((team, index) => {
-                // Calculate overall improvement score
-                const improvementScore = Math.abs(team.era_net_change < 0 ? team.era_net_change : 0) + 
-                                        (team.ops_net_change > 0 ? team.ops_net_change : 0);
-                
+            allTeams.slice(0, 3).forEach((team, index) => {
                 const teamRow = $(`
                 <div class="team-row">
                     <div class="rank-container">
@@ -259,17 +199,17 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
                         <div class="team-name">${team.full_name}</div>
                         <div class="team-metrics">
                             <div class="metric">
-                                <div class="metric-label">Improvement Score:</div>
-                                <div class="metric-value">${formatNumber(improvementScore)}</div>
+                                <div class="metric-label">Win %:</div>
+                                <div class="metric-value">${formatNumber(team.win_pct * 100)}%</div>
                             </div>
                             <div class="metric">
-                                <div class="metric-label">Key Changes:</div>
+                                <div class="metric-label">Current Stats:</div>
                                 <div class="direction-details">
-                                    <div class="direction-component ${team.era_net_change < 0 ? 'improving' : 'declining'}">
-                                        ERA: ${formatChange(team.era_net_change)}
+                                    <div class="direction-component">
+                                        ERA: ${formatNumber(team.current_era)}
                                     </div>
-                                    <div class="direction-component ${team.ops_net_change > 0 ? 'improving' : 'declining'}">
-                                        OPS: ${formatChange(team.ops_net_change)}
+                                    <div class="direction-component">
+                                        OPS: ${formatNumber(team.current_ops)}
                                     </div>
                                 </div>
                             </div>
@@ -285,13 +225,10 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
         
         // Container for team rows
         const container = $('#improvement-content');
-        container.find('.team-row').remove(); // This is safe because it's scoped to this container
+        container.find('.team-row').remove();
         
         // Only show top 3 teams
-        sortedTeams.slice(0, 3).forEach((team, index) => {
-            // Calculate combined improvement score
-            const improvementScore = Math.abs(team.era_net_change) + team.ops_net_change;
-            
+        improvingTeams.slice(0, 3).forEach((team, index) => {
             const teamRow = $(`
             <div class="team-row">
                 <div class="rank-container">
@@ -301,17 +238,17 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
                     <div class="team-name">${team.full_name}</div>
                     <div class="team-metrics">
                         <div class="metric">
-                            <div class="metric-label">Improvement Score:</div>
-                            <div class="metric-value">${formatNumber(improvementScore)}</div>
+                            <div class="metric-label">Performance Score:</div>
+                            <div class="metric-value">${formatNumber(team.win_pct * 100)}%</div>
                         </div>
                         <div class="metric">
-                            <div class="metric-label">Performance Gains:</div>
+                            <div class="metric-label">Current Stats:</div>
                             <div class="direction-details">
-                                <div class="direction-component improving">
-                                    ERA: ${formatChange(team.era_net_change)}
+                                <div class="direction-component">
+                                    ERA: ${formatNumber(team.current_era)}
                                 </div>
-                                <div class="direction-component improving">
-                                    OPS: ${formatChange(team.ops_net_change)}
+                                <div class="direction-component">
+                                    OPS: ${formatNumber(team.current_ops)}
                                 </div>
                             </div>
                         </div>
@@ -328,19 +265,22 @@ const MLBAdvancedInsights = (function(window, document, $, MLBConfig) {
      */
     function formatNumber(num) {
         if (typeof num === 'number') {
+            if (Math.abs(num) >= 10) {
+                return num.toFixed(1);
+            }
             return num.toFixed(2);
         }
         return '0.00';
     }
     
     /**
-     * Format a change value with sign
+     * Format a percentile value
      */
-    function formatChange(num) {
+    function formatPercentile(num) {
         if (typeof num === 'number') {
-            return (num > 0 ? '+' : '') + num.toFixed(3);
+            return num.toFixed(0) + 'th';
         }
-        return '0.000';
+        return '0th';
     }
     
     /**
