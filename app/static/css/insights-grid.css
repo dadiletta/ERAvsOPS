@@ -61,7 +61,6 @@
     color: var(--text-dark);
     font-size: var(--card-header-font-size);
     font-weight: 600;
-    border-bottom: var(--card-header-border-width) solid; 
     width: 100%;
     transition: color 0.3s ease;
 }
@@ -111,35 +110,6 @@
     font-size: 1.1rem;
 }
 
-/* Card-specific colors */
-/* Insight cards */
-.insights-card.al h3, 
-.insights-card.american h3 { 
-    border-bottom-color: var(--insight-al-color);
-}
-
-.insights-card.nl h3, 
-.insights-card.national h3 { 
-    border-bottom-color: var(--insight-nl-color);
-}
-
-.insights-card.performance h3,
-.insights-card.trends h3 { 
-    border-bottom-color: var(--insight-performance-color);
-}
-
-/* Advanced cards */
-.advanced-card.movement h3 { 
-    border-bottom-color: var(--insight-movement-color);
-}
-
-.advanced-card.consistency h3 { 
-    border-bottom-color: var(--insight-consistency-color);
-}
-
-.advanced-card.improvement h3 { 
-    border-bottom-color: var(--insight-improvement-color);
-}
 
 /* Card accent colors */
 .insights-card.al::before, 
