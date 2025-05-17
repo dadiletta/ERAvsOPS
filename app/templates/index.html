@@ -167,6 +167,7 @@
                                             <span class="record-col">L</span>
                                             <span class="record-col">PCT</span>
                                             <span class="record-col">GB</span>
+                                            <span class="record-col">DIFF</span> 
                                         </div>
                                         <div class="standings-body">
                                             {% for team in card.teams %}
@@ -179,6 +180,9 @@
                                                     <span class="record-col">{{ team.losses }}</span>
                                                     <span class="record-col">{{ "%.3f"|format(team.pct) }}</span>
                                                     <span class="record-col">{{ team.gb }}</span>
+                                                    <span class="record-col" style="{% if team.run_differential > 0 %}color:var(--excellent){% elif team.run_differential < 0 %}color:var(--poor){% endif %}">
+                                                        {{ team.run_differential if team.run_differential else '0' }}
+                                                    </span>
                                                 </div>
                                             {% endfor %}
                                         </div>
@@ -206,6 +210,7 @@
                                             <span class="record-col">L</span>
                                             <span class="record-col">PCT</span>
                                             <span class="record-col">GB</span>
+                                            <span class="record-col">DIFF</span>
                                         </div>
                                         <div class="standings-body">
                                             {% for team in card.teams %}
@@ -218,6 +223,9 @@
                                                     <span class="record-col">{{ team.losses }}</span>
                                                     <span class="record-col">{{ "%.3f"|format(team.pct) }}</span>
                                                     <span class="record-col">{{ team.gb }}</span>
+                                                    <span class="record-col" style="{% if team.run_differential is defined and team.run_differential > 0 %}color:var(--excellent){% elif team.run_differential < 0 %}color:var(--poor){% endif %}">
+                                                        {{ team.run_differential if team.run_differential else '0' }}
+                                                    </span>
                                                 </div>
                                             {% endfor %}
                                         </div>

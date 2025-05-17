@@ -637,6 +637,14 @@ body.dark-mode .division-card:nth-of-type(n+4) .division-header {
     background-color: rgba(227, 25, 55, 0.2);
 }
 
+.run-diff-positive {
+    color: var(--excellent);
+}
+
+.run-diff-negative {
+    color: var(--poor);
+}
+
 /* Responsive adjustments */
 @media (max-width: 992px) {
     .divisions-row {

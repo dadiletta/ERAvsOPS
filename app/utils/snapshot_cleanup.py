@@ -30,7 +30,7 @@ def compare_snapshots(data1, data2):
     if set(team_dict1.keys()) != set(team_dict2.keys()):
         return False
     
-    # Compare each team's critical stats (ERA and OPS)
+    # Compare each team's critical stats (ERA, OPS, and now run differential)
     for team_id, team1 in team_dict1.items():
         team2 = team_dict2[team_id]
         
@@ -40,7 +40,11 @@ def compare_snapshots(data1, data2):
         ops1 = round(float(team1.get('ops', 0)), 3)
         ops2 = round(float(team2.get('ops', 0)), 3)
         
-        if era1 != era2 or ops1 != ops2:
+        # Add comparison for run differential
+        diff1 = int(team1.get('run_differential', 0))
+        diff2 = int(team2.get('run_differential', 0))
+        
+        if era1 != era2 or ops1 != ops2 or diff1 != diff2:
             return False
     
     # If we got here, the snapshots contain identical team data

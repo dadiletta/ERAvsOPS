@@ -74,6 +74,35 @@ def validate_mlb_data(data):
             team['wins'] = 0
             team['losses'] = 0
             
+        # Validate runs_scored and runs_allowed, or derive them if missing
+        try:
+            if 'runs_scored' in team:
+                team['runs_scored'] = int(team['runs_scored'])
+            else:
+                # Default value or derivation based on other stats
+                team['runs_scored'] = int(float(team['ops']) * 500)  # Estimate based on OPS
+                if app:
+                    app.logger.info(f"Estimated runs_scored for {team.get('name', 'Unknown')}")
+                    
+            if 'runs_allowed' in team:
+                team['runs_allowed'] = int(team['runs_allowed'])
+            else:
+                # Default value or derivation based on other stats
+                team['runs_allowed'] = int(float(team['era']) * 100)  # Estimate based on ERA
+                if app:
+                    app.logger.info(f"Estimated runs_allowed for {team.get('name', 'Unknown')}")
+                    
+            # Always calculate run_differential from runs_scored and runs_allowed
+            team['run_differential'] = team['runs_scored'] - team['runs_allowed']
+                
+        except (ValueError, TypeError):
+            if app:
+                app.logger.warning(f"Error processing runs data for {team.get('name', 'Unknown')}")
+            # Set default values
+            team['runs_scored'] = 0
+            team['runs_allowed'] = 0
+            team['run_differential'] = 0
+            
         # Check for duplicate teams (by ID)
         team_id = team.get('id')
         if team_id in seen_teams:
@@ -161,5 +190,17 @@ def create_app():
             app.logger.error(f"Error during startup snapshot cleanup: {str(e)}")
             import traceback
             app.logger.error(traceback.format_exc())
+    
+        try:
+            from app.utils.run_diff_migration import migrate_run_differential
+            
+            # Run the migration
+            updated_count = migrate_run_differential()
+            
+            # Log the results
+            if updated_count > 0:
+                app.logger.info(f"Run differential migration: Updated {updated_count} snapshots")
+        except Exception as e:
+            app.logger.error(f"Error during run differential migration: {str(e)}")
     
     return app

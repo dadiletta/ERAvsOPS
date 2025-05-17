@@ -363,6 +363,40 @@ class MLBDataFetcher:
                                     logger.error(f"Error converting OPS for {team_name}: {str(e)}")
                                 break
             
+            # Extract runs scored from hitting stats
+            runs_scored = 0
+            if hitting_stats and 'stats' in hitting_stats:
+                for stat_group in hitting_stats['stats']:
+                    if 'splits' in stat_group:
+                        for split in stat_group['splits']:
+                            if 'stat' in split and 'runs' in split['stat']:
+                                try:
+                                    runs_scored = int(split['stat']['runs'])
+                                    logger.info(f"{team_name} Runs Scored: {runs_scored}")
+                                except (ValueError, TypeError) as e:
+                                    logger.error(f"Error converting runs scored for {team_name}: {str(e)}")
+                                    runs_scored = 0
+                                break
+            
+            # Extract runs allowed from pitching stats
+            runs_allowed = 0
+            if pitching_stats and 'stats' in pitching_stats:
+                for stat_group in pitching_stats['stats']:
+                    if 'splits' in stat_group:
+                        for split in stat_group['splits']:
+                            if 'stat' in split and 'runs' in split['stat']:
+                                try:
+                                    runs_allowed = int(split['stat']['runs'])
+                                    logger.info(f"{team_name} Runs Allowed: {runs_allowed}")
+                                except (ValueError, TypeError) as e:
+                                    logger.error(f"Error converting runs allowed for {team_name}: {str(e)}")
+                                    runs_allowed = 0
+                                break
+            
+            # Calculate run differential
+            run_differential = runs_scored - runs_allowed
+
+            
             # Additional validation: Both values must be present
             if era is None or ops is None:
                 logger.warning(f"Missing data for {team_name} - ERA: {era}, OPS: {ops}")
@@ -397,6 +431,9 @@ class MLBDataFetcher:
                 "ops": ops,
                 "wins": team_record.get("wins", 0),
                 "losses": team_record.get("losses", 0),
+                "runs_scored": runs_scored,
+                "runs_allowed": runs_allowed,
+                "run_differential": run_differential,
                 "logo": f"/static/logos/{logo_name}.png"
             }
             logger.info(f"Successfully processed {team_name}")
