@@ -29,6 +29,7 @@ def calculate_division_standings(teams):
                 'abbreviation': team.get('abbreviation', ''),
                 'wins': team.get('wins', 0),
                 'losses': team.get('losses', 0),
+                'run_differential': team.get('run_differential', 0), 
                 'logo': team.get('logo', f"/static/logos/{team.get('name', 'unknown').lower()}.png")
             }
             

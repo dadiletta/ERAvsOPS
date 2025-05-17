@@ -140,34 +140,16 @@ def create_app():
     with app.app_context():
         db.create_all()
         
-        # Check if database is empty and initialize with data_cache.json if needed
-        from app.models.mlb_snapshot import MLBSnapshot
-        if MLBSnapshot.query.count() == 0:
-            try:
-                app.logger.info("Database is empty, initializing with data_cache.json")
-                
-                # Load data directly from data_cache.json
-                cache_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data_cache.json')
-                with open(cache_file, 'r') as f:
-                    initial_data = json.load(f)
-                
-                if initial_data and len(initial_data) > 0:
-                    # Validate the data
-                    initial_data = validate_mlb_data(initial_data)
-                    
-                    # Create a new snapshot with yesterday's date (to ensure it's not fresh)
-                    from datetime import timedelta
-                    snapshot = MLBSnapshot(
-                        timestamp=datetime.now(timezone.utc) - timedelta(days=1),
-                        data=json.dumps(initial_data)
-                    )
-                    db.session.add(snapshot)
-                    db.session.commit()
-                    app.logger.info(f"Initialized database with {len(initial_data)} validated teams")
-            except Exception as e:
-                app.logger.error(f"Error initializing database: {str(e)}")
-                import traceback
-                app.logger.error(traceback.format_exc())
+        # Import and run the database seeding script
+        from .utils.seed_db import seed_database
+        try:
+            snapshot_count = seed_database(app)
+            if snapshot_count > 0:
+                app.logger.info(f"Database initialized with {snapshot_count} snapshots")
+        except Exception as e:
+            app.logger.error(f"Error seeding database: {str(e)}")
+            import traceback
+            app.logger.error(traceback.format_exc())
         
         # Clean up duplicate snapshots
         try:
