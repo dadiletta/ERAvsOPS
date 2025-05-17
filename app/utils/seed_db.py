@@ -106,6 +106,72 @@ def seed_database(app):
             import traceback
             logger.error(traceback.format_exc())
             return 0
+        
+def add_missing_snapshots(app):
+    """
+    Add missing snapshots from seed data to the database.
+    
+    Args:
+        app: Flask application with context
+    
+    Returns:
+        int: Number of snapshots added
+    """
+    from app.models.mlb_snapshot import MLBSnapshot
+    
+    # Check if seed data is available
+    if not SEED_DATA_AVAILABLE:
+        logger.info("No seed data available to add missing snapshots")
+        return 0
+    
+    # Get all existing timestamps from the database
+    existing_timestamps = {snapshot.timestamp.replace(microsecond=0) 
+                          for snapshot in MLBSnapshot.query.all()}
+    
+    logger.info(f"Found {len(existing_timestamps)} existing snapshot timestamps in database")
+    logger.info(f"Found {len(SEED_SNAPSHOTS)} total seed snapshots to check")
+    
+    snapshots_added = 0
+    
+    for seed_data in SEED_SNAPSHOTS:
+        try:
+            # Get timestamp from seed data
+            timestamp = seed_data['timestamp']
+            # Remove microseconds for comparison
+            timestamp_no_micro = timestamp.replace(microsecond=0)
+            
+            # Check if this timestamp exists in the database
+            if timestamp_no_micro not in existing_timestamps:
+                # Parse the team data
+                teams_data = json.loads(seed_data['data'])
+                
+                # Validate the data
+                validated_data = validate_mlb_data(teams_data)
+                
+                # Create and add the snapshot
+                snapshot = MLBSnapshot(
+                    timestamp=timestamp,
+                    data=json.dumps(validated_data)
+                )
+                db.session.add(snapshot)
+                snapshots_added += 1
+                
+                # Commit every 5 snapshots to avoid memory issues
+                if snapshots_added % 5 == 0:
+                    db.session.commit()
+                    logger.info(f"Added {snapshots_added} missing snapshots so far...")
+        
+        except Exception as e:
+            logger.error(f"Error adding missing snapshot: {str(e)}")
+    
+    # Final commit for any remaining snapshots
+    if snapshots_added > 0:
+        db.session.commit()
+        logger.info(f"Successfully added {snapshots_added} missing snapshots")
+    else:
+        logger.info("No missing snapshots found to add")
+    
+    return snapshots_added
 
 if __name__ == "__main__":
     # Run standalone for testing

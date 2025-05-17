@@ -141,11 +141,17 @@ def create_app():
         db.create_all()
         
         # Import and run the database seeding script
-        from .utils.seed_db import seed_database
+        from .utils.seed_db import seed_database, add_missing_snapshots
         try:
+            # First run the normal seed process (which only runs if DB is empty)
             snapshot_count = seed_database(app)
             if snapshot_count > 0:
                 app.logger.info(f"Database initialized with {snapshot_count} snapshots")
+                
+            # Then check for and add any missing snapshots
+            missing_count = add_missing_snapshots(app)
+            if missing_count > 0:
+                app.logger.info(f"Added {missing_count} missing snapshots from seed data")
         except Exception as e:
             app.logger.error(f"Error seeding database: {str(e)}")
             import traceback
