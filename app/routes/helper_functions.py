@@ -107,6 +107,7 @@ def get_latest_data(must_exist=False):
             # Check if data is fresh using intelligent rules
             timestamp = snapshot.timestamp_aware
             now = datetime.now(timezone.utc)
+            cache_age = now - timestamp 
             is_fresh = determine_data_freshness(timestamp, now)
             
             # Get teams and validate
