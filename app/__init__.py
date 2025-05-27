@@ -6,6 +6,7 @@ import os
 import json
 from datetime import datetime, timezone
 
+
 # Initialize SQLAlchemy
 db = SQLAlchemy()
 
@@ -157,27 +158,27 @@ def create_app():
             import traceback
             app.logger.error(traceback.format_exc())
         
-        # Clean up duplicate snapshots
-        try:
-            # Import at this point to ensure app context is available
-            from app.utils.snapshot_cleanup import cleanup_duplicate_snapshots
+    # Clean up duplicate snapshots
+    try:
+        from app.utils.snapshot_cleanup import cleanup_duplicate_snapshots
+        from app.models.mlb_snapshot import MLBSnapshot 
+        
+        # Run the cleanup
+        deleted_count = cleanup_duplicate_snapshots()
+        
+        # Log the results
+        if deleted_count > 0:
+            app.logger.info(f"Startup cleanup: Removed {deleted_count} duplicate snapshots")
             
-            # Run the cleanup
-            deleted_count = cleanup_duplicate_snapshots()
-            
-            # Log the results
-            if deleted_count > 0:
-                app.logger.info(f"Startup cleanup: Removed {deleted_count} duplicate snapshots")
-                
-                # Update the remaining count for logging
-                remaining = MLBSnapshot.query.count()
-                app.logger.info(f"Remaining snapshots after cleanup: {remaining}")
-            else:
-                app.logger.info("No duplicate snapshots found during startup cleanup")
-        except Exception as e:
-            app.logger.error(f"Error during startup snapshot cleanup: {str(e)}")
-            import traceback
-            app.logger.error(traceback.format_exc())
+            # Update the remaining count for logging
+            remaining = MLBSnapshot.query.count()
+            app.logger.info(f"Remaining snapshots after cleanup: {remaining}")
+        else:
+            app.logger.info("No duplicate snapshots found during startup cleanup")
+    except Exception as e:
+        app.logger.error(f"Error during startup snapshot cleanup: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
     
         try:
             from app.utils.run_diff_migration import migrate_run_differential
