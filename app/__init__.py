@@ -27,96 +27,97 @@ def validate_mlb_data(data):
     seen_teams = set()
     team_count_before = len(data)
     
-    for team in data:
-        # Skip teams with missing ERA or OPS
-        if team.get('era') is None or team.get('ops') is None:
-            if app:  # Check if app exists before using its logger
-                app.logger.warning(f"Skipping team with incomplete data: {team.get('name', 'Unknown')}")
-            continue
-            
-        # Validate ERA is within reasonable range (1.0 to 7.0)
-        try:
-            era = float(team['era'])
-            if not (1.0 <= era <= 7.0):
-                if app:
-                    app.logger.warning(f"Skipping team with invalid ERA {team['era']}: {team.get('name', 'Unknown')}")
+    with app.app_context():
+        for team in data:
+            # Skip teams with missing ERA or OPS
+            if team.get('era') is None or team.get('ops') is None:
+                if app:  # Check if app exists before using its logger
+                    app.logger.warning(f"Skipping team with incomplete data: {team.get('name', 'Unknown')}")
                 continue
-        except (ValueError, TypeError):
-            if app:
-                app.logger.warning(f"Skipping team with non-numeric ERA {team.get('era')}: {team.get('name', 'Unknown')}")
-            continue
-            
-        # Validate OPS is within reasonable range (0.5 to 1.0)
-        try:
-            ops = float(team['ops'])
-            if not (0.5 <= ops <= 1.0):
+                
+            # Validate ERA is within reasonable range (1.0 to 7.0)
+            try:
+                era = float(team['era'])
+                if not (1.0 <= era <= 7.0):
+                    if app:
+                        app.logger.warning(f"Skipping team with invalid ERA {team['era']}: {team.get('name', 'Unknown')}")
+                    continue
+            except (ValueError, TypeError):
                 if app:
-                    app.logger.warning(f"Skipping team with invalid OPS {team['ops']}: {team.get('name', 'Unknown')}")
+                    app.logger.warning(f"Skipping team with non-numeric ERA {team.get('era')}: {team.get('name', 'Unknown')}")
                 continue
-        except (ValueError, TypeError):
-            if app:
-                app.logger.warning(f"Skipping team with non-numeric OPS {team.get('ops')}: {team.get('name', 'Unknown')}")
-            continue
-        
-        # Ensure wins and losses are valid integers (but don't reject if missing)
-        try:
-            if 'wins' in team:
-                team['wins'] = int(team['wins'])
-            else:
+                
+            # Validate OPS is within reasonable range (0.5 to 1.0)
+            try:
+                ops = float(team['ops'])
+                if not (0.5 <= ops <= 1.0):
+                    if app:
+                        app.logger.warning(f"Skipping team with invalid OPS {team['ops']}: {team.get('name', 'Unknown')}")
+                    continue
+            except (ValueError, TypeError):
+                if app:
+                    app.logger.warning(f"Skipping team with non-numeric OPS {team.get('ops')}: {team.get('name', 'Unknown')}")
+                continue
+            
+            # Ensure wins and losses are valid integers (but don't reject if missing)
+            try:
+                if 'wins' in team:
+                    team['wins'] = int(team['wins'])
+                else:
+                    team['wins'] = 0
+                    
+                if 'losses' in team:
+                    team['losses'] = int(team['losses'])
+                else:
+                    team['losses'] = 0
+            except (ValueError, TypeError):
+                if app:
+                    app.logger.warning(f"Converting invalid wins/losses to zero for {team.get('name', 'Unknown')}")
                 team['wins'] = 0
-                
-            if 'losses' in team:
-                team['losses'] = int(team['losses'])
-            else:
                 team['losses'] = 0
-        except (ValueError, TypeError):
-            if app:
-                app.logger.warning(f"Converting invalid wins/losses to zero for {team.get('name', 'Unknown')}")
-            team['wins'] = 0
-            team['losses'] = 0
-            
-        # Validate runs_scored and runs_allowed, or derive them if missing
-        try:
-            if 'runs_scored' in team:
-                team['runs_scored'] = int(team['runs_scored'])
-            else:
-                # Default value or derivation based on other stats
-                team['runs_scored'] = int(float(team['ops']) * 500)  # Estimate based on OPS
-                if app:
-                    app.logger.info(f"Estimated runs_scored for {team.get('name', 'Unknown')}")
-                    
-            if 'runs_allowed' in team:
-                team['runs_allowed'] = int(team['runs_allowed'])
-            else:
-                # Default value or derivation based on other stats
-                team['runs_allowed'] = int(float(team['era']) * 100)  # Estimate based on ERA
-                if app:
-                    app.logger.info(f"Estimated runs_allowed for {team.get('name', 'Unknown')}")
-                    
-            # Always calculate run_differential from runs_scored and runs_allowed
-            team['run_differential'] = team['runs_scored'] - team['runs_allowed']
                 
-        except (ValueError, TypeError):
-            if app:
-                app.logger.warning(f"Error processing runs data for {team.get('name', 'Unknown')}")
-            # Set default values
-            team['runs_scored'] = 0
-            team['runs_allowed'] = 0
-            team['run_differential'] = 0
-            
-        # Check for duplicate teams (by ID)
-        team_id = team.get('id')
-        if team_id in seen_teams:
-            if app:
-                app.logger.warning(f"Skipping duplicate team: {team.get('name', 'Unknown')}")
-            continue
-            
-        seen_teams.add(team_id)
-        valid_data.append(team)
-    
-    if app:
-        app.logger.info(f"Data validation: {team_count_before} teams before, {len(valid_data)} after validation")
-    
+            # Validate runs_scored and runs_allowed, or derive them if missing
+            try:
+                if 'runs_scored' in team:
+                    team['runs_scored'] = int(team['runs_scored'])
+                else:
+                    # Default value or derivation based on other stats
+                    team['runs_scored'] = int(float(team['ops']) * 500)  # Estimate based on OPS
+                    if app:
+                        app.logger.info(f"Estimated runs_scored for {team.get('name', 'Unknown')}")
+                        
+                if 'runs_allowed' in team:
+                    team['runs_allowed'] = int(team['runs_allowed'])
+                else:
+                    # Default value or derivation based on other stats
+                    team['runs_allowed'] = int(float(team['era']) * 100)  # Estimate based on ERA
+                    if app:
+                        app.logger.info(f"Estimated runs_allowed for {team.get('name', 'Unknown')}")
+                        
+                # Always calculate run_differential from runs_scored and runs_allowed
+                team['run_differential'] = team['runs_scored'] - team['runs_allowed']
+                    
+            except (ValueError, TypeError):
+                if app:
+                    app.logger.warning(f"Error processing runs data for {team.get('name', 'Unknown')}")
+                # Set default values
+                team['runs_scored'] = 0
+                team['runs_allowed'] = 0
+                team['run_differential'] = 0
+                
+            # Check for duplicate teams (by ID)
+            team_id = team.get('id')
+            if team_id in seen_teams:
+                if app:
+                    app.logger.warning(f"Skipping duplicate team: {team.get('name', 'Unknown')}")
+                continue
+                
+            seen_teams.add(team_id)
+            valid_data.append(team)
+        
+        if app:
+            app.logger.info(f"Data validation: {team_count_before} teams before, {len(valid_data)} after validation")
+        
     return valid_data
 
 def create_app():
@@ -158,6 +159,20 @@ def create_app():
             import traceback
             app.logger.error(traceback.format_exc())
         
+    # Aggressive cleanup for excessive snapshots (run before regular cleanup)
+    try:
+        from app.utils.aggressive_cleanup import aggressive_snapshot_cleanup
+        
+        # Run aggressive cleanup first
+        before, after, deleted = aggressive_snapshot_cleanup()
+        
+        if deleted > 0:
+            app.logger.warning(f"AGGRESSIVE CLEANUP: Reduced snapshots from {before} to {after} (deleted {deleted})")
+    except Exception as e:
+        app.logger.error(f"Error during aggressive snapshot cleanup: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
+    
     # Clean up duplicate snapshots
     try:
         from app.utils.snapshot_cleanup import cleanup_duplicate_snapshots

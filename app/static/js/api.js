@@ -115,7 +115,17 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
         logger.log("Starting data update process");
         state.isUpdating = true;
         state.updateRetries = 0;
+        
+        // Show immediate feedback
         showToast("Starting data update...", "info");
+        
+        // Show progress bar immediately
+        MLBUI.updateStatusBar({
+            in_progress: true,
+            teams_updated: 0,
+            total_teams: 30,
+            cache_fresh: false
+        });
         
         $.ajax({
             url: '/api/start-update',
@@ -125,6 +135,9 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
             dataType: 'json',
             success: function(status) {
                 logger.log("Update started successfully", status);
+                
+                // Show progress notification
+                showToast(`Update started: Processing ${status.total_teams} teams...`, "update");
                 
                 // Update UI based on status
                 MLBUI.updateStatusBar(status);
@@ -147,6 +160,13 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
                 }
                 
                 state.isUpdating = false;
+                
+                // Hide progress bar on error
+                MLBUI.updateStatusBar({
+                    in_progress: false,
+                    teams_updated: 0,
+                    total_teams: 0
+                });
             }
         });
     }
@@ -178,7 +198,16 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
             // Only update UI and show toast if percentage changed by at least 10%
             if (Math.abs(currentPercent - previousPercent) >= 10) {
                 MLBUI.updateStatusBar(status);
-                showToast(`Update progress: ${currentPercent}% complete`, "update");
+                
+                // Show different messages based on progress
+                if (currentPercent >= 90) {
+                    showToast(`Almost done! ${currentPercent}% complete`, "update");
+                } else if (currentPercent >= 50) {
+                    showToast(`Halfway there! ${currentPercent}% complete`, "update");
+                } else {
+                    showToast(`Update progress: ${currentPercent}% complete`, "update");
+                }
+                
                 state.lastStatus = JSON.parse(JSON.stringify(status));
             }
         })
@@ -221,6 +250,11 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
             success: function(data) {
                 logger.log(`Received fresh data with ${data.length} teams`);
                 showToast("Data update complete!", "success");
+                
+                // Clear history cache when data is refreshed
+                if (typeof MLBHistory !== 'undefined' && MLBHistory.clearHistoryCache) {
+                    MLBHistory.clearHistoryCache();
+                }
                 
                 // Update chart with all data
                 // Division filter will be applied automatically by the chart
@@ -275,9 +309,19 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
         logger.log("Initial data status:", window.dataStatus);
         logger.log("Initial team data count:", window.teamData ? window.teamData.length : 0);
         
-        // No automatic update start for stale data - this is now manual only
+        // Check if data is stale on page load and refresh automatically
+        if (window.dataStatus && !window.dataStatus.is_fresh) {
+            logger.log("Data is stale on page load, fetching fresh data...");
+            MLBConfig.showToast("Loading latest data...", "info");
+            
+            // Fetch fresh data immediately
+            setTimeout(function() {
+                fetchFreshData();
+            }, 500);
+        }
+        
+        // If update already in progress, check status
         if (window.dataStatus && window.dataStatus.update_in_progress) {
-            // If update already in progress, check status
             logger.log("Update already in progress, will check status shortly");
             state.isUpdating = true;
             setTimeout(checkUpdateStatus, 2000);
