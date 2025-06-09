@@ -188,29 +188,6 @@ def get_team_history(team_id):
     history = MLBSnapshot.get_team_history(team_id, limit=days)
     return jsonify(history)
 
-@data_bp.route('/reset-update', methods=['POST'])
-def reset_update():
-    """API endpoint to reset a stuck update process."""
-    global update_status
-    
-    # Reset update status
-    update_status = {
-        "in_progress": False,
-        "teams_updated": 0,
-        "total_teams": 0,
-        "last_updated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
-        "snapshot_count": MLBSnapshot.query.count(),
-        "error": None
-    }
-    
-    logger.info("Update status has been manually reset")
-    
-    return jsonify({
-        "status": "success",
-        "message": "Update status has been reset",
-        "current_status": update_status
-    })
-    
 @data_bp.route('/team-movement')
 def get_team_movement():
     """API endpoint to get comprehensive team movement data for advanced insights."""
@@ -395,4 +372,82 @@ def get_team_movement():
         return jsonify({
             "error": str(e),
             "movement_data": []
+        }), 500
+
+@data_bp.route('/reset-update', methods=['POST'])
+def reset_update():
+    """API endpoint to reset a stuck update process."""
+    global update_status
+    
+    # Reset update status
+    update_status = {
+        "in_progress": False,
+        "teams_updated": 0,
+        "total_teams": 0,
+        "last_updated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+        "snapshot_count": MLBSnapshot.query.count(),
+        "error": None
+    }
+    
+    logger.info("Update status has been manually reset")
+    
+    return jsonify({
+        "status": "success",
+        "message": "Update status has been reset",
+        "current_status": update_status
+    })
+
+@data_bp.route('/clean-snapshots', methods=['POST'])
+def clean_snapshots():
+    """API endpoint to clean up redundant and partial snapshots."""
+    try:
+        # Import the cleanup functions
+        from app.utils.aggressive_cleanup import aggressive_snapshot_cleanup, emergency_cleanup
+        
+        # Get the current count
+        initial_count = MLBSnapshot.query.count()
+        logger.info(f"Starting snapshot cleanup with {initial_count} snapshots")
+        
+        # Determine cleanup strategy based on count
+        if initial_count > 5000:
+            # Emergency cleanup for severely bloated database
+            logger.warning(f"Database severely bloated with {initial_count} snapshots. Running emergency cleanup.")
+            before, after, deleted = emergency_cleanup(target_count=500)
+        elif initial_count > 1000:
+            # Aggressive cleanup for moderately bloated database
+            logger.info(f"Database bloated with {initial_count} snapshots. Running aggressive cleanup.")
+            before, after, deleted = aggressive_snapshot_cleanup(
+                keep_recent_hours=24,
+                hourly_after_days=1,
+                daily_after_days=7
+            )
+        else:
+            # Regular cleanup
+            logger.info(f"Running regular cleanup on {initial_count} snapshots.")
+            before, after, deleted = aggressive_snapshot_cleanup(
+                keep_recent_hours=48,
+                hourly_after_days=3,
+                daily_after_days=14
+            )
+        
+        # Update the snapshot count in status
+        update_status["snapshot_count"] = after
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Cleaned up {deleted} snapshots",
+            "before": before,
+            "after": after,
+            "deleted": deleted
+        })
+        
+    except Exception as e:
+        logger.error(f"Error during snapshot cleanup: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+        
+        return jsonify({
+            "status": "error",
+            "message": f"Cleanup failed: {str(e)}",
+            "error": str(e)
         }), 500

@@ -675,3 +675,63 @@ body.dark-mode .division-card:nth-of-type(n+4) .division-header {
         grid-template-columns: 1fr;
     }
 }
+
+/* Refresh button - improved spacing and styling */
+.refresh-button {
+    background-color: var(--mlb-blue);
+    color: white;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    margin-left: 12px; /* Added margin to create space */
+    font-size: 0.85rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.refresh-button:hover {
+    background-color: var(--mlb-blue-light);
+}
+
+body.dark-mode .refresh-button {
+    background-color: var(--mlb-blue-light);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .refresh-button:hover {
+    background-color: var(--mlb-blue);
+}
+
+/* Clean button - similar to refresh but with red theme */
+.clean-button {
+    background-color: var(--mlb-red);
+    color: white;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    margin-left: 8px;
+    font-size: 0.85rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.clean-button:hover {
+    background-color: var(--mlb-red-light);
+}
+
+.clean-button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+body.dark-mode .clean-button {
+    background-color: var(--mlb-red-light);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .clean-button:hover {
+    background-color: var(--mlb-red);
+}

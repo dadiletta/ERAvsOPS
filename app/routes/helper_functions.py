@@ -20,7 +20,7 @@ update_status = {
     "last_updated": None,
     "snapshot_count": 0,
     "error": None,
-    "collected_data": [],  # New: Store collected team data during batch updates
+    "collected_data": [],  # Store collected team data during batch updates
 }
 
 def ensure_division_info(teams):
@@ -203,7 +203,7 @@ def cleanup_old_snapshots(limit):
         logger.error(error_msg)
 
 def update_mlb_data(step=1, total_steps=30):
-    """Update MLB data in larger batches with optimized processing"""
+    """Update MLB data in larger batches WITHOUT creating snapshots after each batch"""
     global update_status
     
     # Create MLB data fetcher instance
@@ -247,55 +247,33 @@ def update_mlb_data(step=1, total_steps=30):
             # Add batch to collected data
             update_status["collected_data"].extend(batch)
             logger.info(f"Added {len(batch)} teams to collected data, total now: {len(update_status['collected_data'])}")
-            
-            # Create incremental snapshot for immediate UI visibility
-            # This allows historical data to be immediately available
-            try:
-                # Get existing data
-                existing_data, _, _, _ = get_latest_data()
-                
-                # Update existing data with new team data - just this batch
-                updated = False
-                for new_team in batch:  # Only process this batch, not all collected data
-                    # Find matching team in existing data
-                    for i, existing_team in enumerate(existing_data):
-                        if existing_team.get('id') == new_team.get('id'):
-                            # Update team
-                            existing_data[i] = new_team
-                            updated = True
-                            break
-                    else:
-                        # Team not found, add it
-                        existing_data.append(new_team)
-                        updated = True
-                
-                # If updates were made, validate and save to database
-                if updated:
-                    # Validate again
-                    validated_data = validate_mlb_data(existing_data)
-                    
-                    # Save to database as a new snapshot (once per batch)
-                    snapshot = MLBSnapshot(
-                        timestamp=datetime.now(timezone.utc),
-                        data=json.dumps(validated_data)
-                    )
-                    db.session.add(snapshot)
-                    db.session.commit()
-                    
-                    logger.info(f"Created an incremental snapshot with {len(validated_data)} teams")
-                    
-                    # Update snapshot count in status
-                    update_status["snapshot_count"] = MLBSnapshot.query.count()
-            except Exception as e:
-                logger.error(f"Error creating incremental snapshot: {str(e)}")
-                # Continue despite error - this is just for immediate updates
         else:
             logger.warning(f"No teams were processed in this batch (start_index={start_index}, step={step})")
             update_status["error"] = "No teams processed in batch"
         
-        # If all teams updated, perform final cleanup
+        # ONLY create snapshot when ALL teams are updated
         if update_status["teams_updated"] >= update_status["total_teams"]:
             try:
+                # Validate the complete dataset
+                complete_data = validate_mlb_data(update_status["collected_data"])
+                
+                if len(complete_data) >= 25:  # Ensure we have most teams (allow for a few failures)
+                    # Create ONE snapshot with all the data
+                    snapshot = MLBSnapshot(
+                        timestamp=datetime.now(timezone.utc),
+                        data=json.dumps(complete_data)
+                    )
+                    db.session.add(snapshot)
+                    db.session.commit()
+                    
+                    logger.info(f"Created complete snapshot with {len(complete_data)} teams")
+                    
+                    # Update snapshot count in status
+                    update_status["snapshot_count"] = MLBSnapshot.query.count()
+                else:
+                    logger.warning(f"Not enough valid teams ({len(complete_data)}) to create snapshot")
+                    update_status["error"] = f"Only {len(complete_data)} valid teams collected"
+                
                 # Reset collected data for next update
                 update_status["collected_data"] = []
                 

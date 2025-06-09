@@ -135,6 +135,7 @@
                     <span id="data-status-title">Data: <span id="status-text-title">{{ 'Fresh' if status.is_fresh else 'Stale' }}</span></span>
                     <span class="status-indicator-title" id="status-indicator-title"></span>
                     <button id="refresh-button" class="refresh-button">Refresh Data</button>
+                    <button id="clean-button" class="clean-button">Clean</button>
                 </div>
                 <div class="last-updated">Updated: <span id="lastUpdatedTitle">{{ status.last_updated|default('Loading...') }}</span></div>
                 <div class="snapshots">Snapshots: <span id="snapshot-count">{{ status.snapshot_count }}</span></div>

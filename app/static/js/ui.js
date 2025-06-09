@@ -24,6 +24,7 @@ const MLBUI = (function(window, document, $, MLBConfig) {
         progressBar: null,
         progressCount: null,
         refreshButton: null,
+        cleanButton: null,
         lastUpdatedTitleElem: null,
         snapshotCountElem: null
     };
@@ -38,6 +39,7 @@ const MLBUI = (function(window, document, $, MLBConfig) {
         elements.progressBar = $('#progress-bar');
         elements.progressCount = $('#progress-count');
         elements.refreshButton = $('#refresh-button');
+        elements.cleanButton = $('#clean-button');
         elements.lastUpdatedTitleElem = $('#lastUpdatedTitle');
         elements.snapshotCountElem = $('#snapshot-count');
         
