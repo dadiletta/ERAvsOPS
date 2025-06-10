@@ -101,13 +101,26 @@ def create_app():
         # Ensure tables exist (lightweight operation)
         db.create_all()
         
-        # Quick health check - just verify we can connect to database
+        # Quick health check - verify database connection
         try:
             from app.models.mlb_snapshot import MLBSnapshot
             snapshot_count = MLBSnapshot.query.count()
             app.logger.info(f"App started with {snapshot_count} snapshots in database")
             
-            # Only warn if database is completely empty (suggests init_db.py didn't run)
+            # Run lightweight cleanup if we have snapshots to process
+            if snapshot_count > 20:  # Only if we have enough data
+                try:
+                    from app.utils.snapshot_cleanup import lightweight_snapshot_cleanup
+                    results = lightweight_snapshot_cleanup(batch_size=25)  # Smaller batch for app startup
+                    
+                    if results["removed"] > 0:
+                        app.logger.info(f"Startup cleanup: removed {results['removed']} snapshots")
+                        
+                except Exception as e:
+                    app.logger.warning(f"Startup cleanup failed: {e}")
+                    # Don't let cleanup failure prevent app startup
+            
+            # Warn if database is completely empty
             if snapshot_count == 0:
                 app.logger.warning("Database appears empty - ensure init_db.py ran successfully")
                 

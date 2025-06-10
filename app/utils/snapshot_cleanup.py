@@ -1,111 +1,117 @@
 # app/utils/snapshot_cleanup.py
 """
-Routine hygiene for MLB snapshots.
-
-• removes any snapshot that is obviously incomplete (<28 teams)  
-• keeps a single copy of every logical snapshot (one per team/date set)  
-• leaves all other history intact
-
-Safe to run at any cadence (startup hook, nightly cron, or ad hoc).
+Lightweight startup cleanup for MLB snapshots.
+Processes a small batch each run to gradually reduce redundancies.
 """
-
-from __future__ import annotations
 
 import json
 import logging
 import hashlib
-from typing import Dict, List, Tuple, Iterable
-
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from typing import Set, List
+from datetime import datetime, timedelta
 
 from app import db
-from app.models.mlb_snapshot import MLBSnapshot  # noqa: E501
+from app.models.mlb_snapshot import MLBSnapshot
 
 logger = logging.getLogger(__name__)
 
-
-# ────────────────────────────────────────────────────────────
-# helpers
-# ────────────────────────────────────────────────────────────
 def _snapshot_fingerprint(raw_json: str) -> str:
     """
-    Round-normalize each club’s key numbers, then hash the object.
-
-    This collapses innocuous float noise so 3.42199 and 3.42204 hash alike.
-    Fingerprint is stable across team order and whitespace differences.
+    Create a fingerprint for snapshot data to detect duplicates.
+    Normalizes small float differences and team order.
     """
-    data = json.loads(raw_json)
-    norm: Dict[int, Tuple[float, float, int]] = {}
-    for team in data:
-        tid = int(team["id"])
-        norm[tid] = (
-            round(float(team.get("era", 0)), 3),
-            round(float(team.get("ops", 0)), 3),
-            int(team.get("run_differential", 0)),
-        )
-    # sort by team id for deterministic hash
-    digest = hashlib.sha1(json.dumps(sorted(norm.items())).encode()).hexdigest()
-    return digest
-
-
-def _is_partial(raw_json: str, *, min_teams: int = 28) -> bool:
-    """Recognise snapshots where the upstream API returned too few clubs."""
     try:
-        team_count = len(json.loads(raw_json))
-    except Exception:  # bad JSON → treat as partial
-        logger.warning("Corrupt JSON encountered during snapshot cleanup.")
-        return True
-    return team_count < min_teams
+        data = json.loads(raw_json)
+        norm = {}
+        for team in data:
+            tid = int(team["id"])
+            norm[tid] = (
+                round(float(team.get("era", 0)), 3),
+                round(float(team.get("ops", 0)), 3),
+                int(team.get("wins", 0)),
+                int(team.get("losses", 0))
+            )
+        # Sort by team id for consistent hash
+        fingerprint = json.dumps(sorted(norm.items()))
+        return hashlib.sha1(fingerprint.encode()).hexdigest()
+    except Exception as e:
+        logger.warning(f"Could not create fingerprint: {e}")
+        return ""
 
+def _is_incomplete(raw_json: str, min_teams: int = 28) -> bool:
+    """Check if snapshot has insufficient team data."""
+    try:
+        data = json.loads(raw_json)
+        return len(data) < min_teams
+    except Exception:
+        return True  # Treat unparseable JSON as incomplete
 
-# ────────────────────────────────────────────────────────────
-# public API
-# ────────────────────────────────────────────────────────────
-def cleanup_snapshots(session: Session | None = None) -> int:
+def lightweight_snapshot_cleanup(batch_size: int = 50) -> dict:
     """
-    Delete incomplete snapshots and duplicates.
-
-    Returns
-    -------
-    int
-        Number of rows deleted.
+    Lightweight cleanup that processes a small batch of recent snapshots.
+    Removes duplicates and incomplete snapshots gradually over time.
+    
+    Args:
+        batch_size: Maximum number of snapshots to process per run
+        
+    Returns:
+        Dict with cleanup statistics
     """
-    needs_commit = session is None
-    session = session or db.session
-
-    logger.info("Starting snapshot hygiene pass")
-    removed: List[int] = []
-
-    # iterate in blocks to avoid loading huge tables all at once
-    q = session.query(MLBSnapshot.id, MLBSnapshot.data).yield_per(500)
-
-    seen: Dict[str, int] = {}  # fingerprint → earliest snapshot.id
-
-    for sid, raw in q:
-        # 1️⃣ Cull partial rows
-        if _is_partial(raw):
-            removed.append(sid)
+    logger.info(f"Starting lightweight snapshot cleanup (batch size: {batch_size})")
+    
+    # Focus on recent snapshots (last 7 days) to keep it fast
+    cutoff_date = datetime.utcnow() - timedelta(days=7)
+    
+    # Get a small batch of recent snapshots, ordered by timestamp
+    snapshots = (MLBSnapshot.query
+                 .filter(MLBSnapshot.timestamp >= cutoff_date)
+                 .order_by(MLBSnapshot.timestamp.desc())
+                 .limit(batch_size)
+                 .all())
+    
+    if not snapshots:
+        logger.info("No recent snapshots to process")
+        return {"processed": 0, "removed": 0, "duplicates": 0, "incomplete": 0}
+    
+    fingerprints_seen: Set[str] = set()
+    to_remove: List[int] = []
+    duplicate_count = 0
+    incomplete_count = 0
+    
+    for snapshot in snapshots:
+        # Check for incomplete snapshots
+        if _is_incomplete(snapshot.data):
+            to_remove.append(snapshot.id)
+            incomplete_count += 1
+            logger.debug(f"Marking incomplete snapshot {snapshot.id} for removal")
             continue
-
-        # 2️⃣ Cull logical duplicates (anywhere in the timeline)
-        fp = _snapshot_fingerprint(raw)
-        if fp in seen:
-            # keep the earliest insertion to preserve chronology
-            removed.append(sid)
+        
+        # Check for duplicates
+        fingerprint = _snapshot_fingerprint(snapshot.data)
+        if fingerprint and fingerprint in fingerprints_seen:
+            to_remove.append(snapshot.id)
+            duplicate_count += 1
+            logger.debug(f"Marking duplicate snapshot {snapshot.id} for removal")
         else:
-            seen[fp] = sid
-
-    # bulk delete in sane batches
-    if removed:
-        batch = 750
-        for i in range(0, len(removed), batch):
-            session.query(MLBSnapshot).filter(
-                MLBSnapshot.id.in_(removed[i : i + batch])
-            ).delete(synchronize_session=False)
-
-    if needs_commit:
-        session.commit()
-
-    logger.info("Snapshot hygiene: %s rows removed", len(removed))
-    return len(removed)
+            fingerprints_seen.add(fingerprint)
+    
+    # Remove flagged snapshots
+    removed_count = 0
+    if to_remove:
+        try:
+            removed_count = (MLBSnapshot.query
+                           .filter(MLBSnapshot.id.in_(to_remove))
+                           .delete(synchronize_session=False))
+            db.session.commit()
+            logger.info(f"Removed {removed_count} snapshots ({duplicate_count} duplicates, {incomplete_count} incomplete)")
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error removing snapshots: {e}")
+            removed_count = 0
+    
+    return {
+        "processed": len(snapshots),
+        "removed": removed_count,
+        "duplicates": duplicate_count,
+        "incomplete": incomplete_count
+    }
