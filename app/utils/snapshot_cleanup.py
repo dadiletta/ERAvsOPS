@@ -1,116 +1,111 @@
 # app/utils/snapshot_cleanup.py
+"""
+Routine hygiene for MLB snapshots.
+
+• removes any snapshot that is obviously incomplete (<28 teams)  
+• keeps a single copy of every logical snapshot (one per team/date set)  
+• leaves all other history intact
+
+Safe to run at any cadence (startup hook, nightly cron, or ad hoc).
+"""
+
+from __future__ import annotations
 
 import json
 import logging
-from flask import current_app
+import hashlib
+from typing import Dict, List, Tuple, Iterable
+
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
 from app import db
+from app.models.mlb_snapshot import MLBSnapshot  # noqa: E501
 
 logger = logging.getLogger(__name__)
 
-def compare_snapshots(data1, data2):
-    """
-    Compare two snapshot data sets to determine if they are functionally identical.
-    
-    Args:
-        data1: First snapshot data (list of team dictionaries)
-        data2: Second snapshot data (list of team dictionaries)
-        
-    Returns:
-        bool: True if snapshots contain identical team data
-    """
-    # If lengths are different, they're not identical
-    if len(data1) != len(data2):
-        return False
-    
-    # Create dictionaries indexed by team ID for faster comparison
-    team_dict1 = {team['id']: team for team in data1 if 'id' in team}
-    team_dict2 = {team['id']: team for team in data2 if 'id' in team}
-    
-    # Check if they have the same team IDs
-    if set(team_dict1.keys()) != set(team_dict2.keys()):
-        return False
-    
-    # Compare each team's critical stats (ERA, OPS, and now run differential)
-    for team_id, team1 in team_dict1.items():
-        team2 = team_dict2[team_id]
-        
-        # Round to 3 decimal places for comparison to avoid floating point issues
-        era1 = round(float(team1.get('era', 0)), 3)
-        era2 = round(float(team2.get('era', 0)), 3)
-        ops1 = round(float(team1.get('ops', 0)), 3)
-        ops2 = round(float(team2.get('ops', 0)), 3)
-        
-        # Add comparison for run differential
-        diff1 = int(team1.get('run_differential', 0))
-        diff2 = int(team2.get('run_differential', 0))
-        
-        if era1 != era2 or ops1 != ops2 or diff1 != diff2:
-            return False
-    
-    # If we got here, the snapshots contain identical team data
-    return True
 
-def cleanup_duplicate_snapshots():
+# ────────────────────────────────────────────────────────────
+# helpers
+# ────────────────────────────────────────────────────────────
+def _snapshot_fingerprint(raw_json: str) -> str:
     """
-    Scan for and remove duplicate snapshots, keeping the oldest of each duplicate set
-    to maintain historical timeline integrity.
-    
-    Returns:
-        int: Number of duplicate snapshots removed
+    Round-normalize each club’s key numbers, then hash the object.
+
+    This collapses innocuous float noise so 3.42199 and 3.42204 hash alike.
+    Fingerprint is stable across team order and whitespace differences.
     """
-    from app.models.mlb_snapshot import MLBSnapshot
-    
-    logger.info("Starting duplicate snapshot cleanup")
-    
+    data = json.loads(raw_json)
+    norm: Dict[int, Tuple[float, float, int]] = {}
+    for team in data:
+        tid = int(team["id"])
+        norm[tid] = (
+            round(float(team.get("era", 0)), 3),
+            round(float(team.get("ops", 0)), 3),
+            int(team.get("run_differential", 0)),
+        )
+    # sort by team id for deterministic hash
+    digest = hashlib.sha1(json.dumps(sorted(norm.items())).encode()).hexdigest()
+    return digest
+
+
+def _is_partial(raw_json: str, *, min_teams: int = 28) -> bool:
+    """Recognise snapshots where the upstream API returned too few clubs."""
     try:
-        # Get all snapshots ordered by timestamp
-        snapshots = MLBSnapshot.query.order_by(MLBSnapshot.timestamp.asc()).all()
-        
-        if len(snapshots) <= 1:
-            logger.info("Not enough snapshots to check for duplicates")
-            return 0
-        
-        # Track snapshots to delete
-        to_delete = []
-        
-        # Compare each snapshot with the previous one
-        previous = None
-        for current in snapshots:
-            if previous is not None:
-                # Parse the JSON data
-                prev_data = json.loads(previous.data)
-                curr_data = json.loads(current.data)
-                
-                # Compare the snapshots
-                if compare_snapshots(prev_data, curr_data):
-                    # They're duplicates - mark the newer one for deletion
-                    to_delete.append(current)
-                    logger.info(f"Marking duplicate snapshot ID {current.id} from {current.timestamp} for deletion")
-                else:
-                    # Not a duplicate, update previous
-                    previous = current
-            else:
-                # First snapshot, just set as previous
-                previous = current
-        
-        # Delete the duplicate snapshots
-        count = len(to_delete)
-        if count > 0:
-            for snapshot in to_delete:
-                db.session.delete(snapshot)
-            
-            db.session.commit()
-            logger.info(f"Deleted {count} duplicate snapshots")
+        team_count = len(json.loads(raw_json))
+    except Exception:  # bad JSON → treat as partial
+        logger.warning("Corrupt JSON encountered during snapshot cleanup.")
+        return True
+    return team_count < min_teams
+
+
+# ────────────────────────────────────────────────────────────
+# public API
+# ────────────────────────────────────────────────────────────
+def cleanup_snapshots(session: Session | None = None) -> int:
+    """
+    Delete incomplete snapshots and duplicates.
+
+    Returns
+    -------
+    int
+        Number of rows deleted.
+    """
+    needs_commit = session is None
+    session = session or db.session
+
+    logger.info("Starting snapshot hygiene pass")
+    removed: List[int] = []
+
+    # iterate in blocks to avoid loading huge tables all at once
+    q = session.query(MLBSnapshot.id, MLBSnapshot.data).yield_per(500)
+
+    seen: Dict[str, int] = {}  # fingerprint → earliest snapshot.id
+
+    for sid, raw in q:
+        # 1️⃣ Cull partial rows
+        if _is_partial(raw):
+            removed.append(sid)
+            continue
+
+        # 2️⃣ Cull logical duplicates (anywhere in the timeline)
+        fp = _snapshot_fingerprint(raw)
+        if fp in seen:
+            # keep the earliest insertion to preserve chronology
+            removed.append(sid)
         else:
-            logger.info("No duplicate snapshots found")
-        
-        return count
-        
-    except Exception as e:
-        logger.error(f"Error during duplicate snapshot cleanup: {str(e)}")
-        import traceback
-        logger.error(traceback.format_exc())
-        
-        # Make sure to rollback any partial changes
-        db.session.rollback()
-        return 0
+            seen[fp] = sid
+
+    # bulk delete in sane batches
+    if removed:
+        batch = 750
+        for i in range(0, len(removed), batch):
+            session.query(MLBSnapshot).filter(
+                MLBSnapshot.id.in_(removed[i : i + batch])
+            ).delete(synchronize_session=False)
+
+    if needs_commit:
+        session.commit()
+
+    logger.info("Snapshot hygiene: %s rows removed", len(removed))
+    return len(removed)
