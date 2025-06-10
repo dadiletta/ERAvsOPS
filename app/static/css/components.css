@@ -703,3 +703,6 @@ body.dark-mode .refresh-button:hover {
     background-color: var(--mlb-blue);
 }
 
+#update-progress {
+    width: 100%;
+}
