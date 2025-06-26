@@ -178,6 +178,7 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
         logger.log("Continuing update process");
         
         // Use fetch API for better performance
+        // FIXED: Changed from '/api/update-continue' to '/api/continue-update'
         fetch('/api/continue-update', {
             method: 'POST',
             headers: {
@@ -185,7 +186,13 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
             },
             body: JSON.stringify({ batch_size: MLBConfig.APP.batchSize })
         })
-        .then(response => response.json())
+        .then(response => {
+            // Check if response is ok before parsing JSON
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(status => {
             logger.log("Update continued successfully", status);
             
@@ -247,8 +254,19 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
             url: '/api/team-data',
             method: 'GET',
             dataType: 'json',
-            success: function(data) {
-                logger.log(`Received fresh data with ${data.length} teams`);
+            success: function(response) {
+                // Extract teams array from response object
+                const teams = response.teams || [];
+                
+                logger.log(`Received fresh data with ${teams.length} teams`);
+                
+                // Validate that we have an array
+                if (!Array.isArray(teams)) {
+                    logger.error("Invalid data format: teams is not an array");
+                    showToast("Error: Invalid data format received", "error");
+                    return;
+                }
+                
                 showToast("Data update complete!", "success");
                 
                 // Clear history cache when data is refreshed
@@ -259,7 +277,7 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
                 // Update chart with all data
                 // Division filter will be applied automatically by the chart
                 if (typeof MLBChart.updateChartData === 'function') {
-                    const updated = MLBChart.updateChartData(data);
+                    const updated = MLBChart.updateChartData(teams);
                     if (updated) {
                         logger.log("Chart updated successfully");
                     } else {
@@ -279,13 +297,17 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
             }
         });
     }
+    
     /**
      * Helper function to update the chart
-     * @param {Array} data - Team data to update the chart with
+     * @param {Object|Array} data - Team data response or array to update the chart with
      */
     function updateChart(data) {
+        // Handle both response object and direct array
+        const teams = data.teams || data;
+        
         if (typeof MLBChart.updateChartData === 'function') {
-            const updated = MLBChart.updateChartData(data);
+            const updated = MLBChart.updateChartData(teams);
             if (updated) {
                 logger.log("Chart updated successfully");
             } else {
@@ -320,11 +342,16 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
             }, 500);
         }
         
-        // If update already in progress, check status
+        // If update already in progress, check status  
         if (window.dataStatus && window.dataStatus.update_in_progress) {
             logger.log("Update already in progress, will check status shortly");
             state.isUpdating = true;
             setTimeout(checkUpdateStatus, 2000);
+        }
+        
+        // Also handle the case where window.teamData might need updating
+        if (window.teamData && Array.isArray(window.teamData)) {
+            logger.log("Initial team data is available");
         }
     }
     
