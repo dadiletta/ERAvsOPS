@@ -421,6 +421,8 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
             plugins: [quadrantPlugin, tooltipPlugin, historyLinePlugin]
         });
         
+        // Position quadrant labels after chart is rendered
+        positionQuadrantLabels();
         // Store chart in window for external access
         window.mlbChart = mlbChart;
         
@@ -448,6 +450,8 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
         setTimeout(positionQuadrantLabels, 500);
         
         logger.info("Chart initialization completed");
+
+        $(document).trigger('chartUpdated');
     }
     
     /**
@@ -624,6 +628,8 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
         setTimeout(positionQuadrantLabels, 500);
         
         logger.info("Chart data updated with minimal animation");
+
+        $(document).trigger('chartUpdated');
         
         return true;
     }

@@ -247,53 +247,65 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
      * Fetch fresh data with improved error handling
      */
     function fetchFreshData() {
-        logger.log("Fetching fresh data");
-        showToast("Loading fresh data...", "info");
+        logger.log("Fetching fresh data from server...");
         
         $.ajax({
-            url: '/api/team-data',
+            url: '/api/teams/fresh',
             method: 'GET',
             dataType: 'json',
+            cache: false, // Ensure we get fresh data
             success: function(response) {
-                // Extract teams array from response object
-                const teams = response.teams || [];
+                logger.log("Fresh data received:", response);
                 
-                logger.log(`Received fresh data with ${teams.length} teams`);
-                
-                // Validate that we have an array
-                if (!Array.isArray(teams)) {
-                    logger.error("Invalid data format: teams is not an array");
-                    showToast("Error: Invalid data format received", "error");
-                    return;
-                }
-                
-                showToast("Data update complete!", "success");
-                
-                // Clear history cache when data is refreshed
-                if (typeof MLBHistory !== 'undefined' && MLBHistory.clearHistoryCache) {
-                    MLBHistory.clearHistoryCache();
-                }
-                
-                // Update chart with all data
-                // Division filter will be applied automatically by the chart
-                if (typeof MLBChart.updateChartData === 'function') {
-                    const updated = MLBChart.updateChartData(teams);
-                    if (updated) {
-                        logger.log("Chart updated successfully");
-                    } else {
-                        logger.log("Chart update failed");
-                        showToast("Chart update failed", "warning");
+                if (response.teams && response.teams.length > 0) {
+                    // Update global team data
+                    window.teamData = response.teams;
+                    
+                    // Update data status
+                    window.dataStatus = {
+                        is_fresh: response.is_fresh,
+                        last_updated: response.last_updated,
+                        update_in_progress: false
+                    };
+                    
+                    // Update the last updated display
+                    $('#lastUpdatedTitle').text(response.last_updated || 'Just now');
+                    $('#status-text-title').text('Fresh');
+                    $('#status-indicator-title').removeClass('stale').addClass('fresh');
+                    
+                    // Update snapshot count
+                    if (response.snapshot_count !== undefined) {
+                        $('#snapshot-count').text(response.snapshot_count);
                     }
-                } else {
-                    console.error("updateChartData function not available");
-                    logger.log("updateChartData function not found");
-                    showToast("Could not update visualization", "error");
+                    
+                    // Trigger fresh data loaded event BEFORE updating chart
+                    $(document).trigger('freshDataLoaded');
+                    
+                    // Update the chart with fresh data
+                    MLBChart.updateChartData(response.teams);
+                    
+                    // Trigger chart updated event
+                    $(document).trigger('chartUpdated');
+                    
+                    // Update insights
+                    if (window.updateInsights) {
+                        window.updateInsights(response.teams);
+                    }
+                    
+                    // Hide refresh button since data is fresh
+                    $('#refresh-button').hide();
+                    
+                    MLBConfig.showToast("Data refreshed successfully!", "success");
                 }
             },
             error: function(xhr, status, error) {
-                console.error("Error fetching fresh data:", error);
-                logger.log("AJAX error details:", {xhr: xhr, status: status, error: error});
-                showToast(`Error loading updated data: ${error}`, "error");
+                logger.error("Error fetching fresh data:", error);
+                MLBConfig.showToast("Failed to fetch fresh data. Please try again.", "error");
+                
+                // Even on error, we should hide the loading overlay eventually
+                setTimeout(() => {
+                    $(document).trigger('freshDataLoaded');
+                }, 2000);
             }
         });
     }

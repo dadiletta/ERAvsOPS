@@ -15,7 +15,8 @@
         totalImages: 0,
         fetchAttempts: 0,
         maxFetchAttempts: 3,
-        initialLoadComplete: false // Track if we've completed initial load
+        initialLoadComplete: false,
+        freshDataLoaded: false // New flag to track fresh data
     };
     
     // Utility function to log loading status
@@ -25,13 +26,14 @@
             chartLoaded: state.chartLoaded,
             snapshotCountLoaded: state.snapshotCountLoaded,
             imagesLoaded: `${state.imagesLoaded}/${state.totalImages}`,
+            freshDataLoaded: state.freshDataLoaded,
             initialLoadComplete: state.initialLoadComplete
         });
     }
     
     // Function to hide the loading overlay
     function hideLoadingOverlay() {
-        if (loadingOverlay) {
+        if (loadingOverlay && !state.initialLoadComplete) {
             // Add hidden class (for transition)
             loadingOverlay.classList.add('hidden');
             
@@ -53,8 +55,13 @@
     function checkIfLoaded() {
         logLoadingStatus();
         
-        if (state.dataLoaded && state.chartLoaded && state.snapshotCountLoaded &&
-            (state.imagesLoaded >= state.totalImages || state.totalImages === 0)) {
+        // Wait for fresh data flag if data is stale
+        const dataRequirementMet = state.freshDataLoaded || 
+            (window.dataStatus && window.dataStatus.is_fresh);
+        
+        if (state.chartLoaded && state.snapshotCountLoaded &&
+            (state.imagesLoaded >= state.totalImages || state.totalImages === 0) &&
+            dataRequirementMet) {
             
             // Add a slight delay for smoother transition
             setTimeout(hideLoadingOverlay, 500);
@@ -137,95 +144,78 @@
         }
     }
     
+    // Listen for fresh data loaded event
+    function listenForFreshData() {
+        // Listen for custom event that indicates fresh data is loaded
+        $(document).on('freshDataLoaded', function() {
+            console.log("Fresh data loaded event received");
+            state.freshDataLoaded = true;
+            checkIfLoaded();
+        });
+        
+        // Also listen for chart update event
+        $(document).on('chartUpdated', function() {
+            console.log("Chart updated event received");
+            state.chartLoaded = true;
+            checkIfLoaded();
+        });
+    }
+    
     // Initialize loading detection with improved checks
     function initialize() {
         console.log("Initializing loading overlay");
         
-        // Start fetching snapshot count immediately
-        fetchSnapshotCount();
-        
-        // Count team logos to load
-        if (window.teamData) {
-            // Set initial count of images to load
+        // Check if data is stale
+        if (window.dataStatus && !window.dataStatus.is_fresh) {
+            console.log("Initial data is stale, waiting for fresh data...");
+            // Don't mark data as loaded yet
+        } else if (window.teamData && window.teamData.length > 0) {
+            // Data is fresh, proceed normally
+            state.dataLoaded = true;
+            state.freshDataLoaded = true;
             state.totalImages = window.teamData.length;
             console.log(`Found ${state.totalImages} team logos to load`);
             
-            // Mark data as loaded since we have window.teamData
-            state.dataLoaded = true;
-            
-            // Preload team logos with improved counting
+            // Preload team logos
             window.teamData.forEach(team => {
                 if (team.logo) {
                     const img = new Image();
                     img.onload = () => {
                         state.imagesLoaded++;
-                        console.log(`Loaded image ${state.imagesLoaded}/${state.totalImages}: ${team.name}`);
                         checkIfLoaded();
                     };
                     img.onerror = () => {
                         state.imagesLoaded++;
-                        console.log(`Failed to load image ${state.imagesLoaded}/${state.totalImages}: ${team.name}`);
                         checkIfLoaded();
                     };
                     img.src = team.logo;
                 }
             });
-        } else {
-            // No team data available, wait for it to be loaded
-            console.log("No team data available yet, waiting...");
-            
-            // Check for team data with exponential backoff
-            let dataAttempts = 0;
-            const maxDataAttempts = 5;
-            const checkDataInterval = setInterval(() => {
-                dataAttempts++;
-                if (window.teamData && window.teamData.length > 0) {
-                    state.dataLoaded = true;
-                    console.log(`Team data loaded with ${window.teamData.length} teams`);
-                    clearInterval(checkDataInterval);
-                    checkIfLoaded();
-                    
-                    // Now that we have data, start checking for images
-                    state.totalImages = window.teamData.length;
-                    window.teamData.forEach(team => {
-                        if (team.logo) {
-                            const img = new Image();
-                            img.onload = () => {
-                                state.imagesLoaded++;
-                                checkIfLoaded();
-                            };
-                            img.onerror = () => {
-                                state.imagesLoaded++;
-                                checkIfLoaded();
-                            };
-                            img.src = team.logo;
-                        }
-                    });
-                } else if (dataAttempts >= maxDataAttempts) {
-                    console.log("Max attempts reached waiting for team data");
-                    clearInterval(checkDataInterval);
-                    // Consider data loaded anyway to avoid infinite waiting
-                    state.dataLoaded = true;
-                    state.totalImages = 0; // Avoid waiting for images
-                    checkIfLoaded();
-                }
-            }, 1000 * Math.min(dataAttempts + 1, 3)); // Exponential backoff up to 3 seconds
         }
+        
+        // Start fetching snapshot count immediately
+        fetchSnapshotCount();
+        
+        // Listen for fresh data events
+        listenForFreshData();
         
         // Wait for chart initialization with proper data
         window.chartCheckInterval = setInterval(checkChartLoading, 100);
         
-        // Failsafe: Hide loading overlay after 20 seconds even if not everything is loaded
+        // Failsafe: Hide loading overlay after 30 seconds even if not everything is loaded
         setTimeout(() => {
-            if (loadingOverlay && !loadingOverlay.classList.contains('hidden')) {
+            if (loadingOverlay && !state.initialLoadComplete) {
                 console.log("Failsafe: Hiding loading overlay after timeout");
                 logLoadingStatus(); // Log final state for debugging
                 hideLoadingOverlay();
             }
-        }, 20000); // Increased to 20 seconds
+        }, 30000); // Increased to 30 seconds for fresh data loading
     }
     
     // Initialize when document is ready
     $(document).ready(initialize);
+    
+    // Export state for debugging
+    window.loadingOverlayState = state;
     
 })(window, document, jQuery);
