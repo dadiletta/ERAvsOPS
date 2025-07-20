@@ -250,12 +250,12 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
         logger.log("Fetching fresh data from server...");
         
         $.ajax({
-            url: '/api/teams/fresh',
+            url: '/api/team-data',  // Use existing endpoint
             method: 'GET',
             dataType: 'json',
             cache: false, // Ensure we get fresh data
             success: function(response) {
-                logger.log("Fresh data received:", response);
+                logger.log("Data received:", response);
                 
                 if (response.teams && response.teams.length > 0) {
                     // Update global team data
@@ -263,22 +263,29 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
                     
                     // Update data status
                     window.dataStatus = {
-                        is_fresh: response.is_fresh,
+                        is_fresh: response.fresh,  // Note: response uses 'fresh' not 'is_fresh'
                         last_updated: response.last_updated,
                         update_in_progress: false
                     };
                     
                     // Update the last updated display
                     $('#lastUpdatedTitle').text(response.last_updated || 'Just now');
-                    $('#status-text-title').text('Fresh');
-                    $('#status-indicator-title').removeClass('stale').addClass('fresh');
+                    $('#status-text-title').text(response.fresh ? 'Fresh' : 'Stale');
+                    $('#status-indicator-title').removeClass('stale').addClass(response.fresh ? 'fresh' : 'stale');
                     
-                    // Update snapshot count
-                    if (response.snapshot_count !== undefined) {
-                        $('#snapshot-count').text(response.snapshot_count);
-                    }
+                    // Get snapshot count from separate endpoint
+                    $.ajax({
+                        url: '/api/update-status',
+                        method: 'GET',
+                        dataType: 'json',
+                        success: function(statusResponse) {
+                            if (statusResponse.snapshot_count !== undefined) {
+                                $('#snapshot-count').text(statusResponse.snapshot_count);
+                            }
+                        }
+                    });
                     
-                    // Trigger fresh data loaded event BEFORE updating chart
+                    // Trigger fresh data loaded event
                     $(document).trigger('freshDataLoaded');
                     
                     // Update the chart with fresh data
@@ -292,15 +299,17 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
                         window.updateInsights(response.teams);
                     }
                     
-                    // Hide refresh button since data is fresh
-                    $('#refresh-button').hide();
+                    // Hide refresh button if data is fresh
+                    if (response.fresh) {
+                        $('#refresh-button').hide();
+                    }
                     
-                    MLBConfig.showToast("Data refreshed successfully!", "success");
+                    MLBConfig.showToast("Data loaded successfully!", "success");
                 }
             },
             error: function(xhr, status, error) {
-                logger.error("Error fetching fresh data:", error);
-                MLBConfig.showToast("Failed to fetch fresh data. Please try again.", "error");
+                logger.error("Error fetching data:", error);
+                MLBConfig.showToast("Failed to fetch data. Please try again.", "error");
                 
                 // Even on error, we should hide the loading overlay eventually
                 setTimeout(() => {

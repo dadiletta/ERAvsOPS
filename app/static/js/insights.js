@@ -173,7 +173,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Update insights when team data changes
 if (window.teamData) {
-    const originalTeamData = window.teamData;
+    // Use let instead of const to allow reassignment
+    let originalTeamData = window.teamData;
     Object.defineProperty(window, 'teamData', {
         get() {
             return originalTeamData;
@@ -181,6 +182,7 @@ if (window.teamData) {
         set(newValue) {
             originalTeamData = newValue;
             updateInsights(newValue);
-        }
+        },
+        configurable: true
     });
-} 
+}
