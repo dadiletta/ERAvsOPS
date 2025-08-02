@@ -55,16 +55,23 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
     }
 
     /**
-     * Calculate dynamic ranges for ERA and OPS based on actual team data
+     * Calculate dynamic ranges for ERA and OPS with centering and history buffer
+     * Centers the view around the axis lines and provides extra space for historical data
      */
     function calculateDynamicRanges(teams) {
+        // Define the center points (where your axis lines are)
+        const OPS_CENTER = 0.7;   // Your vertical axis line
+        const ERA_CENTER = 4.0;   // Your horizontal axis line
+        
+        // Default ranges if no teams
         if (!teams || teams.length === 0) {
             return {
-                ops: { min: 0.600, max: 0.850 },
-                era: { min: 2.5, max: 5.5 }
+                ops: { min: 0.600, max: 0.800 },
+                era: { min: 3.0, max: 5.0 }
             };
         }
         
+        // Extract valid ERA and OPS values
         const validTeams = teams.filter(team => 
             team.era && team.ops && 
             !isNaN(team.era) && !isNaN(team.ops) &&
@@ -73,11 +80,12 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
         
         if (validTeams.length === 0) {
             return {
-                ops: { min: 0.600, max: 0.850 },
-                era: { min: 2.5, max: 5.5 }
+                ops: { min: 0.600, max: 0.800 },
+                era: { min: 3.0, max: 5.0 }
             };
         }
         
+        // Get min/max values from current data
         const opsValues = validTeams.map(t => parseFloat(t.ops));
         const eraValues = validTeams.map(t => parseFloat(t.era));
         
@@ -86,47 +94,51 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
         const eraMin = Math.min(...eraValues);
         const eraMax = Math.max(...eraValues);
         
-        const opsRange = opsMax - opsMin;
-        const eraRange = eraMax - eraMin;
+        // Calculate distances from center point to data extremes
+        const opsDistanceBelow = OPS_CENTER - opsMin;
+        const opsDistanceAbove = opsMax - OPS_CENTER;
+        const eraDistanceBelow = ERA_CENTER - eraMin;
+        const eraDistanceAbove = eraMax - ERA_CENTER;
         
-        // 8% buffer for tight grouping, 12% for normal spread
-        const opsBuffer = opsRange < 0.1 ? 0.08 : 0.12;
-        const eraBuffer = eraRange < 1.0 ? 0.08 : 0.12;
+        // Use the larger distance to ensure all data is visible and centered
+        const opsMaxDistance = Math.max(opsDistanceBelow, opsDistanceAbove);
+        const eraMaxDistance = Math.max(eraDistanceBelow, eraDistanceAbove);
         
-        const opsPadding = opsRange * opsBuffer;
-        const eraPadding = eraRange * eraBuffer;
+        // Add buffer for history lines (20% extra space)
+        const historyBuffer = 0.20;
         
-        const minOpsRange = 0.15;
-        const minEraRange = 1.5;
+        // Calculate symmetric ranges around center with history buffer
+        let opsRadius = opsMaxDistance * (1 + historyBuffer);
+        let eraRadius = eraMaxDistance * (1 + historyBuffer);
         
-        let opsMinFinal = opsMin - opsPadding;
-        let opsMaxFinal = opsMax + opsPadding;
-        let eraMinFinal = eraMin - eraPadding;
-        let eraMaxFinal = eraMax + eraPadding;
+        // Ensure minimum ranges to prevent over-zooming
+        const minOpsRadius = 0.10;  // Minimum ±0.10 from center
+        const minEraRadius = 1.0;   // Minimum ±1.0 from center
         
-        if (opsMaxFinal - opsMinFinal < minOpsRange) {
-            const opsCenter = (opsMinFinal + opsMaxFinal) / 2;
-            opsMinFinal = opsCenter - minOpsRange / 2;
-            opsMaxFinal = opsCenter + minOpsRange / 2;
-        }
+        opsRadius = Math.max(opsRadius, minOpsRadius);
+        eraRadius = Math.max(eraRadius, minEraRadius);
         
-        if (eraMaxFinal - eraMinFinal < minEraRange) {
-            const eraCenter = (eraMinFinal + eraMaxFinal) / 2;
-            eraMinFinal = eraCenter - minEraRange / 2;
-            eraMaxFinal = eraCenter + minEraRange / 2;
-        }
+        // Calculate final ranges (centered around axis lines)
+        let opsMinFinal = OPS_CENTER - opsRadius;
+        let opsMaxFinal = OPS_CENTER + opsRadius;
+        let eraMinFinal = ERA_CENTER - eraRadius;
+        let eraMaxFinal = ERA_CENTER + eraRadius;
         
-        opsMinFinal = Math.max(0.550, Math.min(0.700, opsMinFinal));
-        opsMaxFinal = Math.min(0.950, Math.max(0.800, opsMaxFinal));
-        eraMinFinal = Math.max(2.0, Math.min(3.5, eraMinFinal));
-        eraMaxFinal = Math.min(6.0, Math.max(4.5, eraMaxFinal));
+        // Apply reasonable bounds to prevent extreme ranges
+        opsMinFinal = Math.max(0.500, opsMinFinal);
+        opsMaxFinal = Math.min(1.000, opsMaxFinal);
+        eraMinFinal = Math.max(1.5, eraMinFinal);
+        eraMaxFinal = Math.min(7.0, eraMaxFinal);
         
+        // Round to nice values for cleaner axis labels
         opsMinFinal = Math.floor(opsMinFinal * 100) / 100;
         opsMaxFinal = Math.ceil(opsMaxFinal * 100) / 100;
         eraMinFinal = Math.floor(eraMinFinal * 10) / 10;
         eraMaxFinal = Math.ceil(eraMaxFinal * 10) / 10;
         
-        logger.log(`Dynamic ranges: OPS: ${opsMinFinal}-${opsMaxFinal}, ERA: ${eraMinFinal}-${eraMaxFinal}`);
+        logger.log(`Dynamic ranges (centered on OPS=${OPS_CENTER}, ERA=${ERA_CENTER}):
+            OPS: ${opsMinFinal} to ${opsMaxFinal} (data: ${opsMin.toFixed(3)} to ${opsMax.toFixed(3)})
+            ERA: ${eraMinFinal} to ${eraMaxFinal} (data: ${eraMin.toFixed(2)} to ${eraMax.toFixed(2)})`);
         
         return {
             ops: { min: opsMinFinal, max: opsMaxFinal },
@@ -658,7 +670,6 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
         
         logger.info("Updating chart with new data...");
         
-        // Make sure we have non-empty data
         if (!newData || newData.length === 0) {
             logger.error("No data provided to update chart");
             return false;
@@ -680,10 +691,10 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
         // Preload team logos
         preloadTeamLogos(newData);
         
-        // Update chart data preserving team identity
+        // Update chart data
         const chart = mlbChart;
         chart.data.datasets[0].data = formattedData;
-
+        
         // Calculate and apply new ranges
         const ranges = calculateDynamicRanges(newData);
         chart.options.scales.x.min = ranges.ops.min;
@@ -697,30 +708,26 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
             easing: 'easeOutQuad'
         };
         
-        chart.update('none');
+        // Update the chart
+        chart.update();
         
-        // Reset animation settings
-        chart.options.animation = {
-            duration: CONFIG.animation.duration,
-            easing: CONFIG.animation.easing
-        };
-        
-        // Apply division filtering if initialized
-        if (typeof MLBDivisionFilter !== 'undefined' && 
-            typeof MLBDivisionFilter.isInitialized === 'function' && 
-            MLBDivisionFilter.isInitialized()) {
-            setTimeout(() => {
-                MLBDivisionFilter.applyDivisionFilter();
-            }, 100);
+        // Apply division filters if they exist
+        if (window.MLBDivisionFilter && window.MLBDivisionFilter.getActiveDivisions) {
+            const activeDivisions = window.MLBDivisionFilter.getActiveDivisions();
+            
+            // Apply visibility based on division filter
+            for (let i = 0; i < formattedData.length; i++) {
+                const team = formattedData[i];
+                const visible = activeDivisions.has(team.division);
+                const chartPoint = chart.getDatasetMeta(0).data[i];
+                chartPoint.hidden = !visible;
+            }
+            
+            // Update chart without animation to apply filter
+            chart.update('none');
         }
         
-        // Reposition quadrant labels
-        setTimeout(positionQuadrantLabels, 500);
-        
-        logger.info("Chart data updated with minimal animation");
-
-        $(document).trigger('chartUpdated');
-        
+        logger.info("Chart update complete");
         return true;
     }
      
