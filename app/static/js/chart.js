@@ -55,6 +55,86 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
     }
 
     /**
+     * Calculate dynamic ranges for ERA and OPS based on actual team data
+     */
+    function calculateDynamicRanges(teams) {
+        if (!teams || teams.length === 0) {
+            return {
+                ops: { min: 0.600, max: 0.850 },
+                era: { min: 2.5, max: 5.5 }
+            };
+        }
+        
+        const validTeams = teams.filter(team => 
+            team.era && team.ops && 
+            !isNaN(team.era) && !isNaN(team.ops) &&
+            team.era > 0 && team.ops > 0
+        );
+        
+        if (validTeams.length === 0) {
+            return {
+                ops: { min: 0.600, max: 0.850 },
+                era: { min: 2.5, max: 5.5 }
+            };
+        }
+        
+        const opsValues = validTeams.map(t => parseFloat(t.ops));
+        const eraValues = validTeams.map(t => parseFloat(t.era));
+        
+        const opsMin = Math.min(...opsValues);
+        const opsMax = Math.max(...opsValues);
+        const eraMin = Math.min(...eraValues);
+        const eraMax = Math.max(...eraValues);
+        
+        const opsRange = opsMax - opsMin;
+        const eraRange = eraMax - eraMin;
+        
+        // 8% buffer for tight grouping, 12% for normal spread
+        const opsBuffer = opsRange < 0.1 ? 0.08 : 0.12;
+        const eraBuffer = eraRange < 1.0 ? 0.08 : 0.12;
+        
+        const opsPadding = opsRange * opsBuffer;
+        const eraPadding = eraRange * eraBuffer;
+        
+        const minOpsRange = 0.15;
+        const minEraRange = 1.5;
+        
+        let opsMinFinal = opsMin - opsPadding;
+        let opsMaxFinal = opsMax + opsPadding;
+        let eraMinFinal = eraMin - eraPadding;
+        let eraMaxFinal = eraMax + eraPadding;
+        
+        if (opsMaxFinal - opsMinFinal < minOpsRange) {
+            const opsCenter = (opsMinFinal + opsMaxFinal) / 2;
+            opsMinFinal = opsCenter - minOpsRange / 2;
+            opsMaxFinal = opsCenter + minOpsRange / 2;
+        }
+        
+        if (eraMaxFinal - eraMinFinal < minEraRange) {
+            const eraCenter = (eraMinFinal + eraMaxFinal) / 2;
+            eraMinFinal = eraCenter - minEraRange / 2;
+            eraMaxFinal = eraCenter + minEraRange / 2;
+        }
+        
+        opsMinFinal = Math.max(0.550, Math.min(0.700, opsMinFinal));
+        opsMaxFinal = Math.min(0.950, Math.max(0.800, opsMaxFinal));
+        eraMinFinal = Math.max(2.0, Math.min(3.5, eraMinFinal));
+        eraMaxFinal = Math.min(6.0, Math.max(4.5, eraMaxFinal));
+        
+        opsMinFinal = Math.floor(opsMinFinal * 100) / 100;
+        opsMaxFinal = Math.ceil(opsMaxFinal * 100) / 100;
+        eraMinFinal = Math.floor(eraMinFinal * 10) / 10;
+        eraMaxFinal = Math.ceil(eraMaxFinal * 10) / 10;
+        
+        logger.log(`Dynamic ranges: OPS: ${opsMinFinal}-${opsMaxFinal}, ERA: ${eraMinFinal}-${eraMaxFinal}`);
+        
+        return {
+            ops: { min: opsMinFinal, max: opsMaxFinal },
+            era: { min: eraMinFinal, max: eraMaxFinal }
+        };
+    }
+
+    /**
      * Preload team logos at the right size
      * Improved with proper Promise handling
      */
@@ -195,7 +275,7 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
             fullName: team.full_name || team.name,
             abbreviation: team.abbreviation,
             logo: team.logo,
-            id: team.id,  // Important: Include team ID for history tracking
+            id: team.id,
             division: team.division || 'Unknown',
             league: team.league || 'Unknown'
         }));
@@ -205,6 +285,9 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
         
         // Get font sizes
         const fontSizes = MLBConfig.getFontSizes();
+
+        // Calculate dynamic ranges
+        const ranges = calculateDynamicRanges(teamData);
         
         // Get the history line plugin
         const historyLinePlugin = MLBHistory.createHistoryLinePlugin();
@@ -264,8 +347,8 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
                             },
                             color: MLBConfig.COLORS.blueFaded
                         },
-                        min: 0.53,
-                        max: 0.87,
+                        min: ranges.ops.min,  // Dynamic instead of 0.53
+                        max: ranges.ops.max,  // Dynamic instead of 0.87
                         grid: {
                             color: 'rgba(0, 0, 0, 0.05)',
                             lineWidth: 1
@@ -290,8 +373,8 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
                             },
                             color: MLBConfig.COLORS.redFaded
                         },
-                        min: 1.9,
-                        max: 6.0,
+                        min: ranges.era.min,  // Dynamic instead of 1.9
+                        max: ranges.era.max,  // Dynamic instead of 6.0
                         reverse: true,
                         grid: {
                             color: 'rgba(0, 0, 0, 0.05)',
@@ -600,6 +683,13 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
         // Update chart data preserving team identity
         const chart = mlbChart;
         chart.data.datasets[0].data = formattedData;
+
+        // Calculate and apply new ranges
+        const ranges = calculateDynamicRanges(newData);
+        chart.options.scales.x.min = ranges.ops.min;
+        chart.options.scales.x.max = ranges.ops.max;
+        chart.options.scales.y.min = ranges.era.min;
+        chart.options.scales.y.max = ranges.era.max;
         
         // Update with minimal animation
         chart.options.animation = {
