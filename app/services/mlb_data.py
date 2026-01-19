@@ -30,8 +30,12 @@ class MLBDataFetcher:
         # Check if MLB Stats API is available
         self.api_available = MLB_STATS_API_AVAILABLE
         logger.info(f"MLBDataFetcher initialized with API available: {self.api_available}")
-        
-        self.current_year = datetime.now(timezone.utc).year
+
+        # Determine current MLB season (not calendar year)
+        # If Jan-Mar, use previous year; Apr-Dec use current year
+        now = datetime.now(timezone.utc)
+        self.current_year = now.year if now.month >= 4 else now.year - 1
+        logger.info(f"Using season year: {self.current_year} (current calendar year: {now.year}, month: {now.month})")
         
         # Hardcoded list of MLB team IDs with names and division information
         self._mlb_teams = [
