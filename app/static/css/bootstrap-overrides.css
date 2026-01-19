@@ -1,0 +1,291 @@
+/* Bootstrap Overrides to fix dark mode and styling issues */
+
+/* Fix ALL backgrounds in dark mode - match the main background color */
+body.dark-mode {
+    background-color: var(--background-main) !important;
+}
+
+/* Ensure html element also has dark background to prevent white showing through */
+html {
+    background-color: #fff;
+}
+
+body.dark-mode,
+html:has(body.dark-mode) {
+    background-color: var(--background-main) !important;
+}
+
+body.dark-mode .container {
+    background-color: var(--background-main) !important;
+}
+
+body.dark-mode main.container {
+    background-color: var(--background-main) !important;
+    padding: 2rem 3rem; /* Add breathing room from edges */
+}
+
+/* Light mode container padding too */
+main.container {
+    padding: 2rem 3rem;
+}
+
+/* Fix accordion styling */
+body.dark-mode .accordion-item {
+    background-color: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .accordion-button {
+    background-color: var(--card-bg) !important;
+    color: var(--text-dark) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.dark-mode .accordion-button:not(.collapsed) {
+    background-color: var(--card-bg-alt) !important;
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .accordion-body {
+    background-color: var(--card-bg) !important;
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .accordion-body .bg-light {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+body.dark-mode .accordion-body code {
+    color: var(--text-light) !important;
+}
+
+/* Fix standings text in dark mode */
+body.dark-mode .standings-table {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .standings-header {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .team-row {
+    color: var(--text-dark) !important;
+}
+
+body.dark-mode .team-name {
+    color: var(--text-dark) !important;
+}
+
+/* Accordion improvements - REMOVE directional text */
+.accordion-button .text-primary {
+    display: none !important;
+}
+
+/* Clean accordion button styling */
+.accordion-button {
+    font-size: 1rem;
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+}
+
+.accordion-button strong {
+    font-size: 1.1rem;
+}
+
+.accordion-button .text-muted {
+    font-weight: normal;
+    font-size: 0.9rem;
+    margin-left: 0.5rem;
+}
+
+.accordion-body {
+    padding: 1.5rem 1.25rem;
+}
+
+.accordion-body h5 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: var(--mlb-blue);
+}
+
+body.dark-mode .accordion-body h5 {
+    color: var(--mlb-blue-light);
+}
+
+/* Fix badge text colors */
+body.dark-mode .badge {
+    color: white !important;
+}
+
+body.dark-mode .badge.bg-warning {
+    color: #000 !important;
+}
+
+/* Remove Bootstrap's accordion button focus ring */
+.accordion-button:focus {
+    box-shadow: none;
+    border-color: var(--border-color);
+}
+
+/* Ensure spacer matches background */
+body.dark-mode .spacer {
+    background-color: var(--background-main) !important;
+}
+
+/* Fix footer background with gradient transition */
+body.dark-mode .footer {
+    background: linear-gradient(to bottom, var(--background-main), rgba(0, 45, 114, 0.2), rgba(0, 45, 114, 0.3)) !important;
+    position: relative;
+}
+
+body.dark-mode .footer::before {
+    content: '';
+    position: absolute;
+    top: -60px;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: linear-gradient(to bottom, transparent, var(--background-main));
+    pointer-events: none;
+}
+
+/* Light mode footer with gradient transition */
+.footer {
+    background: linear-gradient(to bottom, var(--background-main), rgba(0, 45, 114, 0.1), rgba(0, 45, 114, 0.2)) !important;
+    position: relative;
+}
+
+.footer::before {
+    content: '';
+    position: absolute;
+    top: -60px;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: linear-gradient(to bottom, transparent, var(--background-main));
+    pointer-events: none;
+}
+
+/* Chart Controls (formerly division-toggles) */
+.chart-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    padding: 0 1rem;
+}
+
+/* Year Selector Pill Styling - Match division toggle style exactly */
+.year-selector-pill {
+    display: flex;
+    gap: 2px;
+}
+
+.season-pill {
+    /* Match division-toggle styles exactly */
+    padding: 0 4px !important;
+    border-radius: 10px !important;
+    border: 1px solid var(--mlb-blue) !important;
+    background-color: var(--division-toggle-bg) !important;
+    color: var(--mlb-blue) !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    font-size: 0.55rem !important;
+    font-weight: 500 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.3px !important;
+    height: 14px !important;
+    line-height: 12px !important;
+    min-width: 40px !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: none !important;
+}
+
+/* Hide Bootstrap dropdown arrow */
+.season-pill::after {
+    display: none !important;
+}
+
+.season-pill:hover {
+    background-color: rgba(0, 45, 114, 0.2) !important;
+    color: var(--mlb-blue) !important;
+}
+
+.season-pill:focus,
+.season-pill:active {
+    box-shadow: none !important;
+    outline: none !important;
+    background-color: var(--division-toggle-bg) !important;
+    color: var(--mlb-blue) !important;
+}
+
+.season-pill .fa-calendar-alt {
+    display: none;
+}
+
+body.dark-mode .season-pill {
+    background-color: var(--division-toggle-bg) !important;
+    color: var(--mlb-blue) !important;
+}
+
+body.dark-mode .season-pill:hover {
+    background-color: rgba(0, 45, 114, 0.2) !important;
+    color: var(--mlb-blue) !important;
+}
+
+body.dark-mode .season-pill:focus,
+body.dark-mode .season-pill:active {
+    background-color: var(--division-toggle-bg) !important;
+    color: var(--mlb-blue) !important;
+}
+
+/* Dropdown menu styling */
+.year-selector-pill .dropdown-menu {
+    min-width: 140px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.year-selector-pill .dropdown-item {
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+}
+
+.year-selector-pill .dropdown-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+body.dark-mode .year-selector-pill .dropdown-menu {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+}
+
+body.dark-mode .year-selector-pill .dropdown-item {
+    color: var(--text-dark);
+}
+
+body.dark-mode .year-selector-pill .dropdown-item:hover:not(.disabled) {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .year-selector-pill .dropdown-item.active {
+    background-color: var(--mlb-blue-light);
+}
+
+/* Fix snapshot count visibility in dark mode */
+body.dark-mode .snapshots {
+    color: var(--text-dark);
+}
+
+body.dark-mode .snapshots #snapshot-count {
+    color: var(--mlb-blue-light);
+    font-weight: 600;
+}

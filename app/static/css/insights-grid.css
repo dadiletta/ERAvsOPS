@@ -1,12 +1,24 @@
-/* Unified Insight Grid CSS */
+/* Insight Grid CSS */
 
-/* Grid Layouts for both types of cards */
-.insights-grid,
-.advanced-insights-grid {
+/* Grid Layout */
+.insights-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
     margin: 2rem 0;
+    justify-items: stretch;
+}
+
+@media (max-width: 992px) {
+    .insights-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .insights-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Common section styles */
@@ -21,9 +33,8 @@
     font-size: 1.8rem;
 }
 
-/* Base Card Styling for both insights and advanced-insights */
-.insights-card,
-.advanced-card {
+/* Base Card Styling */
+.insights-card {
     background: var(--card-bg);
     border-radius: var(--card-border-radius);
     box-shadow: var(--card-shadow);
@@ -35,15 +46,13 @@
     height: 100%;
 }
 
-.insights-card:hover,
-.advanced-card:hover {
+.insights-card:hover {
     transform: translateY(-3px);
     box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
 }
 
-/* Top accent line for cards */
-.insights-card::before,
-.advanced-card::before {
+/* Top accent line */
+.insights-card::before {
     content: '';
     position: absolute;
     top: 0;
@@ -53,9 +62,8 @@
     z-index: 1;
 }
 
-/* Header styling for both card types */
-.insights-card h3,
-.advanced-card h3 {
+/* Header styling */
+.insights-card h3 {
     margin: var(--card-header-margin);
     padding: var(--card-header-padding);
     color: var(--text-dark);
@@ -67,15 +75,13 @@
 
 /* Content containers */
 .insights-content,
-.advanced-content,
 .trends-content {
     padding: 0 1rem 1rem;
 }
 
 /* Stat items */
 .insight-stat,
-.trend-stat,
-.advanced-card .team-row {
+.trend-stat {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -87,15 +93,13 @@
 }
 
 .insight-stat:hover,
-.trend-stat:hover,
-.advanced-card .team-row:hover {
+.trend-stat:hover {
     background: var(--card-bg-alt);
 }
 
 /* Labels and values */
 .stat-label,
-.trend-label,
-.advanced-card .metric-label {
+.trend-label {
     color: var(--stat-label-color);
     font-size: 0.95rem;
     font-weight: 500;
@@ -103,8 +107,7 @@
 
 .stat-value,
 .trend-value,
-.leader-team,
-.advanced-card .metric-value {
+.leader-team {
     font-weight: 700;
     color: var(--stat-value-color);
     font-size: 1.1rem;
@@ -126,18 +129,6 @@
     background: var(--insight-performance-color);
 }
 
-.advanced-card.movement::before {
-    background: var(--insight-movement-color);
-}
-
-.advanced-card.consistency::before {
-    background: var(--insight-consistency-color);
-}
-
-.advanced-card.improvement::before {
-    background: var(--insight-improvement-color);
-}
-
 /* Direction indicators */
 .metric-value.improving,
 .era-change.improving,
@@ -157,203 +148,3 @@
     color: var(--value-mixed);
 }
 
-/* Advanced Card-specific styles */
-.advanced-leaders {
-    margin: 1rem;
-    padding: 0.75rem;
-    background: var(--card-stat-bg);
-    border-radius: 8px;
-    transition: opacity 0.3s ease;
-}
-
-.advanced-leaders.loading {
-    opacity: 0.6;
-}
-
-.advanced-card .leader-label {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    margin-bottom: 0.5rem;
-}
-
-.advanced-card .leader-value {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-/* Leader Values */
-.advanced-card #movement-value {
-    color: var(--insight-movement-color);
-    font-weight: 700;
-    font-size: 0.9rem;
-    background: rgba(255, 107, 107, 0.1);
-    padding: 0.1rem 0.5rem;
-    border-radius: 4px;
-}
-
-.advanced-card #consistency-value {
-    color: var(--insight-consistency-color);
-    font-weight: 700;
-    font-size: 0.9rem;
-    background: rgba(153, 153, 153, 0.1);
-    padding: 0.1rem 0.5rem;
-    border-radius: 4px;
-}
-
-.advanced-card #improvement-value {
-    color: var(--insight-improvement-color);
-    font-weight: 700;
-    font-size: 0.9rem;
-    background: rgba(76, 175, 80, 0.1);
-    padding: 0.1rem 0.5rem;
-    border-radius: 4px;
-}
-
-/* Team Row Styling for advanced cards */
-.advanced-card .team-row {
-    display: flex;
-    background: var(--card-stat-bg);
-    border-radius: 8px;
-    overflow: hidden;
-    transition: background-color 0.2s ease;
-    margin-bottom: 0.75rem;
-}
-
-/* Rank Styling */
-.advanced-card .rank-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 48px;
-    flex-shrink: 0;
-}
-
-.advanced-card .rank {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-dark);
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
-/* Team Details */
-.advanced-card .team-details {
-    flex: 1;
-}
-
-.advanced-card .team-name {
-    color: var(--metric-value-color);
-    font-size: 0.95rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-}
-
-/* Metrics Container */
-.advanced-card .team-metrics {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-}
-
-/* Individual Metric */
-.advanced-card .metric {
-    background: rgba(255, 255, 255, 0.07);
-    padding: 0.5rem;
-    border-radius: 6px;
-}
-
-/* Direction Details */
-.advanced-card .direction-details {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 0.25rem;
-}
-
-.advanced-card .direction-component {
-    flex: 1;
-    padding: 0.35rem 0.5rem;
-    text-align: center;
-    font-size: 0.75rem;
-    font-weight: 500;
-    border-radius: 4px;
-}
-
-.advanced-card .direction-component.improving {
-    background-color: rgba(76, 175, 80, 0.15);
-    color: var(--value-improving);
-}
-
-.advanced-card .direction-component.declining {
-    background-color: rgba(255, 107, 107, 0.15);
-    color: var(--value-declining);
-}
-
-/* Loading and error states */
-.loading-indicator {
-    padding: 1rem;
-    text-align: center;
-    color: var(--text-secondary);
-    font-style: italic;
-    font-size: 0.9rem;
-    margin: 0.5rem 0;
-}
-
-.error-message {
-    padding: 1rem;
-    text-align: center;
-    color: var(--value-declining);
-    font-style: italic;
-    font-size: 0.9rem;
-    margin: 0.5rem 0;
-    display: none;
-}
-
-/* Dark mode adjustments */
-body.dark-mode .advanced-card {
-    background: var(--card-bg);
-}
-
-body.dark-mode .advanced-card .team-row:hover {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-body.dark-mode .advanced-card .metric {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-body.dark-mode .advanced-card .direction-component.improving {
-    background-color: rgba(76, 175, 80, 0.2);
-}
-
-body.dark-mode .advanced-card .direction-component.declining {
-    background-color: rgba(255, 107, 107, 0.2);
-}
-
-/* Responsive adjustments */
-@media (max-width: 992px) {
-    .insights-grid,
-    .advanced-insights-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (max-width: 768px) {
-    .insights-grid,
-    .advanced-insights-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .advanced-card .team-metrics {
-        grid-template-columns: 1fr;
-    }
-    
-    .advanced-card .direction-details {
-        flex-direction: column;
-    }
-}

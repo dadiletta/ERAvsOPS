@@ -29,10 +29,8 @@ const MLBSeasonSelector = (function(window, document, $, MLBConfig) {
                 logger.log(`Available seasons: ${availableSeasons.join(', ')}`);
                 logger.log(`Current season: ${currentSeason}`);
 
-                // Create UI if multiple seasons available
-                if (availableSeasons.length > 1) {
-                    createSeasonSelector();
-                }
+                // Always create the season selector (even with just one season)
+                createSeasonSelector();
             })
             .catch(err => {
                 logger.error('Error fetching seasons:', err);
@@ -40,33 +38,59 @@ const MLBSeasonSelector = (function(window, document, $, MLBConfig) {
     }
 
     /**
-     * Create the season selector UI
+     * Create the season selector UI (pill-style dropdown)
      */
     function createSeasonSelector() {
         // Check if selector already exists
-        if ($('#season-selector-container').length > 0) {
+        if ($('.year-selector-pill .dropdown').length > 0) {
             return;
         }
 
-        // Create selector HTML
+        // Show current season or "All" if no season is selected
+        const displayYear = currentSeason || 'All';
+
+        // Build dropdown items: "All" first, then available seasons
+        const allIsSelected = !currentSeason;
+        const dropdownItems = [
+            `<li><a class="dropdown-item ${allIsSelected ? 'active' : ''}" href="#" data-season="">All</a></li>`
+        ].concat(
+            availableSeasons.map(season => {
+                const isSelected = season === currentSeason;
+                return `<li><a class="dropdown-item ${isSelected ? 'active' : ''}" href="#" data-season="${season}">${season}</a></li>`;
+            })
+        ).join('');
+
+        // Create pill-style dropdown HTML using Bootstrap
         const selectorHTML = `
-            <div id="season-selector-container" class="season-selector">
-                <label for="season-select">Season:</label>
-                <select id="season-select" class="season-select-dropdown">
-                    <option value="">All Seasons</option>
-                    ${availableSeasons.map(season =>
-                        `<option value="${season}" ${season === currentSeason ? 'selected' : ''}>${season}</option>`
-                    ).join('')}
-                </select>
+            <div class="dropdown">
+                <button class="btn btn-sm dropdown-toggle season-pill" type="button" id="seasonDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span id="current-year-display">${displayYear}</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="seasonDropdown">
+                    ${dropdownItems}
+                </ul>
             </div>
         `;
 
-        // Insert before division toggles
-        $('.division-toggles').prepend(selectorHTML);
+        // Insert into year-selector-pill container
+        $('.year-selector-pill').html(selectorHTML);
 
-        // Attach event handler
-        $('#season-select').on('change', function() {
-            const selectedSeason = $(this).val();
+        // Attach event handlers to dropdown items
+        $('.year-selector-pill .dropdown-item').on('click', function(e) {
+            e.preventDefault();
+            if ($(this).hasClass('disabled')) return;
+
+            const selectedSeason = $(this).data('season');
+            // If season is empty string or null, show "All", otherwise show the year
+            const displayText = selectedSeason ? selectedSeason.toString() : 'All';
+
+            // Update button text
+            $('#current-year-display').text(displayText);
+
+            // Update active state
+            $('.year-selector-pill .dropdown-item').removeClass('active');
+            $(this).addClass('active');
+
             handleSeasonChange(selectedSeason);
         });
 
@@ -95,15 +119,14 @@ const MLBSeasonSelector = (function(window, document, $, MLBConfig) {
      * Reload data for selected season
      */
     function reloadDataForSeason(season) {
-        // Show loading overlay
-        if (typeof showLoadingOverlay === 'function') {
-            showLoadingOverlay();
-        }
+        logger.log(`Reloading data for season: ${season || 'All'}`);
 
-        // For now, just refresh the page with season parameter
-        // In future, could update chart data dynamically
-        const url = season ? `/?season=${season}` : '/';
-        window.location.href = url;
+        // For now, log that season filtering would happen here
+        // In the future, this would filter the chart data by season
+        // Currently all data shown is from current season only
+
+        // TODO: Implement client-side season filtering when historical data is available
+        logger.log('Season filtering not yet implemented - all data is current season');
     }
 
     /**

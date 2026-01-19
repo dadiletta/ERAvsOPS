@@ -1,3 +1,13 @@
+/* Chart canvas container - add border radius to match other components */
+.chart-container {
+    border-radius: var(--card-border-radius);
+    overflow: hidden;
+}
+
+#mlbChart {
+    display: block;
+}
+
 /* Quadrant labels - more transparent and behind team logos */
 .quadrant-label {
     position: absolute;

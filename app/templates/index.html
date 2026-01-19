@@ -55,11 +55,17 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/loading-overlay.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/insights-grid.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/season-selector.css') }}">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-overrides.css') }}">
 
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-    
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0/dist/chartjs-plugin-annotation.min.js"></script>
@@ -92,7 +98,7 @@
     <!-- Full-screen hero section with chart -->
     <header class="hero">
         <div class="hero-content">
-            <div class="division-toggles">
+            <div class="chart-controls">
                 <div class="toggle-buttons">
                     <!-- American League -->
                     <div class="league-group">
@@ -111,6 +117,11 @@
                             <button class="division-toggle active" data-division="NL Central">Central</button>
                             <button class="division-toggle active" data-division="NL West">West</button>
                         </div>
+                    </div>
+                    <!-- Year Selector -->
+                    <div class="league-group">
+                        <div class="league-label">Year</div>
+                        <div class="year-selector-pill"></div>
                     </div>
                 </div>
             </div>
@@ -149,7 +160,7 @@
             </div>
         </div>
         <section class="standings-section">
-            <h2>Standings</h2>
+            <h2>Current Standings</h2>
             <div class="standings-container">
                 <!-- American League -->
                 <div class="league-standings">
@@ -245,6 +256,10 @@
                     <h3>American League</h3>
                     <div class="insights-content">
                         <div class="insight-stat">
+                            <span class="stat-label">Pattern</span>
+                            <span class="stat-value" id="al-pattern" style="font-size:0.85rem;font-style:italic;">-</span>
+                        </div>
+                        <div class="insight-stat">
                             <span class="stat-label">Avg ERA</span>
                             <span class="stat-value" id="al-avg-era">-</span>
                         </div>
@@ -263,6 +278,10 @@
                     <h3>National League</h3>
                     <div class="insights-content">
                         <div class="insight-stat">
+                            <span class="stat-label">Pattern</span>
+                            <span class="stat-value" id="nl-pattern" style="font-size:0.85rem;font-style:italic;">-</span>
+                        </div>
+                        <div class="insight-stat">
                             <span class="stat-label">Avg ERA</span>
                             <span class="stat-value" id="nl-avg-era">-</span>
                         </div>
@@ -278,190 +297,244 @@
                 </div>
                 
                 <div class="insights-card performance">
-                    <h3>Performance Trends</h3>
+                    <h3>Best Pitching Division</h3>
                     <div class="trends-content">
                         <div class="trend-stat">
-                            <span class="trend-label">Best Pitching Division</span>
+                            <span class="trend-label">Division</span>
                             <span class="trend-value" id="best-pitching-division">-</span>
                         </div>
                         <div class="trend-stat">
-                            <span class="trend-label">Best Hitting Division</span>
+                            <span class="trend-label">Avg ERA</span>
+                            <span class="trend-value" id="best-pitching-era">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="insights-card performance">
+                    <h3>Best Hitting Division</h3>
+                    <div class="trends-content">
+                        <div class="trend-stat">
+                            <span class="trend-label">Division</span>
                             <span class="trend-value" id="best-hitting-division">-</span>
                         </div>
                         <div class="trend-stat">
-                            <span class="trend-label">Most Balanced Division</span>
-                            <span class="trend-value" id="most-balanced-division">-</span>
+                            <span class="trend-label">Avg OPS</span>
+                            <span class="trend-value" id="best-hitting-ops">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="insights-card performance">
+                    <h3>Most Competitive</h3>
+                    <div class="trends-content">
+                        <div class="trend-stat">
+                            <span class="trend-label">Division</span>
+                            <span class="trend-value" id="most-competitive-division">-</span>
+                        </div>
+                        <div class="trend-stat">
+                            <span class="trend-label">Win% Variance</span>
+                            <span class="trend-value" id="competitive-spread">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="insights-card performance">
+                    <h3>Powerhouse Division</h3>
+                    <div class="trends-content">
+                        <div class="trend-stat">
+                            <span class="trend-label">Division</span>
+                            <span class="trend-value" id="powerhouse-division">-</span>
+                        </div>
+                        <div class="trend-stat">
+                            <span class="trend-label">Quality</span>
+                            <span class="trend-value" id="powerhouse-quality" style="font-size:0.75rem;">-</span>
                         </div>
                     </div>
                 </div>
 
             </div>
 
-            <div class="advanced-insights-grid">
-                <!-- Recent Movers Card -->
-                <div class="advanced-card movement" id="movement-card">
-                    <h3>Recent Movers</h3>
-                    <div class="loading-indicator">Loading analysis...</div>
-                    <div class="error-message" style="display:none;">Error loading data</div>
-                    <div id="movement-content" class="advanced-content">
-                        <!-- Team rows will be added here dynamically -->
-                    </div>
-                </div>
-                
-                <!-- Consistency Leaders Card -->
-                <div class="advanced-card consistency" id="consistency-card">
-                    <h3>Consistency Leaders</h3>
-                    <div class="loading-indicator">Loading analysis...</div>
-                    <div class="error-message" style="display:none;">Error loading data</div>
-                    <div id="consistency-content" class="advanced-content">
-                        <!-- Team rows will be added here dynamically -->
-                    </div>
-                </div>
-                
-                <!-- Most Improved Teams Card -->
-                <div class="advanced-card improvement" id="improvement-card">
-                    <h3>Most Improved Teams</h3>
-                    <div class="loading-indicator">Loading analysis...</div>
-                    <div class="error-message" style="display:none;">Error loading data</div>
-                    <div id="improvement-content" class="advanced-content">
-                        <!-- Team rows will be added here dynamically -->
-                    </div>
-                </div>
             </div>
         </section>
         
         <section class="metrics-explanation">
             <h2>Understanding Key Stats</h2>
             
-            <div class="metric-cards">
-                <div class="metric-card">
-                    <h3>ERA <span class="small">(Earned Run Average)</span></h3>
-                    <p class="metric-value">Lower is better ↓</p>
-                    <div class="metric-details">
-                        <h4>Calculation</h4>
-                        <p class="calculation">ERA = (Earned Runs ÷ Innings Pitched) × 9</p>
-                        <p>ERA measures a pitcher's effectiveness by calculating how many earned runs they allow per nine innings pitched. Only runs scored without the benefit of defensive errors are counted as "earned."</p>
-                        
-                        <h4>Historical Context</h4>
-                        <p class="metric-history">ERA was first developed and used in the early 1900s to provide a more accurate assessment of a pitcher's performance apart from their team's fielding abilities. Henry Chadwick, considered the "Father of Baseball," is often credited with developing many early baseball statistics including elements that evolved into ERA. The statistic gained prominence in the 1910s under American League President Ban Johnson and became official in 1912.</p>
-                        <p class="metric-history">The "Dead Ball Era" (1900-1919) saw ERAs commonly below 2.50, while the modern MLB has seen average ERAs typically range from 3.80-4.50. Hall of Famer Ed Walsh holds the career record with a remarkable 1.82 ERA, while the single-season record belongs to Dutch Leonard's 0.96 ERA in 1914.</p>
-                    </div>
-                    <div class="scale">
-                        <div class="scale-item excellent">≤3.00<span>Excellent</span></div>
-                        <div class="scale-item good">3.00-4.00<span>Good</span></div>
-                        <div class="scale-item average">4.00-5.00<span>Average</span></div>
-                        <div class="scale-item poor">5.00+<span>Poor</span></div>
-                    </div>
-                </div>
-                
-                <div class="metric-card">
-                    <h3>OPS <span class="small">(On-base Plus Slugging)</span></h3>
-                    <p class="metric-value">Higher is better ↑</p>
-                    <div class="metric-details">
-                        <h4>Calculation</h4>
-                        <p class="calculation">OPS = On-Base Percentage + Slugging Percentage</p>
-                        <p>Where:</p>
-                        <ul class="calculation-details">
-                            <li>On-Base Percentage (OBP) = (Hits + Walks + Hit By Pitch) ÷ (At Bats + Walks + Hit By Pitch + Sacrifice Flies)</li>
-                            <li>Slugging Percentage (SLG) = Total Bases ÷ At Bats</li>
-                            <li>Total Bases = Singles + (Doubles × 2) + (Triples × 3) + (Home Runs × 4)</li>
-                        </ul>
-                        
-                        <h4>Historical Context</h4>
-                        <p class="metric-history">While its component statistics (OBP and SLG) have been tracked since baseball's early days, OPS as a combined metric emerged in the 1970s and gained mainstream popularity during the sabermetric revolution of the 1980s. Branch Rickey and Allan Roth pioneered OBP in the 1940s, recognizing the importance of reaching base beyond just hits.</p>
-                        <p class="metric-history">Pete Palmer and John Thorn helped popularize OPS in their 1984 book "The Hidden Game of Baseball," and it became more widely adopted when the statistics were included on the backs of Topps baseball cards starting in 2004. Babe Ruth holds the career record at 1.164, while Barry Bonds' 1.422 mark in 2004 is the single-season record.</p>
-                    </div>
-                    <div class="scale">
-                        <div class="scale-item excellent">.900+<span>Excellent</span></div>
-                        <div class="scale-item good">.800-.899<span>Good</span></div>
-                        <div class="scale-item average">.700-.799<span>Average</span></div>
-                        <div class="scale-item poor">≤.699<span>Poor</span></div>
+            <div class="accordion accordion-flush" id="metricsAccordion">
+                <!-- ERA Accordion Item -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseERA">
+                            <strong>ERA</strong> <span class="text-muted ms-2">(Earned Run Average)</span>
+                            <span class="ms-auto me-3 text-primary">Lower is better ↓</span>
+                        </button>
+                    </h2>
+                    <div id="collapseERA" class="accordion-collapse collapse" data-bs-parent="#metricsAccordion">
+                        <div class="accordion-body">
+                            <h5>Calculation</h5>
+                            <p class="bg-light p-2 rounded"><code>ERA = (Earned Runs ÷ Innings Pitched) × 9</code></p>
+                            <p>ERA measures a pitcher's effectiveness by calculating how many earned runs they allow per nine innings pitched.</p>
+                            
+                            <h5 class="mt-3">Historical Context</h5>
+                            <p class="small">ERA became official in 1912. The "Dead Ball Era" (1900-1919) saw ERAs below 2.50, while modern MLB averages 3.80-4.50. Ed Walsh holds the career record at 1.82 ERA.</p>
+                            
+                            <div class="d-flex gap-2 mt-3 flex-wrap">
+                                <div class="badge bg-success flex-fill text-center p-2">≤3.00<br><small>Excellent</small></div>
+                                <div class="badge bg-info flex-fill text-center p-2">3.00-4.00<br><small>Good</small></div>
+                                <div class="badge bg-warning text-dark flex-fill text-center p-2">4.00-5.00<br><small>Average</small></div>
+                                <div class="badge bg-danger flex-fill text-center p-2">5.00+<br><small>Poor</small></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="metric-card">
-                    <h3>PCT <span class="small">(Winning Percentage)</span></h3>
-                    <p class="metric-value">Higher is better ↑</p>
-                    <div class="metric-details">
-                        <h4>Calculation</h4>
-                        <p class="calculation">PCT = Wins ÷ (Wins + Losses)</p>
-                        <p>Winning Percentage (PCT) measures how often a team wins by dividing total wins by total games played. Despite being called a "percentage," it's traditionally expressed as a three-decimal number (e.g., .586 rather than 58.6%).</p>
-                        
-                        <h4>Historical Context</h4>
-                        <p class="metric-history">The three-decimal format for winning percentage became standardized in baseball during the early 20th century as sports statistics were formalized. This unique reporting method—displaying the decimal without multiplying by 100—allows for greater precision when comparing closely matched teams over a long season, enabling meaningful distinctions even when teams are separated by just a few games.</p>
-                        <p class="metric-history">The highest single-season winning percentage belongs to the 1906 Chicago Cubs (.763), while the 1884 St. Louis Maroons of the Union Association achieved a remarkable .832 mark. The Cincinnati Red Stockings of 1869 posted baseball's only perfect record at 67-0, though this was before the modern Major League era.</p>
-                    </div>
-                    <div class="scale">
-                        <div class="scale-item excellent">.600+<span>Excellent</span></div>
-                        <div class="scale-item good">.550-.599<span>Good</span></div>
-                        <div class="scale-item average">.500-.549<span>Average</span></div>
-                        <div class="scale-item poor">≤.499<span>Poor</span></div>
-                    </div>
-                </div>
-                
-                <div class="metric-card">
-                    <h3>GB <span class="small">(Games Behind)</span></h3>
-                    <p class="metric-value">Lower is better ↓</p>
-                    <div class="metric-details">
-                        <h4>Calculation</h4>
-                        <p class="calculation">GB = [(Leader's Wins - Team's Wins) + (Team's Losses - Leader's Losses)] ÷ 2</p>
-                        <p>Games Behind (GB) measures how far a team trails the division leader in the standings. The formula averages the differences in wins and losses between the two teams, providing a standardized measure of distance in the standings.</p>
-                        
-                        <h4>Historical Context</h4>
-                        <p class="metric-history">The GB statistic has been a standings mainstay since the early days of organized baseball, becoming a crucial tool during the development of league structures and pennant races in the late 19th and early 20th centuries. First-place teams are always listed with a dash (—) rather than zero to indicate their leading position.</p>
-                        <p class="metric-history">GB can include half-games when teams have played different numbers of games, reflecting the reality of baseball's day-to-day schedule. While simple, GB has occasionally been criticized for not accounting for remaining schedules or the mathematical probability of catching leaders, leading to alternative metrics like "elimination number" or "magic number" that better quantify playoff chances.</p>
-                    </div>
-                    <div class="scale">
-                        <div class="scale-item excellent">≤3.0<span>Excellent</span></div>
-                        <div class="scale-item good">3.0-7.0<span>Contending</span></div>
-                        <div class="scale-item average">7.0-12.0<span>Marginal</span></div>
-                        <div class="scale-item poor">12.0+<span>Out of Race</span></div>
+                <!-- OPS Accordion Item -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOPS">
+                            <strong>OPS</strong> <span class="text-muted ms-2">(On-base Plus Slugging)</span>
+                            <span class="ms-auto me-3 text-primary">Higher is better ↑</span>
+                        </button>
+                    </h2>
+                    <div id="collapseOPS" class="accordion-collapse collapse" data-bs-parent="#metricsAccordion">
+                        <div class="accordion-body">
+                            <h5>Calculation</h5>
+                            <p class="bg-light p-2 rounded"><code>OPS = On-Base % + Slugging %</code></p>
+                            <ul class="small">
+                                <li>OBP = (Hits + Walks + HBP) ÷ (AB + Walks + HBP + SF)</li>
+                                <li>SLG = Total Bases ÷ At Bats</li>
+                            </ul>
+                            
+                            <h5 class="mt-3">Historical Context</h5>
+                            <p class="small">Emerged in the 1970s, popularized in "The Hidden Game of Baseball" (1984). Babe Ruth holds the career record at 1.164.</p>
+                            
+                            <div class="d-flex gap-2 mt-3 flex-wrap">
+                                <div class="badge bg-success flex-fill text-center p-2">.900+<br><small>Excellent</small></div>
+                                <div class="badge bg-info flex-fill text-center p-2">.800-.899<br><small>Good</small></div>
+                                <div class="badge bg-warning text-dark flex-fill text-center p-2">.700-.799<br><small>Average</small></div>
+                                <div class="badge bg-danger flex-fill text-center p-2">≤.699<br><small>Poor</small></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="metric-card">
-                    <h3>fWAR <span class="small">(FanGraphs Wins Above Replacement)</span></h3>
-                    <a href="https://www.fangraphs.com/leaders/war" target="_blank"><p class="metric-value">Player Value Leaderboard</p></a>
-                    <div class="metric-details">
-                        <h4>Calculation</h4>
-                        <p class="calculation">fWAR = (Batting Runs + Baserunning Runs + Fielding Runs + Positional Adjustment + League Adjustment + Replacement Runs) / Runs Per Win</p>
-                        <p>fWAR is FanGraphs' implementation of the Wins Above Replacement metric. It combines a player's total offensive and defensive contributions, converting them into a single number that represents their value in team wins compared to a "replacement player" (a minor league call-up or freely available player).</p>
-                        
-                        <h4>Historical Context</h4>
-                        <p class="metric-history">The concept of WAR emerged in the 1970s and 1980s through the work of sabermetricians like Bill James and Pete Palmer, who sought to create all-encompassing player evaluation metrics. FanGraphs developed their specific implementation (fWAR) in the mid-2000s, incorporating more advanced defensive metrics and regularly updating the methodology.</p>
-                        <p class="metric-history">WAR revolutionized player evaluation by providing a framework to compare players across positions and eras with a single number. It has gained mainstream acceptance over the past decade, being regularly cited during MLB broadcasts and in Hall of Fame discussions. Most famously, Mike Trout's historically high WAR totals early in his career helped cement his reputation as one of baseball's greatest players despite playing on less successful Angels teams.</p>
-                    </div>
-                    <div class="scale">
-                        <div class="scale-item excellent">8.0+<span>MVP</span></div>
-                        <div class="scale-item good">5.0-7.9<span>All-Star</span></div>
-                        <div class="scale-item average">2.0-4.9<span>Solid Starter</span></div>
-                        <div class="scale-item poor">0.0-1.9<span>Bench/Replacement</span></div>
+                <!-- PCT Accordion Item -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePCT">
+                            <strong>PCT</strong> <span class="text-muted ms-2">(Winning Percentage)</span>
+                            <span class="ms-auto me-3 text-primary">Higher is better ↑</span>
+                        </button>
+                    </h2>
+                    <div id="collapsePCT" class="accordion-collapse collapse" data-bs-parent="#metricsAccordion">
+                        <div class="accordion-body">
+                            <h5>Calculation</h5>
+                            <p class="bg-light p-2 rounded"><code>PCT = Wins ÷ (Wins + Losses)</code></p>
+                            <p>Expressed as three decimals (e.g., .586 not 58.6%).</p>
+                            
+                            <h5 class="mt-3">Historical Context</h5>
+                            <p class="small">Highest single-season: 1906 Cubs (.763). Format standardized in early 20th century.</p>
+                            
+                            <div class="d-flex gap-2 mt-3 flex-wrap">
+                                <div class="badge bg-success flex-fill text-center p-2">.600+<br><small>Excellent</small></div>
+                                <div class="badge bg-info flex-fill text-center p-2">.550-.599<br><small>Good</small></div>
+                                <div class="badge bg-warning text-dark flex-fill text-center p-2">.500-.549<br><small>Average</small></div>
+                                <div class="badge bg-danger flex-fill text-center p-2">≤.499<br><small>Poor</small></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="metric-card">
-                    <h3>wRC+ <span class="small">(Weighted Runs Created Plus)</span></h3>
-                    <a href="https://www.fangraphs.com/leaders/major-league?sortcol=17&sortdir=default&pagenum=1" target="_blank"><p class="metric-value">Player Offense Leaderboard</p></a>
-                    <div class="metric-details">
-                        <h4>Calculation</h4>
-                        <p class="calculation">wRC+ = ((wRAA/PA + League R/PA) + (League R/PA - Park Factor * League R/PA))/League wRC/PA * 100</p>
-                        <p>wRC+ measures a player's total offensive value by runs, adjusted for ballpark and league context. It's scaled so that 100 is always league average, making it easy to compare players across different parks, leagues, and eras.</p>
-                        
-                        <ul class="calculation-details">
-                            <li>wRAA = Weighted Runs Above Average</li>
-                            <li>PA = Plate Appearances</li>
-                            <li>Park Factor = Adjustment for home ballpark effects</li>
-                        </ul>
-                        
-                        <h4>Historical Context</h4>
-                        <p class="metric-history">wRC+ evolved from Bill James' Runs Created statistic, which he developed in the 1970s. FanGraphs refined this into wRC+ in the 2000s, adding park and league adjustments to create a more contextual offensive metric. The "plus" indicates that it's indexed to league average (100).</p>
-                        <p class="metric-history">wRC+ has become the preferred offensive metric among sabermetricians because it captures a player's complete offensive contribution in one number while accounting for the varying offensive environments across different ballparks and eras. For example, it helps demonstrate that a player hitting .280 in San Francisco's pitcher-friendly Oracle Park might be more impressive than someone hitting .300 in Colorado's hitter-friendly Coors Field.</p>
+                <!-- GB Accordion Item -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGB">
+                            <strong>GB</strong> <span class="text-muted ms-2">(Games Behind)</span>
+                            <span class="ms-auto me-3 text-primary">Lower is better ↓</span>
+                        </button>
+                    </h2>
+                    <div id="collapseGB" class="accordion-collapse collapse" data-bs-parent="#metricsAccordion">
+                        <div class="accordion-body">
+                            <h5>Calculation</h5>
+                            <p class="bg-light p-2 rounded"><code>GB = [(Leader Wins - Team Wins) + (Team Losses - Leader Losses)] ÷ 2</code></p>
+                            <p>Measures distance from division leader.</p>
+
+                            <h5 class="mt-3">Greatest Comeback</h5>
+                            <p class="small">The 1914 Boston Braves were 15 GB on July 4th, rallied to win the pennant by 10.5 games, then swept the heavily favored Philadelphia Athletics in the World Series—the original "Miracle Braves."</p>
+
+                            <div class="d-flex gap-2 mt-3 flex-wrap">
+                                <div class="badge bg-success flex-fill text-center p-2">≤3.0<br><small>Excellent</small></div>
+                                <div class="badge bg-info flex-fill text-center p-2">3.0-7.0<br><small>Contending</small></div>
+                                <div class="badge bg-warning text-dark flex-fill text-center p-2">7.0-12.0<br><small>Marginal</small></div>
+                                <div class="badge bg-danger flex-fill text-center p-2">12.0+<br><small>Out of Race</small></div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="scale">
-                        <div class="scale-item excellent">140+<span>Elite</span></div>
-                        <div class="scale-item good">115-139<span>Great</span></div>
-                        <div class="scale-item average">85-114<span>Average</span></div>
-                        <div class="scale-item poor">≤84<span>Below Average</span></div>
+                </div>
+
+                <!-- fWAR Accordion Item -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFWAR">
+                            <strong>fWAR</strong> <span class="text-muted ms-2">(FanGraphs Wins Above Replacement)</span>
+                        </button>
+                    </h2>
+                    <div id="collapseFWAR" class="accordion-collapse collapse" data-bs-parent="#metricsAccordion">
+                        <div class="accordion-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">What It Measures</h5>
+                                <a href="https://www.fangraphs.com/leaders/war" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-external-link-alt me-1"></i>View Leaderboard
+                                </a>
+                            </div>
+                            <p>Player's total value in wins vs. a replacement-level player.</p>
+
+                            <h5 class="mt-3">Historical Context</h5>
+                            <p class="small">Emerged in 1970s-80s sabermetrics. Revolutionized player evaluation by providing all-encompassing single number.</p>
+
+                            <h5 class="mt-3">Notable Seasons</h5>
+                            <p class="small"><strong>Babe Ruth (1923):</strong> 14.1 fWAR—still the highest single-season position player fWAR ever recorded. <strong>Pedro Martínez (2000):</strong> 11.7 fWAR as a pitcher, one of the most dominant pitching seasons in modern history.</p>
+
+                            <div class="d-flex gap-2 mt-3 flex-wrap">
+                                <div class="badge bg-success flex-fill text-center p-2">8.0+<br><small>MVP</small></div>
+                                <div class="badge bg-info flex-fill text-center p-2">5.0-7.9<br><small>All-Star</small></div>
+                                <div class="badge bg-warning text-dark flex-fill text-center p-2">2.0-4.9<br><small>Solid Starter</small></div>
+                                <div class="badge bg-danger flex-fill text-center p-2">0.0-1.9<br><small>Bench</small></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- wRC+ Accordion Item -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseWRC">
+                            <strong>wRC+</strong> <span class="text-muted ms-2">(Weighted Runs Created Plus)</span>
+                        </button>
+                    </h2>
+                    <div id="collapseWRC" class="accordion-collapse collapse" data-bs-parent="#metricsAccordion">
+                        <div class="accordion-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">What It Measures</h5>
+                                <a href="https://www.fangraphs.com/leaders/major-league?sortcol=17&sortdir=default" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-external-link-alt me-1"></i>View Leaderboard
+                                </a>
+                            </div>
+                            <p>Offensive value adjusted for park and league. 100 = league average.</p>
+
+                            <h5 class="mt-3">Why It Matters</h5>
+                            <p class="small">Accounts for ballpark effects. A .280 hitter in SF's Oracle Park may be more valuable than .300 at Coors Field.</p>
+
+                            <h5 class="mt-3">Elite Performers</h5>
+                            <p class="small"><strong>Barry Bonds (2002):</strong> 244 wRC+—adjusted for his historic park and era, the greatest offensive season ever. <strong>Recent:</strong> Aaron Judge's 2022 AL MVP season posted 207 wRC+.</p>
+
+                            <div class="d-flex gap-2 mt-3 flex-wrap">
+                                <div class="badge bg-success flex-fill text-center p-2">140+<br><small>Elite</small></div>
+                                <div class="badge bg-info flex-fill text-center p-2">115-139<br><small>Great</small></div>
+                                <div class="badge bg-warning text-dark flex-fill text-center p-2">85-114<br><small>Average</small></div>
+                                <div class="badge bg-danger flex-fill text-center p-2">≤84<br><small>Below Avg</small></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -551,7 +624,6 @@
     <script src="{{ url_for('static', filename='js/theme-toggler.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tooltip-fix.js') }}"></script>
     <script src="{{ url_for('static', filename='js/loading-overlay.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/advanced-insights.js') }}"></script>
     <script src="{{ url_for('static', filename='js/season-selector.js') }}"></script>
     <script>
         // Initialize global data from Flask
