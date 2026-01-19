@@ -4,6 +4,10 @@ An interactive web application that visualizes Major League Baseball team perfor
 
 ![MLB ERA vs OPS Screenshot](app/static/preview.png)
 
+## 🎉 Ready for 2026 Season!
+
+The app now automatically tracks seasons, shows full-year historical trends, and manages its own database with zero manual maintenance required. Perfect for free-tier Render deployments.
+
 ## 📊 Overview
 
 This tool helps baseball analysts and fans visualize team performance by placing teams in quadrants based on their ERA (pitching effectiveness) and OPS (offensive production):
@@ -16,11 +20,12 @@ This tool helps baseball analysts and fans visualize team performance by placing
 ## 🚀 Features
 
 - **Interactive Scatter Plot**: Teams displayed with official team logos
-- **Division Filtering**: Toggle visibility of specific MLB divisions (AL East, NL West, etc.)
-- **Quadrant Analysis**: Color-coded backgrounds for different performance zones
-- **Hover Details**: View team name, ERA, OPS, and division information
-- **Automatic Data Updates**: Configurable cache timeouts
-- **Team History**: View historical performance trends when hovering over teams
+- **Division Filtering**: Toggle visibility of specific MLB divisions
+- **Season Selector**: Switch between 2025, 2026, and future seasons
+- **Quadrant Analysis**: Color-coded backgrounds for performance zones
+- **Full Season History**: View complete year-long trends (365+ days) with animated lines on hover
+- **Smart Data Loading**: Always shows fresh data during season, cached data during off-season
+- **Self-Managing Database**: Automatic schema migration, metadata backfill, and cleanup
 - **Responsive Design**: Works on desktop and mobile devices
 
 ## 📈 Understanding the Metrics
@@ -46,11 +51,11 @@ OPS combines on-base percentage (how often a batter reaches base) and slugging p
 ## 🏗️ Technical Architecture
 
 - **Backend**: Python Flask web application
-- **Database**: SQLite (development) / PostgreSQL (production)
+- **Database**: SQLite (development) / PostgreSQL (production with Supabase)
 - **Frontend**: JavaScript with Chart.js for visualization
 - **Data Source**: MLB Stats API via MLB-StatsAPI package
-- **Caching**: Database snapshots with configurable timeouts
-- **Deployment**: Docker support, Render configuration included
+- **Auto-Maintenance**: Self-managing database with intelligent cleanup and retention
+- **Deployment**: Optimized for Render free tier - zero manual intervention
 
 ## 🛠️ Installation
 

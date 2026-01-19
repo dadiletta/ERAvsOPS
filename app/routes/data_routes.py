@@ -184,8 +184,9 @@ def get_snapshot(snapshot_id):
 @data_bp.route('/team-history/<team_id>')
 def get_team_history(team_id):
     """API endpoint to get historical data for a specific team."""
-    days = request.args.get('days', 90, type=int)
-    history = MLBSnapshot.get_team_history(team_id, limit=days)
+    days = request.args.get('days', 365, type=int)  # Increased default from 90 to 365
+    season = request.args.get('season', type=int)  # Optional season filter
+    history = MLBSnapshot.get_team_history(team_id, limit=days, season=season)
     return jsonify(history)
 
 @data_bp.route('/team-movement')
@@ -401,53 +402,115 @@ def reset_update():
 def clean_snapshots():
     """API endpoint to clean up redundant and partial snapshots."""
     try:
-        # Import the cleanup functions
-        from app.utils.aggressive_cleanup import aggressive_snapshot_cleanup, emergency_cleanup
-        
-        # Get the current count
+        # Use new auto-maintenance system
+        from app.utils.auto_maintenance import AutoMaintenance
+
+        # Get current count
         initial_count = MLBSnapshot.query.count()
-        logger.info(f"Starting snapshot cleanup with {initial_count} snapshots")
-        
-        # Determine cleanup strategy based on count
-        if initial_count > 5000:
-            # Emergency cleanup for severely bloated database
-            logger.warning(f"Database severely bloated with {initial_count} snapshots. Running emergency cleanup.")
-            before, after, deleted = emergency_cleanup(target_count=500)
-        elif initial_count > 1000:
-            # Aggressive cleanup for moderately bloated database
-            logger.info(f"Database bloated with {initial_count} snapshots. Running aggressive cleanup.")
-            before, after, deleted = aggressive_snapshot_cleanup(
-                keep_recent_hours=24,
-                hourly_after_days=1,
-                daily_after_days=7
-            )
-        else:
-            # Regular cleanup
-            logger.info(f"Running regular cleanup on {initial_count} snapshots.")
-            before, after, deleted = aggressive_snapshot_cleanup(
-                keep_recent_hours=48,
-                hourly_after_days=3,
-                daily_after_days=14
-            )
-        
+        logger.info(f"Starting auto-maintenance with {initial_count} snapshots")
+
+        # Determine urgency
+        should_run, urgency, count = AutoMaintenance.should_run_maintenance()
+
+        if not should_run:
+            return jsonify({
+                "status": "success",
+                "message": f"No cleanup needed. Current count: {count}",
+                "count": count,
+                "urgency": urgency
+            })
+
+        # Run auto-maintenance
+        results = AutoMaintenance.run_auto_maintenance(urgency=urgency, dry_run=False)
+
         # Update the snapshot count in status
-        update_status["snapshot_count"] = after
-        
+        update_status["snapshot_count"] = results.get('final_count', MLBSnapshot.query.count())
+
         return jsonify({
             "status": "success",
-            "message": f"Cleaned up {deleted} snapshots",
-            "before": before,
-            "after": after,
-            "deleted": deleted
+            "message": f"Cleaned up {results['total_removed']} snapshots",
+            "before": initial_count,
+            "after": results['final_count'],
+            "deleted": results['total_removed'],
+            "urgency": urgency,
+            "details": results
         })
-        
+
     except Exception as e:
         logger.error(f"Error during snapshot cleanup: {str(e)}")
         import traceback
         logger.error(traceback.format_exc())
-        
+
         return jsonify({
             "status": "error",
             "message": f"Cleanup failed: {str(e)}",
+            "error": str(e)
+        }), 500
+
+@data_bp.route('/seasons')
+def get_seasons():
+    """API endpoint to get available seasons."""
+    try:
+        seasons = MLBSnapshot.get_available_seasons()
+        current_season = MLBSnapshot.get_current_season()
+
+        return jsonify({
+            "seasons": seasons,
+            "current_season": current_season
+        })
+    except Exception as e:
+        logger.error(f"Error getting seasons: {str(e)}")
+        return jsonify({
+            "error": str(e),
+            "seasons": [],
+            "current_season": None
+        }), 500
+
+@data_bp.route('/db-stats')
+def get_db_stats():
+    """API endpoint to get database statistics and health info."""
+    try:
+        from app.utils.auto_maintenance import AutoMaintenance
+
+        stats = AutoMaintenance.get_maintenance_stats()
+        should_run, urgency, count = AutoMaintenance.should_run_maintenance()
+
+        stats['should_run_maintenance'] = should_run
+        stats['maintenance_urgency'] = urgency
+
+        return jsonify(stats)
+    except Exception as e:
+        logger.error(f"Error getting DB stats: {str(e)}")
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+@data_bp.route('/backfill-metadata', methods=['POST'])
+def backfill_metadata():
+    """API endpoint to backfill season/hash/count metadata for existing snapshots."""
+    try:
+        from app.utils.auto_maintenance import AutoMaintenance
+
+        logger.info("Starting metadata backfill...")
+        results = AutoMaintenance.backfill_metadata()
+
+        if results.get('success'):
+            return jsonify({
+                "status": "success",
+                "message": f"Backfilled {results['updated']} snapshots",
+                "updated": results['updated']
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": f"Backfill failed: {results.get('error')}",
+                "error": results.get('error')
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error during backfill: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"Backfill failed: {str(e)}",
             "error": str(e)
         }), 500

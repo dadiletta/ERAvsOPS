@@ -55,6 +55,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/loading-overlay.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/insights-grid.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/season-selector.css') }}">
 
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
@@ -551,6 +552,7 @@
     <script src="{{ url_for('static', filename='js/tooltip-fix.js') }}"></script>
     <script src="{{ url_for('static', filename='js/loading-overlay.js') }}"></script>
     <script src="{{ url_for('static', filename='js/advanced-insights.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/season-selector.js') }}"></script>
     <script>
         // Initialize global data from Flask
         window.teamData = {{ teams | tojson | safe }};

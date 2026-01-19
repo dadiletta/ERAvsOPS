@@ -100,30 +100,92 @@ def create_app():
     with app.app_context():
         # Ensure tables exist (lightweight operation)
         db.create_all()
-        
+
+        # Auto-migrate database schema if needed (adds new columns automatically)
+        try:
+            from sqlalchemy import inspect, text
+            inspector = inspect(db.engine)
+
+            if 'mlb_snapshots' in inspector.get_table_names():
+                columns = [col['name'] for col in inspector.get_columns('mlb_snapshots')]
+
+                # Add season column if missing
+                if 'season' not in columns:
+                    app.logger.info("Auto-migrating: Adding 'season' column...")
+                    db.session.execute(text('ALTER TABLE mlb_snapshots ADD COLUMN season INTEGER'))
+                    db.session.execute(text('CREATE INDEX IF NOT EXISTS idx_season ON mlb_snapshots(season)'))
+                    db.session.commit()
+
+                # Add team_count column if missing
+                if 'team_count' not in columns:
+                    app.logger.info("Auto-migrating: Adding 'team_count' column...")
+                    db.session.execute(text('ALTER TABLE mlb_snapshots ADD COLUMN team_count INTEGER DEFAULT 0'))
+                    db.session.commit()
+
+                # Add data_hash column if missing
+                if 'data_hash' not in columns:
+                    app.logger.info("Auto-migrating: Adding 'data_hash' column...")
+                    db.session.execute(text('ALTER TABLE mlb_snapshots ADD COLUMN data_hash VARCHAR(64)'))
+                    db.session.execute(text('CREATE INDEX IF NOT EXISTS idx_data_hash ON mlb_snapshots(data_hash)'))
+                    db.session.commit()
+
+                # Ensure timestamp index exists
+                try:
+                    db.session.execute(text('CREATE INDEX IF NOT EXISTS idx_timestamp ON mlb_snapshots(timestamp)'))
+                    db.session.commit()
+                except:
+                    pass
+
+        except Exception as e:
+            app.logger.warning(f"Auto-migration failed (may already be complete): {e}")
+            db.session.rollback()
+
         # Quick health check - verify database connection
         try:
             from app.models.mlb_snapshot import MLBSnapshot
             snapshot_count = MLBSnapshot.query.count()
             app.logger.info(f"App started with {snapshot_count} snapshots in database")
-            
-            # Run lightweight cleanup if we have snapshots to process
-            if snapshot_count > 20:  # Only if we have enough data
+
+            # Auto-backfill metadata for snapshots missing season/hash/count
+            try:
+                from app.utils.auto_maintenance import AutoMaintenance
+
+                needs_backfill = MLBSnapshot.query.filter(
+                    (MLBSnapshot.season == None) |
+                    (MLBSnapshot.team_count == 0) |
+                    (MLBSnapshot.data_hash == None)
+                ).count()
+
+                if needs_backfill > 0:
+                    app.logger.info(f"Auto-backfilling metadata for {needs_backfill} snapshots...")
+                    results = AutoMaintenance.backfill_metadata()
+                    if results.get('success'):
+                        app.logger.info(f"Metadata backfilled: {results['updated']} snapshots")
+
+            except Exception as e:
+                app.logger.warning(f"Auto-backfill skipped: {e}")
+
+            # Run auto-maintenance if needed (non-blocking, self-managing)
+            if snapshot_count > 100:
                 try:
-                    from app.utils.snapshot_cleanup import lightweight_snapshot_cleanup
-                    results = lightweight_snapshot_cleanup(batch_size=25)  # Smaller batch for app startup
-                    
-                    if results["removed"] > 0:
-                        app.logger.info(f"Startup cleanup: removed {results['removed']} snapshots")
-                        
+                    from app.utils.auto_maintenance import AutoMaintenance
+
+                    should_run, urgency, count = AutoMaintenance.should_run_maintenance()
+
+                    if should_run:
+                        app.logger.info(f"Auto-maintenance: {urgency} urgency, {count} snapshots")
+                        results = AutoMaintenance.run_auto_maintenance(urgency='normal', dry_run=False)
+                        app.logger.info(f"Auto-maintenance complete: removed {results['total_removed']} snapshots")
+                    else:
+                        app.logger.info(f"Auto-maintenance: No cleanup needed ({count} snapshots)")
+
                 except Exception as e:
-                    app.logger.warning(f"Startup cleanup failed: {e}")
-                    # Don't let cleanup failure prevent app startup
-            
+                    app.logger.warning(f"Auto-maintenance failed: {e}")
+
             # Warn if database is completely empty
             if snapshot_count == 0:
-                app.logger.warning("Database appears empty - ensure init_db.py ran successfully")
-                
+                app.logger.warning("Database appears empty")
+
         except Exception as e:
             app.logger.error(f"Database health check failed: {str(e)}")
             # Don't raise exception - let app start anyway
