@@ -1,11 +1,28 @@
 # app/models/mlb_snapshot.py
+
+"""
+SQLAlchemy model for MLB team statistics snapshots.
+
+Each snapshot stores a full set of 30-team data as JSON, tagged with season
+year, team count, and a SHA256 hash for duplicate detection. The auto-maintenance
+system in app/utils/auto_maintenance.py manages retention policies.
+
+Key query methods:
+    get_latest(season=None) — most recent snapshot, optionally filtered by season
+    get_previous(season=None) — second-most-recent, for trend arrow comparison
+    get_team_history(team_id, limit, season) — ERA/OPS path over time
+    get_available_seasons() — distinct seasons in the database
+    get_current_season() — auto-detect current MLB season from date
+"""
+
 from app import db
 from datetime import datetime, timezone
 import json
 import hashlib
 
+
 class MLBSnapshot(db.Model):
-    """Model for storing historical MLB team statistics snapshots"""
+    """Model for storing historical MLB team statistics snapshots."""
     __tablename__ = 'mlb_snapshots'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -47,11 +64,31 @@ class MLBSnapshot(db.Model):
     
     @staticmethod
     def get_latest(season=None):
-        """Get the most recent snapshot, optionally filtered by season"""
+        """Get the most recent snapshot, optionally filtered by season."""
         query = MLBSnapshot.query
         if season:
             query = query.filter_by(season=season)
         return query.order_by(MLBSnapshot.timestamp.desc()).first()
+
+    @staticmethod
+    def get_previous(season=None):
+        """
+        Get the second most recent snapshot for trend comparison.
+
+        Used to compute rank movement arrows (up/down) in standings
+        by comparing the current snapshot to the one before it.
+
+        Args:
+            season: Optional season filter.
+
+        Returns:
+            The second-most-recent MLBSnapshot, or None if fewer than 2 exist.
+        """
+        query = MLBSnapshot.query
+        if season:
+            query = query.filter_by(season=season)
+        results = query.order_by(MLBSnapshot.timestamp.desc()).limit(2).all()
+        return results[1] if len(results) >= 2 else None
 
     @staticmethod
     def get_current_season():

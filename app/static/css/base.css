@@ -28,12 +28,43 @@ body {
     transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* Dark mode toggle - improved version */
-.theme-toggle {
+/* Hero controls — download button + dark mode toggle row */
+.hero-controls {
     position: absolute;
     bottom: 20px;
     right: 20px;
     z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Chart download button — circle matching toggle height */
+.chart-download-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: none;
+    background-color: #111;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    transition: opacity 0.2s ease, background-color 0.3s ease;
+}
+.chart-download-btn:hover {
+    opacity: 0.85;
+}
+body:not(.dark-mode) .chart-download-btn {
+    background-color: #3498db;
+}
+
+/* Dark mode toggle */
+.theme-toggle {
+    /* No longer absolutely positioned — lives inside .hero-controls flex row */
 }
 
 .theme-checkbox {

@@ -1,4 +1,17 @@
 # app/services/mlb_data.py
+
+"""
+MLB data fetching service using toddrob99's MLB-StatsAPI.
+
+MLBDataFetcher handles:
+- Season detection: Jan-Mar uses previous year (offseason), Apr-Dec uses current year.
+- Per-team stat fetching: ERA (pitching), OPS (hitting), W/L record, run differential.
+- Playoff context: div_rank, wc_rank, wc_gb, elim_num from standings_data().
+- Standings cache: standings_data() is called once per update cycle (not per team)
+  to avoid 30 duplicate API calls.
+- Rate limiting: configurable delay between API requests (default 0.5s).
+"""
+
 import json
 import os
 from datetime import datetime, timezone
@@ -24,7 +37,15 @@ except ImportError:
 
 class MLBDataFetcher:
     """
-    A class to fetch MLB team data using toddrob99's MLB-StatsAPI.
+    Fetches MLB team data using toddrob99's MLB-StatsAPI.
+
+    Each instance determines the current MLB season on init and caches
+    standings_data() results for the duration of an update cycle so we
+    only call that endpoint once (instead of 30 times, once per team).
+
+    Key methods:
+        get_all_team_stats(season) — fetch all 30 teams sequentially
+        get_team_stats_batch(start, count) — fetch a batch of teams
     """
     def __init__(self):
         # Check if MLB Stats API is available
@@ -73,6 +94,10 @@ class MLBDataFetcher:
         
         logger.info(f"Initialized with {len(self._mlb_teams)} hardcoded MLB teams including division information")
         
+        # Per-cycle cache for standings_data() — avoids calling the same
+        # endpoint 30 times (once per team) during a single update cycle.
+        self._standings_cache = {}
+
         # Rate limiting settings
         self.last_request_time = 0
         
@@ -291,23 +316,29 @@ class MLBDataFetcher:
                 # Get team record (wins/losses)
                 logger.info(f"Fetching team record for {team_name}")
                 
-                # Get standings data which includes win/loss records
+                # Get standings data (cached per season to avoid 30 duplicate API calls)
                 try:
-                    standings_data = statsapi.standings_data(season=season)
+                    if season not in self._standings_cache:
+                        self._standings_cache[season] = statsapi.standings_data(season=season)
+                    standings_data = self._standings_cache[season]
                     team_record = {"wins": 0, "losses": 0}
-                    
-                    # Find the team in the standings data
+
+                    # Find the team and extract record + playoff context fields
                     for division_data in standings_data.values():
                         for team_data in division_data['teams']:
                             if team_data['team_id'] == team_id:
                                 team_record = {
                                     "wins": team_data.get('w', 0),
-                                    "losses": team_data.get('l', 0)
+                                    "losses": team_data.get('l', 0),
+                                    "div_rank": team_data.get('div_rank', '-'),
+                                    "wc_rank": team_data.get('wc_rank', '-'),
+                                    "wc_gb": team_data.get('wc_gb', '-'),
+                                    "elim_num": team_data.get('elim_num', '-'),
+                                    "league_rank": team_data.get('league_rank', '-'),
                                 }
                                 break
                 except Exception as e:
                     logger.error(f"Error fetching team record for {team_name}: {str(e)}")
-                    # Fallback values
                     team_record = {"wins": 0, "losses": 0}
                 
             except Exception as api_error:
@@ -438,7 +469,14 @@ class MLBDataFetcher:
                 "runs_scored": runs_scored,
                 "runs_allowed": runs_allowed,
                 "run_differential": run_differential,
-                "logo": f"/static/logos/{logo_name}.png"
+                "logo": f"/static/logos/{logo_name}.png",
+                # Playoff context — these fields are absent in old snapshots
+                # and will gracefully default to '-' in the UI
+                "div_rank": team_record.get("div_rank", "-"),
+                "wc_rank": team_record.get("wc_rank", "-"),
+                "wc_gb": team_record.get("wc_gb", "-"),
+                "elim_num": team_record.get("elim_num", "-"),
+                "league_rank": team_record.get("league_rank", "-"),
             }
             logger.info(f"Successfully processed {team_name}")
             return team_data

@@ -1,5 +1,20 @@
 # app/routes/helper_functions.py
 
+"""
+Helper functions for data routes.
+
+Core responsibilities:
+- get_latest_data(): Retrieve and validate team data from DB or cache file,
+  with optional season filtering and intelligent freshness detection.
+- update_mlb_data(): Batch-fetch team stats from the MLB Stats API and
+  create a single snapshot when all 30 teams are collected.
+- Freshness logic: determines whether data is stale based on time of day,
+  season status, and whether games are likely in progress.
+
+The global `update_status` dict tracks batch update progress and is read
+by the /api/update-status endpoint for the frontend progress bar.
+"""
+
 import json
 import os
 import logging
@@ -9,10 +24,9 @@ from app import db, validate_mlb_data
 from app.models.mlb_snapshot import MLBSnapshot
 from app.services.mlb_data import MLBDataFetcher
 
-# Set up logging
 logger = logging.getLogger(__name__)
 
-# Global update status
+# Global update status — shared across requests within the same worker process.
 update_status = {
     "in_progress": False,
     "teams_updated": 0,
@@ -91,17 +105,28 @@ def ensure_division_info(teams):
     
     return teams
 
-def get_latest_data(must_exist=False):
-    """Get the latest team data from the database with validation"""
-    logger.info("Retrieving latest data from database")
-    
+def get_latest_data(must_exist=False, season=None):
+    """
+    Get the latest team data from the database with validation.
+
+    Args:
+        must_exist: If True, raises Exception when no data is found.
+        season: Optional MLB season year (e.g. 2025). When provided, returns
+                data for that specific season. When None, returns the most
+                recent snapshot regardless of season.
+
+    Returns:
+        Tuple of (teams_list, db_exists, is_fresh, last_updated_str)
+    """
+    logger.info(f"Retrieving latest data from database (season={season})")
+
     try:
         # Get snapshot count
         count = MLBSnapshot.query.count()
         update_status["snapshot_count"] = count
-        
-        # Get the most recent snapshot
-        snapshot = MLBSnapshot.get_latest()
+
+        # Get the most recent snapshot, optionally filtered by season
+        snapshot = MLBSnapshot.get_latest(season=season)
         
         if snapshot:
             # Check if data is fresh using intelligent rules
@@ -109,7 +134,11 @@ def get_latest_data(must_exist=False):
             now = datetime.now(timezone.utc)
             cache_age = now - timestamp 
             is_fresh = determine_data_freshness(timestamp, now)
-            
+
+            # Historical seasons are always "fresh" — their data is final
+            if season and season != MLBSnapshot.get_current_season():
+                is_fresh = True
+
             # Get teams and validate
             teams = snapshot.teams
             
@@ -258,10 +287,12 @@ def update_mlb_data(step=1, total_steps=30):
                 complete_data = validate_mlb_data(update_status["collected_data"])
                 
                 if len(complete_data) >= 25:  # Ensure we have most teams (allow for a few failures)
-                    # Create ONE snapshot with all the data
-                    snapshot = MLBSnapshot(
-                        timestamp=datetime.now(timezone.utc),
-                        data=json.dumps(complete_data)
+                    # Create ONE snapshot with all metadata so season
+                    # filtering, duplicate detection, and data quality
+                    # tracking all work correctly.
+                    snapshot = MLBSnapshot.create_snapshot(
+                        complete_data,
+                        season=fetcher.current_year
                     )
                     db.session.add(snapshot)
                     db.session.commit()

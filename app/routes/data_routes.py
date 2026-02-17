@@ -19,26 +19,35 @@ data_bp = Blueprint('data', __name__, url_prefix='/api')
 
 @data_bp.route('/team-data')
 def get_team_data():
-    """API endpoint to get the latest team data."""
+    """
+    API endpoint to get the latest team data.
+
+    Query params:
+        season (int, optional): MLB season year to retrieve. Defaults to latest.
+    """
     try:
-        teams, db_exists, is_fresh, last_updated = get_latest_data(must_exist=True)
-        
-        # If data is not fresh, trigger an async update
-        if not is_fresh:
+        season = request.args.get('season', type=int)
+        teams, db_exists, is_fresh, last_updated = get_latest_data(
+            must_exist=True, season=season
+        )
+
+        # Only trigger async updates for current season data —
+        # historical seasons can't be refreshed from the live API
+        current_season = MLBSnapshot.get_current_season()
+        if not is_fresh and (season is None or season == current_season):
             logger.info("Data is not fresh, triggering async update")
             from app.services.mlb_data import MLBDataFetcher
             fetcher = MLBDataFetcher()
             if fetcher.api_available:
-                # Start update in background
                 update_mlb_data(step=1)
-        
+
         response = {
             "teams": teams,
             "fresh": is_fresh,
             "last_updated": last_updated,
             "source": "database" if db_exists else "cache"
         }
-        
+
         return jsonify(response)
     except Exception as e:
         logger.error(f"Error getting team data: {str(e)}")
@@ -52,12 +61,21 @@ def get_team_data():
 
 @data_bp.route('/division-standings')
 def get_division_standings():
-    """API endpoint to get division standings."""
-    teams, _, _, _ = get_latest_data(must_exist=True)
-    
-    # Get division cards data
-    cards_data = get_division_cards_data(teams)
-    
+    """
+    API endpoint to get division standings with optional trend arrows.
+
+    Query params:
+        season (int, optional): MLB season year. Defaults to latest.
+    """
+    season = request.args.get('season', type=int)
+    teams, _, _, _ = get_latest_data(must_exist=True, season=season)
+
+    # Fetch previous snapshot for trend comparison (rank movement arrows)
+    previous_snapshot = MLBSnapshot.get_previous(season=season)
+    previous_teams = previous_snapshot.teams if previous_snapshot else []
+
+    cards_data = get_division_cards_data(teams, previous_teams=previous_teams)
+
     return jsonify(cards_data)
 
 @data_bp.route('/update-status')

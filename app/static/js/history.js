@@ -47,9 +47,12 @@ const MLBHistory = (function(window, document, $, MLBConfig) {
                 resolve([]);
             }, 3000); // Reduced from 5 seconds
             
-            // Execute the fetch with cache busting
+            // Execute the fetch with cache busting and optional season filter
             const cacheParam = new Date().getTime();
-            fetch(`/api/team-history/${teamId}?days=${days}&_=${cacheParam}`)
+            const seasonParam = (window.MLBSeasonSelector && MLBSeasonSelector.getCurrentSeason())
+                ? `&season=${MLBSeasonSelector.getCurrentSeason()}`
+                : '';
+            fetch(`/api/team-history/${teamId}?days=${days}${seasonParam}&_=${cacheParam}`)
                 .then(response => {
                     clearTimeout(timeoutId);
                     if (!response.ok) {

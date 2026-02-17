@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, current_app
 import logging
 from app.routes.helper_functions import get_latest_data, update_status
 from app.services.division_standings import get_division_cards_data
+from app.models.mlb_snapshot import MLBSnapshot
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -54,8 +55,10 @@ def index():
         "snapshot_count": update_status["snapshot_count"]
     }
 
-    # Get division standings data
-    division_cards = get_division_cards_data(teams)
+    # Get division standings data with trend arrows from previous snapshot
+    previous_snapshot = MLBSnapshot.get_previous()
+    previous_teams = previous_snapshot.teams if previous_snapshot else []
+    division_cards = get_division_cards_data(teams, previous_teams=previous_teams)
 
     # Render the template with team data, status, and standings
     return render_template('index.html', teams=teams, status=status, division_cards=division_cards)

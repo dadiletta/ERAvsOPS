@@ -18,7 +18,7 @@ const MLBConfig = (function() {
     
     // Chart configuration
     const CHART_CONFIG = {
-        logoSize: 34,          // Base logo size in pixels (aligned with CSS var)
+        logoSize: window.innerWidth <= 768 ? 24 : 34,  // Smaller logos on mobile for readability
         logoCache: {},         // Simple cache for preloaded logo images
         quadrantColors: {
             topLeft: 'rgba(255, 248, 225, 0.5)',    // Cream (Good Pitching, Bad Hitting)

@@ -55,18 +55,26 @@ const ThemeToggler = (function(window, document, $, MLBConfig) {
         }
         
         const toggleBtn = $(`
-            <div class="theme-toggle">
-                <input type="checkbox" class="theme-checkbox" id="theme-toggle-checkbox" checked>
-                <label class="theme-checkbox-label" for="theme-toggle-checkbox">
-                    <i class="fas fa-moon"></i>
-                    <i class="fas fa-sun"></i>
-                    <div class="toggle-ball"></div>
-                </label>
+            <div class="hero-controls">
+                <button class="chart-download-btn" id="chart-download-btn" title="Download chart as image">
+                    <i class="fas fa-download"></i>
+                </button>
+                <div class="theme-toggle">
+                    <input type="checkbox" class="theme-checkbox" id="theme-toggle-checkbox" checked>
+                    <label class="theme-checkbox-label" for="theme-toggle-checkbox">
+                        <i class="fas fa-moon"></i>
+                        <i class="fas fa-sun"></i>
+                        <div class="toggle-ball"></div>
+                    </label>
+                </div>
             </div>
         `);
-        
+
         // Append to the hero-content
         $('.hero-content').append(toggleBtn);
+
+        // Wire up the download button
+        $('#chart-download-btn').on('click', downloadChartAsImage);
     }
     
     /**
@@ -189,12 +197,53 @@ const ThemeToggler = (function(window, document, $, MLBConfig) {
         }
     }
     
+    /**
+     * Download the chart canvas as a JPEG image.
+     * Creates a temporary canvas with a white/dark background behind the
+     * transparent Chart.js canvas, converts to JPEG, and triggers download.
+     */
+    function downloadChartAsImage() {
+        const chartCanvas = document.getElementById('mlbChart');
+        if (!chartCanvas) {
+            logger.error('Chart canvas not found');
+            return;
+        }
+
+        try {
+            // Create an offscreen canvas with background color
+            const offscreen = document.createElement('canvas');
+            offscreen.width = chartCanvas.width;
+            offscreen.height = chartCanvas.height;
+            const ctx = offscreen.getContext('2d');
+
+            // Fill background (match current theme)
+            ctx.fillStyle = state.isDarkMode ? '#1a1a2e' : '#ffffff';
+            ctx.fillRect(0, 0, offscreen.width, offscreen.height);
+
+            // Draw the chart on top
+            ctx.drawImage(chartCanvas, 0, 0);
+
+            // Trigger download
+            const link = document.createElement('a');
+            link.download = 'mlb-era-vs-ops.jpg';
+            link.href = offscreen.toDataURL('image/jpeg', 0.95);
+            link.click();
+
+            if (MLBConfig && MLBConfig.showToast) {
+                MLBConfig.showToast('Chart downloaded!', 'success');
+            }
+        } catch (error) {
+            logger.error('Error downloading chart:', error);
+        }
+    }
+
     // Public API
     return {
         initialize: initialize,
         toggleDarkMode: toggleDarkMode,
         isDarkMode: function() { return state.isDarkMode; },
-        isInitialized: function() { return state.initialized; }
+        isInitialized: function() { return state.initialized; },
+        downloadChartAsImage: downloadChartAsImage
     };
 })(window, document, jQuery, window.MLBConfig);
 

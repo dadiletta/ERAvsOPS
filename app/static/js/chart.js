@@ -660,7 +660,15 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
     }
     
     /**
-     * Function to update chart data with fixed animation
+     * Update chart data with animated transitions.
+     *
+     * Called by season-selector.js when switching years and by api.js after
+     * a data refresh. Chart.js animates point positions when the data array
+     * length stays at 30 (one per team) and only x/y values change.
+     * Animation: 800ms easeInOutCubic for smooth season switches.
+     *
+     * @param {Array} newData - Array of team objects with era, ops, name, etc.
+     * @returns {boolean} True if update succeeded, false on error.
      */
     function updateChartData(newData) {
         if (!mlbChart) {
@@ -702,10 +710,12 @@ const MLBChart = (function(window, document, MLBConfig, MLBHistory) {
         chart.options.scales.y.min = ranges.era.min;
         chart.options.scales.y.max = ranges.era.max;
         
-        // Update with minimal animation
+        // Smooth animation for season switches and data refreshes —
+        // Chart.js interpolates between old and new x/y positions when
+        // the data array length stays at 30 (one per team).
         chart.options.animation = {
-            duration: 300,
-            easing: 'easeOutQuad'
+            duration: 800,
+            easing: 'easeInOutCubic'
         };
         
         // Update the chart

@@ -550,6 +550,41 @@ body.dark-mode .refresh-button:hover {
     color: var(--text-dark);
 }
 
+/* Playoff status indicators — left border color-coding */
+.team-row.division_leader {
+    border-left: 3px solid var(--excellent);
+}
+.team-row.wild_card {
+    border-left: 3px solid #4FC3F7;
+}
+.team-row.eliminated {
+    opacity: 0.5;
+}
+.team-row.contending {
+    border-left: 3px solid transparent;
+}
+
+/* Trend arrows (rank movement between snapshots) */
+.trend-arrow {
+    font-size: 0.6em;
+    margin-left: 0.25rem;
+    vertical-align: middle;
+}
+.trend-arrow.trend-up {
+    color: var(--excellent);
+}
+.trend-arrow.trend-down {
+    color: var(--poor);
+}
+.trend-arrow.trend-same {
+    display: none;
+}
+
+/* Wild card column — slightly narrower than other stat cols */
+.wc-col {
+    flex: 0.8;
+}
+
 /* Quadrant styles */
 .quadrant-explanation {
     margin-top: 3rem;
