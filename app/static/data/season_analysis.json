@@ -1,0 +1,43 @@
+{
+  "_meta": {
+    "description": "Previous season analysis data for the Budget vs Wins/Runs chart. Update once per off-season.",
+    "season": 2025,
+    "payroll_source": "The Baseball Cube - 2025 Opening Day payroll (thebaseballcube.com/content/payroll_year/2025)",
+    "wins_source": "Champs or Chumps - 2025 final regular season wins (champsorchumps.us/summary/mlb/2025)",
+    "runs_source": "FOX Sports - 2025 team total runs scored (foxsports.com/mlb/team-stats?category=batting&sort=r&season=2025)",
+    "last_updated": "2025-10-01"
+  },
+  "season": 2025,
+  "teams": [
+    { "id": 108, "abbreviation": "LAA", "name": "Angels",        "full_name": "Los Angeles Angels",       "division": "AL West",    "logo": "/static/logos/angels.png",       "payroll_m": 192.4, "wins": 72,  "runs": 673 },
+    { "id": 109, "abbreviation": "ARI", "name": "Diamondbacks",  "full_name": "Arizona Diamondbacks",     "division": "NL West",    "logo": "/static/logos/diamondbacks.png", "payroll_m": 184.2, "wins": 80,  "runs": 791 },
+    { "id": 110, "abbreviation": "BAL", "name": "Orioles",       "full_name": "Baltimore Orioles",        "division": "AL East",    "logo": "/static/logos/orioles.png",      "payroll_m": 164.3, "wins": 75,  "runs": 677 },
+    { "id": 111, "abbreviation": "BOS", "name": "Red Sox",       "full_name": "Boston Red Sox",           "division": "AL East",    "logo": "/static/logos/redsox.png",       "payroll_m": 197.9, "wins": 89,  "runs": 786 },
+    { "id": 112, "abbreviation": "CHC", "name": "Cubs",          "full_name": "Chicago Cubs",             "division": "NL Central", "logo": "/static/logos/cubs.png",         "payroll_m": 192.7, "wins": 92,  "runs": 793 },
+    { "id": 113, "abbreviation": "CIN", "name": "Reds",          "full_name": "Cincinnati Reds",          "division": "NL Central", "logo": "/static/logos/reds.png",         "payroll_m": 116.7, "wins": 83,  "runs": 716 },
+    { "id": 114, "abbreviation": "CLE", "name": "Guardians",     "full_name": "Cleveland Guardians",      "division": "AL Central", "logo": "/static/logos/guardians.png",    "payroll_m":  99.6, "wins": 88,  "runs": 643 },
+    { "id": 115, "abbreviation": "COL", "name": "Rockies",       "full_name": "Colorado Rockies",         "division": "NL West",    "logo": "/static/logos/rockies.png",      "payroll_m": 121.5, "wins": 43,  "runs": 597 },
+    { "id": 116, "abbreviation": "DET", "name": "Tigers",        "full_name": "Detroit Tigers",           "division": "AL Central", "logo": "/static/logos/tigers.png",       "payroll_m": 143.7, "wins": 87,  "runs": 758 },
+    { "id": 117, "abbreviation": "HOU", "name": "Astros",        "full_name": "Houston Astros",           "division": "AL West",    "logo": "/static/logos/astros.png",       "payroll_m": 218.6, "wins": 87,  "runs": 686 },
+    { "id": 118, "abbreviation": "KC",  "name": "Royals",        "full_name": "Kansas City Royals",       "division": "AL Central", "logo": "/static/logos/royals.png",       "payroll_m": 126.4, "wins": 82,  "runs": 651 },
+    { "id": 119, "abbreviation": "LAD", "name": "Dodgers",       "full_name": "Los Angeles Dodgers",      "division": "NL West",    "logo": "/static/logos/dodgers.png",      "payroll_m": 331.0, "wins": 93,  "runs": 825 },
+    { "id": 120, "abbreviation": "WSH", "name": "Nationals",     "full_name": "Washington Nationals",     "division": "NL East",    "logo": "/static/logos/nationals.png",    "payroll_m": 113.0, "wins": 66,  "runs": 687 },
+    { "id": 121, "abbreviation": "NYM", "name": "Mets",          "full_name": "New York Mets",            "division": "NL East",    "logo": "/static/logos/mets.png",         "payroll_m": 321.6, "wins": 83,  "runs": 766 },
+    { "id": 133, "abbreviation": "OAK", "name": "Athletics",     "full_name": "Oakland Athletics",        "division": "AL West",    "logo": "/static/logos/athletics.png",    "payroll_m":  74.0, "wins": 76,  "runs": 733 },
+    { "id": 134, "abbreviation": "PIT", "name": "Pirates",       "full_name": "Pittsburgh Pirates",       "division": "NL Central", "logo": "/static/logos/pirates.png",      "payroll_m":  83.8, "wins": 71,  "runs": 583 },
+    { "id": 135, "abbreviation": "SD",  "name": "Padres",        "full_name": "San Diego Padres",         "division": "NL West",    "logo": "/static/logos/padres.png",       "payroll_m": 209.3, "wins": 90,  "runs": 702 },
+    { "id": 136, "abbreviation": "SEA", "name": "Mariners",      "full_name": "Seattle Mariners",         "division": "AL West",    "logo": "/static/logos/mariners.png",     "payroll_m": 147.9, "wins": 90,  "runs": 766 },
+    { "id": 137, "abbreviation": "SF",  "name": "Giants",        "full_name": "San Francisco Giants",     "division": "NL West",    "logo": "/static/logos/giants.png",       "payroll_m": 169.9, "wins": 81,  "runs": 705 },
+    { "id": 138, "abbreviation": "STL", "name": "Cardinals",     "full_name": "St. Louis Cardinals",      "division": "NL Central", "logo": "/static/logos/cardinals.png",    "payroll_m": 135.9, "wins": 78,  "runs": 689 },
+    { "id": 139, "abbreviation": "TB",  "name": "Rays",          "full_name": "Tampa Bay Rays",           "division": "AL East",    "logo": "/static/logos/rays.png",         "payroll_m":  88.7, "wins": 77,  "runs": 714 },
+    { "id": 140, "abbreviation": "TEX", "name": "Rangers",       "full_name": "Texas Rangers",            "division": "AL West",    "logo": "/static/logos/rangers.png",      "payroll_m": 214.4, "wins": 81,  "runs": 684 },
+    { "id": 141, "abbreviation": "TOR", "name": "Blue Jays",     "full_name": "Toronto Blue Jays",        "division": "AL East",    "logo": "/static/logos/bluejays.png",     "payroll_m": 243.3, "wins": 94,  "runs": 798 },
+    { "id": 142, "abbreviation": "MIN", "name": "Twins",         "full_name": "Minnesota Twins",          "division": "AL Central", "logo": "/static/logos/twins.png",        "payroll_m": 145.9, "wins": 70,  "runs": 678 },
+    { "id": 143, "abbreviation": "PHI", "name": "Phillies",      "full_name": "Philadelphia Phillies",    "division": "NL East",    "logo": "/static/logos/phillies.png",     "payroll_m": 283.2, "wins": 96,  "runs": 778 },
+    { "id": 144, "abbreviation": "ATL", "name": "Braves",        "full_name": "Atlanta Braves",           "division": "NL East",    "logo": "/static/logos/braves.png",       "payroll_m": 215.3, "wins": 76,  "runs": 724 },
+    { "id": 145, "abbreviation": "CWS", "name": "White Sox",     "full_name": "Chicago White Sox",        "division": "AL Central", "logo": "/static/logos/whitesox.png",     "payroll_m":  73.7, "wins": 60,  "runs": 647 },
+    { "id": 146, "abbreviation": "MIA", "name": "Marlins",       "full_name": "Miami Marlins",            "division": "NL East",    "logo": "/static/logos/marlins.png",      "payroll_m":  68.0, "wins": 79,  "runs": 709 },
+    { "id": 147, "abbreviation": "NYY", "name": "Yankees",       "full_name": "New York Yankees",         "division": "AL East",    "logo": "/static/logos/yankees.png",      "payroll_m": 287.5, "wins": 94,  "runs": 849 },
+    { "id": 158, "abbreviation": "MIL", "name": "Brewers",       "full_name": "Milwaukee Brewers",        "division": "NL Central", "logo": "/static/logos/brewers.png",      "payroll_m": 110.8, "wins": 97,  "runs": 806 }
+  ]
+}

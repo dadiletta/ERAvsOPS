@@ -14,19 +14,24 @@
     function initializeApp() {
         // Initialize modules in the correct order
         MLBConfig.logger.info("Application initialization started");
-        
+
         // First initialize UI
         MLBUI.initialize();
-        
+
         // Then initialize chart
         MLBChart.initialize();
-        
+
         // Initialize division filter
         MLBDivisionFilter.initialize();
-        
+
         // Finally initialize data and API
         MLBAPI.initialize();
-        
+
+        // Initialize hero carousel (budget chart initializes lazily on slide 2)
+        if (typeof HeroCarousel !== 'undefined') {
+            HeroCarousel.initialize();
+        }
+
         MLBConfig.logger.info("Application fully initialized");
     }
     

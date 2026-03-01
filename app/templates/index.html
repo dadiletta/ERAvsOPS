@@ -55,6 +55,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/loading-overlay.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/insights-grid.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/carousel.css') }}">
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -95,46 +96,90 @@
             <div class="loading-text">Loading MLB Data...</div>
         </div>
     </div>
-    <!-- Full-screen hero section with chart -->
+    <!-- Full-screen hero section — carousel with two chart slides -->
     <header class="hero">
-        <div class="hero-content">
-            <div class="chart-controls">
-                <div class="toggle-buttons">
-                    <!-- American League -->
-                    <div class="league-group">
-                        <div class="league-label">AL</div>
-                        <div class="division-btn-group">
-                            <button class="division-toggle active" data-division="AL East">East</button>
-                            <button class="division-toggle active" data-division="AL Central">Central</button>
-                            <button class="division-toggle active" data-division="AL West">West</button>
+        <div class="hero-carousel">
+            <div class="carousel-track" id="carousel-track">
+
+                <!-- Slide 1: ERA vs OPS (live data) -->
+                <div class="carousel-slide" id="slide-era-ops">
+                    <div class="hero-content">
+                        <div class="chart-controls">
+                            <div class="toggle-buttons">
+                                <!-- American League -->
+                                <div class="league-group">
+                                    <div class="league-label">AL</div>
+                                    <div class="division-btn-group">
+                                        <button class="division-toggle active" data-division="AL East">East</button>
+                                        <button class="division-toggle active" data-division="AL Central">Central</button>
+                                        <button class="division-toggle active" data-division="AL West">West</button>
+                                    </div>
+                                </div>
+                                <!-- National League -->
+                                <div class="league-group">
+                                    <div class="league-label">NL</div>
+                                    <div class="division-btn-group">
+                                        <button class="division-toggle active" data-division="NL East">East</button>
+                                        <button class="division-toggle active" data-division="NL Central">Central</button>
+                                        <button class="division-toggle active" data-division="NL West">West</button>
+                                    </div>
+                                </div>
+                                <!-- Year Selector -->
+                                <div class="league-group">
+                                    <div class="league-label">Year</div>
+                                    <div class="year-selector-pill"></div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <!-- National League -->
-                    <div class="league-group">
-                        <div class="league-label">NL</div>
-                        <div class="division-btn-group">
-                            <button class="division-toggle active" data-division="NL East">East</button>
-                            <button class="division-toggle active" data-division="NL Central">Central</button>
-                            <button class="division-toggle active" data-division="NL West">West</button>
+                        <div class="chart-container">
+                            <canvas id="mlbChart"></canvas>
+
+                            <!-- Quadrant labels -->
+                            <div id="top-left" class="quadrant-label">Good Pitching<br>Bad Hitting</div>
+                            <div id="top-right" class="quadrant-label">Good Pitching<br>Good Hitting</div>
+                            <div id="bottom-left" class="quadrant-label">Bad Pitching<br>Bad Hitting</div>
+                            <div id="bottom-right" class="quadrant-label">Bad Pitching<br>Good Hitting</div>
                         </div>
-                    </div>
-                    <!-- Year Selector -->
-                    <div class="league-group">
-                        <div class="league-label">Year</div>
-                        <div class="year-selector-pill"></div>
                     </div>
                 </div>
+
+                <!-- Slide 2: Payroll vs Wins / HR (previous season, static data) -->
+                <div class="carousel-slide" id="slide-budget">
+                    <div class="hero-content">
+                        <div class="chart-controls">
+                            <div class="toggle-buttons">
+                                <div class="league-group">
+                                    <div class="league-label">X-Axis</div>
+                                    <div class="division-btn-group">
+                                        <button class="division-toggle active" id="budget-wins-btn">Wins</button>
+                                        <button class="division-toggle" id="budget-runs-btn">Runs</button>
+                                    </div>
+                                </div>
+                                <div class="league-group">
+                                    <div class="league-label">Season</div>
+                                    <div class="league-label budget-season-label" id="budget-season-label">—</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="budgetChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- /carousel-track -->
+
+            <!-- Navigation arrows -->
+            <button class="carousel-arrow carousel-prev" id="carousel-prev" aria-label="Previous chart">&#8249;</button>
+            <button class="carousel-arrow carousel-next" id="carousel-next" aria-label="Next chart">&#8250;</button>
+
+            <!-- Dot indicators -->
+            <div class="carousel-dots">
+                <span class="carousel-dot active" data-slide="0"></span>
+                <span class="carousel-dot" data-slide="1"></span>
             </div>
-            <div class="chart-container">
-                <canvas id="mlbChart"></canvas>
-                
-                <!-- Quadrant labels -->
-                <div id="top-left" class="quadrant-label">Good Pitching<br>Bad Hitting</div>
-                <div id="top-right" class="quadrant-label">Good Pitching<br>Good Hitting</div>
-                <div id="bottom-left" class="quadrant-label">Bad Pitching<br>Bad Hitting</div>
-                <div id="bottom-right" class="quadrant-label">Bad Pitching<br>Good Hitting</div>
-            </div>
-        </div>
+
+        </div><!-- /hero-carousel -->
     </header>
     
     <div class="spacer"></div>
@@ -626,6 +671,8 @@
     <script src="{{ url_for('static', filename='js/mlb-stats-analyzer.js') }}"></script>
     <script src="{{ url_for('static', filename='js/division-filter.js') }}"></script>
     <script src="{{ url_for('static', filename='js/insights.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/budget-chart.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/carousel.js') }}"></script>
     <script src="{{ url_for('static', filename='js/index.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme-toggler.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tooltip-fix.js') }}"></script>

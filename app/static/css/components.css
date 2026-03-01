@@ -354,6 +354,15 @@ body.dark-mode .refresh-button:hover {
     background-color: var(--mlb-red);
 }
 
+/* Dark mode: lighten division-toggle border so it's visible on dark backgrounds */
+body.dark-mode .division-toggle {
+    border-color: var(--mlb-blue-light);
+}
+
+body.dark-mode .division-toggle[data-division^="NL"] {
+    border-color: var(--mlb-red-light);
+}
+
 /* Data status bar */
 .data-status-bar {
     display: flex;
