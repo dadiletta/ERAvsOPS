@@ -70,8 +70,8 @@ const ThemeToggler = (function(window, document, $, MLBConfig) {
             </div>
         `);
 
-        // Append to the hero-content
-        $('.hero-content').append(toggleBtn);
+        // Append to the carousel overlay so the controls persist across all slides
+        $('.hero-carousel').append(toggleBtn);
 
         // Wire up the download button
         $('#chart-download-btn').on('click', downloadChartAsImage);
@@ -203,9 +203,15 @@ const ThemeToggler = (function(window, document, $, MLBConfig) {
      * transparent Chart.js canvas, converts to JPEG, and triggers download.
      */
     function downloadChartAsImage() {
-        const chartCanvas = document.getElementById('mlbChart');
+        // Pick the active slide's canvas
+        const slide = (typeof HeroCarousel !== 'undefined') ? HeroCarousel.getCurrentSlide() : 0;
+        const isBudget = slide === 1;
+        const canvasId  = isBudget ? 'budgetChart' : 'mlbChart';
+        const filename  = isBudget ? 'mlb-budget-analysis.jpg' : 'mlb-era-vs-ops.jpg';
+
+        const chartCanvas = document.getElementById(canvasId);
         if (!chartCanvas) {
-            logger.error('Chart canvas not found');
+            logger.error('Chart canvas not found: ' + canvasId);
             return;
         }
 
@@ -225,7 +231,7 @@ const ThemeToggler = (function(window, document, $, MLBConfig) {
 
             // Trigger download
             const link = document.createElement('a');
-            link.download = 'mlb-era-vs-ops.jpg';
+            link.download = filename;
             link.href = offscreen.toDataURL('image/jpeg', 0.95);
             link.click();
 

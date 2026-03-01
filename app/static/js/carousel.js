@@ -117,6 +117,6 @@ const HeroCarousel = (function() {
         applySlide(0, false);
     }
 
-    return { initialize: initialize, goToSlide: goToSlide };
+    return { initialize: initialize, goToSlide: goToSlide, getCurrentSlide: function() { return currentSlide; } };
 
 })();
