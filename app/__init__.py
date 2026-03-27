@@ -146,6 +146,13 @@ def create_app():
             snapshot_count = MLBSnapshot.query.count()
             app.logger.info(f"App started with {snapshot_count} snapshots in database")
 
+            # Auto-correct season tags for snapshots created in late March before the
+            # March-20 Opening Day cutoff fix (e.g., March 26 2026 tagged as 2025).
+            try:
+                MLBSnapshot.backfill_season_tags()
+            except Exception as e:
+                app.logger.warning(f"Season tag backfill skipped: {e}")
+
             # Auto-backfill metadata for snapshots missing season/hash/count
             try:
                 from app.utils.auto_maintenance import AutoMaintenance

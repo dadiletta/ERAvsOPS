@@ -116,7 +116,7 @@ const MLBConfig = (function() {
         
         Toastify({
             text: message,
-            duration: 3000,
+            duration: 7000,
             close: true,
             gravity: "top",
             position: "right",

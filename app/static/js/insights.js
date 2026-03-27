@@ -29,6 +29,18 @@ function calculateLeagueAverages(teams, league) {
     const avgERA = totalERA / leagueTeams.length;
     const avgOPS = totalOPS / leagueTeams.length;
 
+    // WHIP average — only count teams that have the field (new snapshots only)
+    const teamsWithWhip = leagueTeams.filter(t => t.whip != null);
+    const avgWHIP = teamsWithWhip.length
+        ? (teamsWithWhip.reduce((s, t) => s + parseFloat(t.whip), 0) / teamsWithWhip.length).toFixed(2)
+        : 'N/A';
+
+    // Batting average — only count teams that have the field
+    const teamsWithAvg = leagueTeams.filter(t => t.batting_avg != null);
+    const avgAVG = teamsWithAvg.length
+        ? (teamsWithAvg.reduce((s, t) => s + parseFloat(t.batting_avg), 0) / teamsWithAvg.length).toFixed(3)
+        : 'N/A';
+
     // Find the best team based on ERA and OPS
     const bestTeam = leagueTeams.reduce((best, current) => {
         const currentScore = (1/parseFloat(current.era)) * parseFloat(current.ops);
@@ -53,9 +65,41 @@ function calculateLeagueAverages(teams, league) {
     return {
         avgERA: avgERA.toFixed(2),
         avgOPS: avgOPS.toFixed(3),
+        avgWHIP: avgWHIP,
+        avgAVG: avgAVG,
         bestTeam: bestTeam,
         pattern: pattern
     };
+}
+
+/**
+ * Find the current season leader for each tracked stat across all teams.
+ * Returns null for a stat when no team has data for it (e.g., old snapshots
+ * that predate WHIP/HR extraction).
+ *
+ * @param {Array} teams - Full list of 30 team objects from the API
+ * @returns {Object} bestERA, bestWHIP, bestOPS, mostHR — each a team object or null
+ */
+function findLeaders(teams) {
+    if (!teams || teams.length === 0) return { bestERA: null, bestWHIP: null, bestOPS: null, mostHR: null };
+
+    const valid = teams.filter(t => t.era && t.ops);
+    if (valid.length === 0) return { bestERA: null, bestWHIP: null, bestOPS: null, mostHR: null };
+
+    const bestERA  = valid.reduce((a, b) => parseFloat(a.era) < parseFloat(b.era) ? a : b);
+    const bestOPS  = valid.reduce((a, b) => parseFloat(a.ops) > parseFloat(b.ops) ? a : b);
+
+    const withWhip = valid.filter(t => t.whip != null);
+    const bestWHIP = withWhip.length
+        ? withWhip.reduce((a, b) => parseFloat(a.whip) < parseFloat(b.whip) ? a : b)
+        : null;
+
+    const withHR = valid.filter(t => t.home_runs != null);
+    const mostHR = withHR.length
+        ? withHR.reduce((a, b) => a.home_runs > b.home_runs ? a : b)
+        : null;
+
+    return { bestERA, bestWHIP, bestOPS, mostHR };
 }
 
 function analyzeDivisionPerformance(teams) {
@@ -152,14 +196,29 @@ function updateInsights(teams) {
         const nlStats = calculateLeagueAverages(teams, 'NL');
 
         document.getElementById('al-avg-era').textContent = alStats.avgERA;
+        document.getElementById('al-avg-whip').textContent = alStats.avgWHIP;
         document.getElementById('al-avg-ops').textContent = alStats.avgOPS;
+        document.getElementById('al-avg-avg').textContent = alStats.avgAVG;
         document.getElementById('al-best-team').textContent = alStats.bestTeam.name;
         document.getElementById('al-pattern').textContent = alStats.pattern;
 
         document.getElementById('nl-avg-era').textContent = nlStats.avgERA;
+        document.getElementById('nl-avg-whip').textContent = nlStats.avgWHIP;
         document.getElementById('nl-avg-ops').textContent = nlStats.avgOPS;
+        document.getElementById('nl-avg-avg').textContent = nlStats.avgAVG;
         document.getElementById('nl-best-team').textContent = nlStats.bestTeam.name;
         document.getElementById('nl-pattern').textContent = nlStats.pattern;
+
+        // Update Season Leaders card
+        const leaders = findLeaders(teams);
+        document.getElementById('leader-best-era').textContent =
+            leaders.bestERA ? `${leaders.bestERA.abbreviation} (${parseFloat(leaders.bestERA.era).toFixed(2)})` : '-';
+        document.getElementById('leader-best-whip').textContent =
+            leaders.bestWHIP ? `${leaders.bestWHIP.abbreviation} (${parseFloat(leaders.bestWHIP.whip).toFixed(2)})` : '-';
+        document.getElementById('leader-best-ops').textContent =
+            leaders.bestOPS ? `${leaders.bestOPS.abbreviation} (${parseFloat(leaders.bestOPS.ops).toFixed(3)})` : '-';
+        document.getElementById('leader-most-hr').textContent =
+            leaders.mostHR ? `${leaders.mostHR.abbreviation} (${leaders.mostHR.home_runs})` : '-';
 
         // Update performance trends with more insights
         const performanceTrends = analyzeDivisionPerformance(teams);

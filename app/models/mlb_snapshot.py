@@ -47,9 +47,9 @@ class MLBSnapshot(db.Model):
         # Auto-determine season from current date if not provided
         if season is None:
             now = datetime.now(timezone.utc)
-            # MLB season typically runs Apr-Oct, use year accordingly
-            # If Jan-Mar, use previous year; Apr-Dec use current year
-            season = now.year if now.month >= 4 else now.year - 1
+            # MLB Opening Day falls in late March; treat March 20+ as current season.
+            # Before March 20 (Jan–mid-Mar) still belongs to the previous season.
+            season = now.year if (now.month > 3 or (now.month == 3 and now.day >= 20)) else now.year - 1
 
         # Calculate hash for duplicate detection
         data_str = json.dumps(teams_data, sort_keys=True)
@@ -92,17 +92,54 @@ class MLBSnapshot(db.Model):
 
     @staticmethod
     def get_current_season():
-        """Determine the current MLB season year"""
+        """Determine the current MLB season year.
+
+        MLB Opening Day falls in late March. We treat March 20 onward as the
+        current season so that late-March game data is tagged correctly.
+        January through March 19 is still considered the previous season (off-season).
+        """
         now = datetime.now(timezone.utc)
-        # If Jan-Mar, use previous year; Apr-Dec use current year
-        return now.year if now.month >= 4 else now.year - 1
+        return now.year if (now.month > 3 or (now.month == 3 and now.day >= 20)) else now.year - 1
 
     @staticmethod
     def get_available_seasons():
         """Get list of seasons that have data in the database"""
         result = db.session.query(MLBSnapshot.season).distinct().order_by(MLBSnapshot.season.desc()).all()
         return [row[0] for row in result if row[0] is not None]
-    
+
+    @staticmethod
+    def backfill_season_tags():
+        """Auto-correct snapshot season tags saved before the March-20 Opening Day fix.
+
+        Prior to this fix, snapshots created in late March were tagged as the previous
+        year's season (e.g., March 26 2026 → season=2025). This method re-tags any such
+        snapshots to the correct season year. Safe to call on every app startup — it only
+        touches rows where the stored season disagrees with the March-20 cutoff rule.
+        """
+        import logging as _logging
+        from sqlalchemy import and_
+        _log = _logging.getLogger(__name__)
+
+        now = datetime.now(timezone.utc)
+        # Only years from 2026 onward can have Opening Day in late March.
+        # Use naive (timezone-unaware) datetimes for the comparison because SQLite
+        # stores timestamps without timezone info, making TZ-aware comparisons fail.
+        for year in range(2026, now.year + 1):
+            cutoff = datetime(year, 3, 20)   # naive UTC
+            end = datetime(year, 4, 1)       # naive UTC
+            wrong = MLBSnapshot.query.filter(
+                and_(
+                    MLBSnapshot.season == year - 1,
+                    MLBSnapshot.timestamp >= cutoff,
+                    MLBSnapshot.timestamp < end,
+                )
+            ).all()
+            if wrong:
+                for snap in wrong:
+                    snap.season = year
+                db.session.commit()
+                _log.info(f"backfill_season_tags: retagged {len(wrong)} snapshot(s) → season={year}")
+
     @property
     def timestamp_aware(self):
         """Return timestamp with timezone awareness if needed"""

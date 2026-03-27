@@ -52,11 +52,12 @@ class MLBDataFetcher:
         self.api_available = MLB_STATS_API_AVAILABLE
         logger.info(f"MLBDataFetcher initialized with API available: {self.api_available}")
 
-        # Determine current MLB season (not calendar year)
-        # If Jan-Mar, use previous year; Apr-Dec use current year
+        # Determine current MLB season (not calendar year).
+        # MLB Opening Day falls in late March, so treat March 20+ as the current season.
+        # January through March 19 is considered the previous season (off-season).
         now = datetime.now(timezone.utc)
-        self.current_year = now.year if now.month >= 4 else now.year - 1
-        logger.info(f"Using season year: {self.current_year} (current calendar year: {now.year}, month: {now.month})")
+        self.current_year = now.year if (now.month > 3 or (now.month == 3 and now.day >= 20)) else now.year - 1
+        logger.info(f"Using season year: {self.current_year} (current calendar year: {now.year}, month: {now.month}, day: {now.day})")
         
         # Hardcoded list of MLB team IDs with names and division information
         self._mlb_teams = [
@@ -342,23 +343,10 @@ class MLBDataFetcher:
                     team_record = {"wins": 0, "losses": 0}
                 
             except Exception as api_error:
-                # If the API call fails, log the error and return dummy data for testing
-                logger.error(f"MLB Stats API call failed: {str(api_error)}")
-                
-                # For testing purposes, return dummy data
-                return {
-                    "id": team_id,
-                    "name": team_name,
-                    "full_name": team['full_name'],
-                    "abbreviation": team_abbrev,
-                    "division": team_division,
-                    "league": team_league,
-                    "era": round(random.uniform(3.0, 5.0), 2),  # Random ERA between 3.0 and 5.0
-                    "ops": round(random.uniform(0.65, 0.85), 3),  # Random OPS between 0.65 and 0.85
-                    "wins": random.randint(5, 20),  # Random wins between 5 and 20
-                    "losses": random.randint(5, 20),  # Random losses between 5 and 20
-                    "logo": f"/static/logos/{team_name.lower()}.png"
-                }
+                # API call failed — return None so this team is excluded from the
+                # snapshot rather than polluting it with invented statistics.
+                logger.error(f"MLB Stats API call failed for {team_name}: {str(api_error)}")
+                return None
             
             # Extract ERA with improved validation
             era = None
@@ -369,8 +357,9 @@ class MLBDataFetcher:
                             if 'stat' in split and 'era' in split['stat']:
                                 try:
                                     era_value = float(split['stat']['era'])
-                                    # Validate ERA is within reasonable range
-                                    if 1.0 <= era_value <= 7.0:
+                                    # Wide range to accommodate early-season extremes
+                                    # (e.g., shutout ERA=0.0, bad-start ERA=27.0)
+                                    if 0.0 <= era_value <= 27.0:
                                         era = era_value
                                         logger.info(f"{team_name} ERA: {era}")
                                     else:
@@ -388,8 +377,9 @@ class MLBDataFetcher:
                             if 'stat' in split and 'ops' in split['stat']:
                                 try:
                                     ops_value = float(split['stat']['ops'])
-                                    # Validate OPS is within reasonable range
-                                    if 0.5 <= ops_value <= 1.0:
+                                    # Wide range to accommodate early-season extremes
+                                    # (e.g., OPS=0.388 with few at-bats, OPS=2.000 hot start)
+                                    if 0.0 <= ops_value <= 2.0:
                                         ops = ops_value
                                         logger.info(f"{team_name} OPS: {ops}")
                                     else:
@@ -431,18 +421,54 @@ class MLBDataFetcher:
             # Calculate run differential
             run_differential = runs_scored - runs_allowed
 
-            
+            # Extract WHIP from pitching stats (Walks + Hits per Inning Pitched)
+            whip = None
+            if pitching_stats and 'stats' in pitching_stats:
+                for stat_group in pitching_stats['stats']:
+                    if 'splits' in stat_group:
+                        for split in stat_group['splits']:
+                            if 'stat' in split and 'whip' in split['stat']:
+                                try:
+                                    v = float(split['stat']['whip'])
+                                    if 0.5 <= v <= 2.5:
+                                        whip = round(v, 2)
+                                        logger.info(f"{team_name} WHIP: {whip}")
+                                except (ValueError, TypeError) as e:
+                                    logger.error(f"Error converting WHIP for {team_name}: {str(e)}")
+                                break
+
+            # Extract batting average and home runs from hitting stats
+            batting_avg = None
+            home_runs = None
+            if hitting_stats and 'stats' in hitting_stats:
+                for stat_group in hitting_stats['stats']:
+                    if 'splits' in stat_group:
+                        for split in stat_group['splits']:
+                            stat = split.get('stat', {})
+                            if batting_avg is None and 'avg' in stat:
+                                try:
+                                    v = float(stat['avg'])
+                                    if 0.1 <= v <= 0.4:
+                                        batting_avg = round(v, 3)
+                                        logger.info(f"{team_name} Batting Avg: {batting_avg}")
+                                except (ValueError, TypeError) as e:
+                                    logger.error(f"Error converting batting avg for {team_name}: {str(e)}")
+                            if home_runs is None and 'homeRuns' in stat:
+                                try:
+                                    home_runs = int(stat['homeRuns'])
+                                    logger.info(f"{team_name} Home Runs: {home_runs}")
+                                except (ValueError, TypeError) as e:
+                                    logger.error(f"Error converting home runs for {team_name}: {str(e)}")
+                            if batting_avg is not None and home_runs is not None:
+                                break
+
             # Additional validation: Both values must be present
             if era is None or ops is None:
-                logger.warning(f"Missing data for {team_name} - ERA: {era}, OPS: {ops}")
-                # Generate fallback values for testing
-                if era is None:
-                    era = round(random.uniform(3.0, 5.0), 2)
-                    logger.info(f"Using fallback ERA for {team_name}: {era}")
-                
-                if ops is None:
-                    ops = round(random.uniform(0.65, 0.85), 3)
-                    logger.info(f"Using fallback OPS for {team_name}: {ops}")
+                # A team without ERA or OPS hasn't pitched or batted yet (e.g., opening
+                # day hasn't arrived). Exclude them from the snapshot entirely so they
+                # don't appear on the chart with invented statistics.
+                logger.info(f"Skipping {team_name} — no season data yet (ERA={era}, OPS={ops})")
+                return None
             
             # Get proper logo filename from team name
             logo_name = team_name.lower()
@@ -469,6 +495,10 @@ class MLBDataFetcher:
                 "runs_scored": runs_scored,
                 "runs_allowed": runs_allowed,
                 "run_differential": run_differential,
+                # Advanced pitching/hitting stats (None for old snapshots without this data)
+                "whip": whip,
+                "batting_avg": batting_avg,
+                "home_runs": home_runs,
                 "logo": f"/static/logos/{logo_name}.png",
                 # Playoff context — these fields are absent in old snapshots
                 # and will gracefully default to '-' in the UI
@@ -513,20 +543,20 @@ class MLBDataFetcher:
                             logger.warning(f"Skipping team with incomplete data: {team.get('name', 'Unknown')}")
                             continue
                             
-                        # Validate ERA is within reasonable range (1.0 to 7.0)
+                        # Validate ERA — wide range for early-season extremes (0.0–27.0)
                         try:
                             era = float(team['era'])
-                            if not (1.0 <= era <= 7.0):
+                            if not (0.0 <= era <= 27.0):
                                 logger.warning(f"Skipping team with invalid ERA {team['era']}: {team.get('name', 'Unknown')}")
                                 continue
                         except (ValueError, TypeError):
                             logger.warning(f"Skipping team with non-numeric ERA {team.get('era')}: {team.get('name', 'Unknown')}")
                             continue
                             
-                        # Validate OPS is within reasonable range (0.5 to 1.0)
+                        # Validate OPS — wide range for early-season extremes (0.0–2.0)
                         try:
                             ops = float(team['ops'])
-                            if not (0.5 <= ops <= 1.0):
+                            if not (0.0 <= ops <= 2.0):
                                 logger.warning(f"Skipping team with invalid OPS {team['ops']}: {team.get('name', 'Unknown')}")
                                 continue
                         except (ValueError, TypeError):

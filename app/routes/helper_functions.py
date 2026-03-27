@@ -268,8 +268,10 @@ def update_mlb_data(step=1, total_steps=30):
         # Log the batch results
         logger.info(f"Received batch of {len(batch)} teams")
         
-        # Update progress
-        update_status["teams_updated"] += len(batch)
+        # Advance by the number of teams *attempted* (not just successes) so
+        # teams that fail all retries don't block the batch index indefinitely.
+        attempted = min(step, update_status["total_teams"] - start_index)
+        update_status["teams_updated"] += attempted
         
         # If made progress, collect the data
         if len(batch) > 0:

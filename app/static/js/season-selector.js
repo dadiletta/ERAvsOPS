@@ -35,33 +35,56 @@ const MLBSeasonSelector = (function(window, document, $, MLBConfig) {
                 availableSeasons = data.seasons || [];
                 currentSeason = data.current_season;
 
-                logger.log(`Available seasons: ${availableSeasons.join(', ')}`);
-                logger.log(`Current season: ${currentSeason}`);
+                // Only show years that actually have data — no placeholder entries.
+                const currentInDB = availableSeasons.includes(currentSeason);
 
-                createSeasonSelector();
+                // Default the dropdown to current season if it has data, else the
+                // most recent year in the DB (which is what the server rendered).
+                const defaultSeason = currentInDB ? currentSeason : (availableSeasons[0] || null);
+
+                logger.log(`Available seasons: ${availableSeasons.join(', ')}`);
+                logger.log(`Current MLB season: ${currentSeason}, defaulting dropdown to: ${defaultSeason}`);
+
+                createSeasonSelector(defaultSeason);
+
+                if (currentInDB) {
+                    // Current season has data — sync chart and standings with it.
+                    reloadDataForSeason(currentSeason);
+                }
+                // If currentSeason is not in the DB, leave the server-rendered data
+                // (previous season) on the chart; the stale overlay handles the UX.
             })
             .catch(err => {
                 logger.error('Error fetching seasons:', err);
             });
+
+        // When a fresh update completes, hide the overlay — current season now has data.
+        $(document).on('freshDataLoaded', function() {
+            hideStaleOverlay();
+        });
     }
 
     /**
      * Build the pill-style Bootstrap dropdown for season selection.
-     * Skips creation if the dropdown already exists in the DOM.
+     * Dropdown is populated only from years that exist in the database.
+     *
+     * @param {number|null} defaultSeason - The season to mark active initially.
+     *   Typically the current season when it has data, or the most recent year
+     *   in the DB when the current season has no snapshot yet.
      */
-    function createSeasonSelector() {
+    function createSeasonSelector(defaultSeason) {
         if ($('.year-selector-pill .dropdown').length > 0) {
             return;
         }
 
-        const displayYear = currentSeason || 'All';
+        const displayYear = defaultSeason || 'All';
 
-        const allIsSelected = !currentSeason;
+        const allIsSelected = !defaultSeason;
         const dropdownItems = [
             `<li><a class="dropdown-item ${allIsSelected ? 'active' : ''}" href="#" data-season="">All</a></li>`
         ].concat(
             availableSeasons.map(season => {
-                const isSelected = season === currentSeason;
+                const isSelected = season === defaultSeason;
                 return `<li><a class="dropdown-item ${isSelected ? 'active' : ''}" href="#" data-season="${season}">${season}</a></li>`;
             })
         ).join('');
@@ -148,10 +171,15 @@ const MLBSeasonSelector = (function(window, document, $, MLBConfig) {
 
                 // Rebuild standings tables from JSON (replacing Jinja-rendered HTML)
                 updateStandingsTables(standingsData);
+                hideStaleOverlay();
 
                 logger.log(`Season ${season || 'latest'} loaded: ${teamResponse.teams.length} teams`);
             } else {
-                logger.error('No team data returned for season: ' + (season || 'latest'));
+                // No data for this season yet — keep existing chart visible but
+                // show the overlay so the user knows the data is from another year.
+                logger.log('No team data for season ' + (season || 'latest') + ' — showing stale overlay');
+                updateStandingsTables(standingsData);
+                showStaleOverlay(season);
             }
         }).catch(err => {
             logger.error('Error loading season data:', err);
@@ -264,6 +292,32 @@ const MLBSeasonSelector = (function(window, document, $, MLBConfig) {
                 </div>
             </div>
         `;
+    }
+
+    /**
+     * Show the chart stale overlay with the appropriate season label.
+     * Updates overlay text to reflect whichever year was requested but has no data.
+     * @param {string|number} season - Season year with no data, or falsy for current
+     */
+    function showStaleOverlay(season) {
+        const overlay = document.getElementById('chart-stale-overlay');
+        if (!overlay) return;
+        const mlbCurrentSeason = window.currentMLBSeason || season || '';
+        const msgEl = overlay.querySelector('.chart-stale-message');
+        const subEl = overlay.querySelector('.chart-stale-sub');
+        if (msgEl) msgEl.innerHTML = `Showing previous season data`;
+        if (subEl) subEl.innerHTML = `No ${mlbCurrentSeason} stats yet &mdash; select a season below or click <strong>Update</strong>`;
+        overlay.style.display = 'flex';
+    }
+
+    /**
+     * Hide the chart stale overlay (current-season data is now loaded).
+     */
+    function hideStaleOverlay() {
+        const overlay = document.getElementById('chart-stale-overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
     }
 
     /**

@@ -97,7 +97,9 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
         /** The last percentage at which we showed a trivia toast */
         lastTriviaPercent: -10,
         /** Timestamp of the last toast shown during an update (ms since epoch) */
-        lastToastTime: 0
+        lastToastTime: 0,
+        /** Prevents overlapping /continue-update POSTs while a batch is in flight */
+        isBatchInFlight: false
     };
 
     /**
@@ -125,12 +127,12 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
                 }
 
                 if (status.in_progress) {
-                    if (status.teams_updated < status.total_teams) {
+                    if (status.teams_updated < status.total_teams && !state.isBatchInFlight) {
                         continueUpdate();
                     }
 
-                    // If 20+ seconds have passed without any toast, show trivia
-                    if (state.isUpdating && Date.now() - state.lastToastTime >= 20000) {
+                    // If 5+ seconds have passed without any toast, show trivia
+                    if (state.isUpdating && Date.now() - state.lastToastTime >= 5000) {
                         showToast(getRandomTrivia(), "info");
                         state.lastToastTime = Date.now();
                     }
@@ -231,6 +233,12 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
      * milestones instead of generic percentage messages.
      */
     function continueUpdate() {
+        if (state.isBatchInFlight) {
+            logger.log("Skipping continueUpdate — batch already in flight");
+            return;
+        }
+
+        state.isBatchInFlight = true;
         logger.log("Continuing update process");
 
         fetch('/api/continue-update', {
@@ -245,6 +253,7 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
             return response.json();
         })
         .then(status => {
+            state.isBatchInFlight = false;
             logger.log("Update continued successfully", status);
 
             const previousPercent = state.lastStatus ?
@@ -254,9 +263,9 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
 
             const timeSinceLastToast = Date.now() - state.lastToastTime;
             const percentThresholdHit = currentPercent - state.lastTriviaPercent >= 20;
-            const timeThresholdHit = timeSinceLastToast >= 20000;
+            const timeThresholdHit = timeSinceLastToast >= 5000;
 
-            // Show a toast at ~every 20% of progress OR if 20+ seconds of silence
+            // Show a toast at ~every 20% of progress OR if 5+ seconds of silence
             if (percentThresholdHit || timeThresholdHit) {
                 if (percentThresholdHit) {
                     state.lastTriviaPercent = currentPercent;
@@ -278,6 +287,7 @@ const MLBAPI = (function(window, document, $, MLBConfig) {
             }
         })
         .catch(error => {
+            state.isBatchInFlight = false;
             console.error("Error continuing update:", error);
             showToast(`Error continuing update: ${error.message || 'Network error'}`, "error");
 

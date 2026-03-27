@@ -129,6 +129,19 @@
     background: var(--insight-performance-color);
 }
 
+/* Season Leaders card — gold accent overrides the default performance teal */
+.insights-card.leaders::before {
+    background: #f5a623;
+}
+
+.insights-card.leaders h3 {
+    color: #c8841a;
+}
+
+[data-theme="dark"] .insights-card.leaders h3 {
+    color: #f5a623;
+}
+
 /* Direction indicators */
 .metric-value.improving,
 .era-change.improving,
